@@ -4,6 +4,7 @@ import os.path as osp
 import sys
 import time
 
+from garage.misc.ext import set_seed
 import joblib
 import matplotlib
 from matplotlib import cm
@@ -50,7 +51,11 @@ def rollout(env,
     path_length = 0
     while path_length < max_path_length:
         a, agent_info = agent.get_action_from_latent(z, o)
-        next_o, r, d, env_info = env.step(a)
+        a_mean = agent_info['mean']
+        a_log_std = agent_info['log_std']
+        rnd = np.random.normal(size=a_mean.shape)
+        resampled_a = rnd * np.exp(a_log_std) + a_mean
+        next_o, r, d, env_info = env.step(resampled_a)
         observations.append(agent.observation_space.flatten(o))
         path_length += 1
         if d:
@@ -187,7 +192,7 @@ def play(pkl_file):
                 task_envs[0],
                 policy,
                 z,
-                max_path_length=120,
+                max_path_length=400,
                 animated=True,
                 goal_markers=goals,
             )
@@ -200,43 +205,43 @@ def play(pkl_file):
                     task_envs[0],
                     policy,
                     z,
-                    max_path_length=120,
+                    max_path_length=400,
                     animated=True,
                     goal_markers=goals,
                 )
 
-            # print("Rollout policy given mean embedding of tasks {} and {}".format(1, 3))
-            # z = (z_means[0] + z_means[2]) / 2
-            # rollout(
-            #     task_envs[0],
-            #     policy,
-            #     z,
-            #     max_path_length=500,
-            #     animated=True,
-            #     goal_markers=goals,
-            # )
-            #
-            # print("Rollout policy given mean embedding of tasks {} and {}".format(2, 4))
-            # z = (z_means[1] + z_means[3]) / 2
-            # rollout(
-            #     task_envs[0],
-            #     policy,
-            #     z,
-            #     max_path_length=500,
-            #     animated=True,
-            #     goal_markers=goals,
-            # )
-            #
-            # print("Rollout policy given mean embedding of tasks {} and {}".format(1, 4))
-            # z = (z_means[0] + z_means[3]) / 2
-            # rollout(
-            #     task_envs[0],
-            #     policy,
-            #     z,
-            #     max_path_length=500,
-            #     animated=True,
-            #     goal_markers=goals,
-            # )
+            print("Rollout policy given mean embedding of tasks {} and {}".format(1, 3))
+            z = (z_means[0] + z_means[2]) / 2
+            rollout(
+                task_envs[0],
+                policy,
+                z,
+                max_path_length=500,
+                animated=True,
+                goal_markers=goals,
+            )
+
+            print("Rollout policy given mean embedding of tasks {} and {}".format(2, 4))
+            z = (z_means[1] + z_means[3]) / 2
+            rollout(
+                task_envs[0],
+                policy,
+                z,
+                max_path_length=500,
+                animated=True,
+                goal_markers=goals,
+            )
+
+            print("Rollout policy given mean embedding of tasks {} and {}".format(1, 4))
+            z = (z_means[0] + z_means[3]) / 2
+            rollout(
+                task_envs[0],
+                policy,
+                z,
+                max_path_length=500,
+                animated=True,
+                goal_markers=goals,
+            )
 
 
 def get_mean_embedding1(z1, z2, alpha):
@@ -252,5 +257,7 @@ if __name__ == "__main__":
     parser.add_argument('pkl_file', metavar='pkl_file', type=str,
                     help='.pkl file containing the policy')
     args = parser.parse_args()
+
+    set_seed(1)
 
     play(args.pkl_file)

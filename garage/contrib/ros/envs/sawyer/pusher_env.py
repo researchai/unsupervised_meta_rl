@@ -31,6 +31,7 @@ class PusherEnv(SawyerEnv, Serializable):
     def __init__(self,
                  initial_goal,
                  initial_joint_pos,
+                 blocks,
                  sparse_reward=False,
                  simulated=False,
                  distance_threshold=0.05,
@@ -83,6 +84,7 @@ class PusherEnv(SawyerEnv, Serializable):
             moveit_group=self._moveit_group_name)
         self._world = BlockWorld(self._moveit_scene,
                                  self._moveit_robot.get_planning_frame(),
+                                 blocks,
                                  simulated)
 
         SawyerEnv.__init__(self,

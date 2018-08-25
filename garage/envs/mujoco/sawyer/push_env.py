@@ -393,6 +393,7 @@ class PushEnv(SawyerEnv):
         self._step += 1
 
         obs = self.get_obs()
+        print(obs)
 
         self._achieved_goal = obs.get('achieved_goal')
         self._desired_goal = obs.get('desired_goal')

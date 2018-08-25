@@ -1,0 +1,30 @@
+<robot name="push_block">
+  <link name="push_block">
+    <inertial>
+      <origin xyz="0.064 0.03 0.0275" />
+      <mass value="0.7" />
+      <!-- (1/12)*mass*(h^2 + d^2)  (1/12)*mass*(w^2 + d^2) (1/12)*mass*(w^2 + h^2) -->
+      <!-- (1/12)*0.5*(0.045^2 + 0.045^2)  (1/12)*0.5*(0.045^2 + 0.045^2) (1/12)*0.5*(0.045^2 + 0.045^2) -->
+      <!--inertia  ixx="0.00016874999" ixy="0.0"  ixz="0.0"  iyy="0.00016874999"  iyz="0.0"  izz="0.00016874999" /-->
+      <inertia  ixx="0.001" ixy="0.0"  ixz="0.0"  iyy="0.001"  iyz="0.0"  izz="0.001" />
+
+    </inertial>
+    <visual>
+      <origin xyz="0.064 0.03 0.0275"/>
+      <geometry>
+        <box size="0.128 0.06 0.045" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.064 0.03 0.0275"/>
+      <geometry>
+        <box size="0.128 0.06 0.045" />
+      </geometry>
+    </collision>
+  </link>
+  <gazebo reference="push_block">
+    <material>Gazebo/Yellow</material>
+     <mu1>1000000000</mu1>
+     <mu2>1000000000</mu2>
+  </gazebo>
+</robot>

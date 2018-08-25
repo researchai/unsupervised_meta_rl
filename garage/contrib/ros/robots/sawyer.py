@@ -18,7 +18,8 @@ class Sawyer(Robot):
     def __init__(self,
                  initial_joint_pos,
                  moveit_group,
-                 control_mode='position'):
+                 control_mode='inc_position',
+                 tip_name='right_gripper_tip'):
         """
         Sawyer class.
 
@@ -29,12 +30,13 @@ class Sawyer(Robot):
         :param moveit_group: str
                         Use this to check safety
         :param control_mode: string
-                        robot control mode: 'position' or velocity
-                        or effort
+                        robot control mode: 'inc_position', 'abs_position', or 'velocity'
+                        or 'effort'
         """
         Robot.__init__(self)
         self._limb = intera_interface.Limb('right')
         self._gripper = intera_interface.Gripper()
+        self._tip_name = tip_name
         self._initial_joint_pos = initial_joint_pos
         self._control_mode = control_mode
         self._used_joints = []
@@ -111,20 +113,24 @@ class Sawyer(Robot):
         return intera_interface.RobotEnable(
             intera_interface.CHECK_VERSION).state().enabled
 
-    def _set_limb_joint_positions(self, commands):
+    def _set_limb_joint_positions(self, commands, increment=True):
         """
         Set limb joint positions.
 
         :param commands: np.array[float]
                 'right_j0 -> right_j7'
+        :param increment: bool
         """
-        current_joint_positions = self.limb_joint_positions
+        if increment:
+            current_joint_positions = self.limb_joint_positions
 
-        next_joint_positions = current_joint_positions + commands
+            next_joint_positions = current_joint_positions + commands
 
-        next_joint_positions = np.clip(next_joint_positions,
-                                       self.joint_position_limits.low,
-                                       self.joint_position_limits.high)
+            next_joint_positions = np.clip(next_joint_positions,
+                                           self.joint_position_limits.low,
+                                           self.joint_position_limits.high)
+        else:
+            next_joint_positions = commands
 
         joint_angle_cmds = {}
 
@@ -153,17 +159,39 @@ class Sawyer(Robot):
     def _set_gripper_position(self, position):
         self._gripper.set_position(position)
 
-    def _move_to_start_position(self):
+    def reset(self,
+              start_joint_angles=None,
+              start_gripper_pose=None,
+              open_gripper=True):
+        """
+        Reset robot at the beginning of every episode.
+
+        :param start_joint_angles: {dict}
+                {'right_j{}': float}
+        :param start_gripper_pose:
+        :param open_gripper: bool
+                true for open gripper
+        """
         if rospy.is_shutdown():
             return
-        self._limb.move_to_joint_positions(
-            self._initial_joint_pos, timeout=60.0)
-        self._gripper.open()
-        rospy.sleep(1.0)
+        if start_joint_angles is not None:
+            self._limb.move_to_joint_positions(
+                start_joint_angles, timeout=5.0)
+        elif start_gripper_pose is not None:
+            start_joint_angles = self._limb.ik_request(start_gripper_pose, self._tip_name)
+            if start_joint_angles:
+                self._limb.move_to_joint_positions(
+                    start_joint_angles, timeout=5.0)
+            else:
+                rospy.logerr('No Joint Angles provided for move_to_joint_positions. Staying put.')
+        else:
+            self._limb.move_to_joint_positions(
+                self._initial_joint_pos, timeout=5.0)
 
-    def reset(self):
-        """Reset sawyer."""
-        self._move_to_start_position()
+        if open_gripper:
+            self._gripper.open()
+
+        rospy.sleep(1.0)
 
     def get_observation(self):
         """
@@ -230,8 +258,10 @@ class Sawyer(Robot):
         action_space = self.action_space
         commands = np.clip(commands, action_space.low, action_space.high)
 
-        if self._control_mode == 'position':
-            self._set_limb_joint_positions(commands[:7])
+        if self._control_mode == 'inc_position':
+            self._set_limb_joint_positions(commands[:7], True)
+        elif self._control_mode == 'abs_position':
+            self._set_limb_joint_positions(commands[:7], False)
         elif self._control_mode == 'velocity':
             self._set_limb_joint_velocities(commands[:7])
         elif self._control_mode == 'effort':
@@ -260,7 +290,14 @@ class Sawyer(Robot):
         for i in range(7):
             joint = 'right_j{}'.format(i)
             joint_idx = self._joint_limits.joint_names.index(joint)
-            if self._control_mode == 'position':
+            if self._control_mode == 'abs_position':
+                lower_bounds = np.concatenate(
+                    (lower_bounds, np.array([self.joint_position_limits.low[i]]))
+                )
+                upper_bounds = np.concatenate(
+                    (upper_bounds, np.array([self.joint_position_limits.high[i]]))
+                )
+            if self._control_mode == 'inc_position':
                 lower_bounds = np.concatenate(
                     (lower_bounds, np.array([-0.04])))
                 upper_bounds = np.concatenate(

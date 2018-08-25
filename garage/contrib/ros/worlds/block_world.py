@@ -174,9 +174,9 @@ class Block(object):
 
 
 class BlockWorld(World):
-    def __init__(self, moveit_scene, frame_id, simulated=False):
+    def __init__(self, moveit_scene, frame_id, blocks, simulated=False):
         """Users use this to manage world and get world state."""
-        self._blocks = []
+        self._blocks = blocks
         self._simulated = simulated
         self._block_states_subs = []
         self._moveit_scene = moveit_scene
@@ -193,17 +193,13 @@ class BlockWorld(World):
             Gazebo.load_gazebo_model(
                 'table',
                 Pose(position=Point(x=0.75, y=0.0, z=0.0)),
-                osp.join(World.MODEL_DIR, 'cafe_table/model.sdf'))
-            Gazebo.load_gazebo_model(
-                'block',
-                Pose(position=Point(x=0.5725, y=0.1265, z=0.05)),
-                osp.join(World.MODEL_DIR, 'block/model.urdf'))
-            block_name = 'block_{}'.format(len(self._blocks))
-            block = Block(
-                name=block_name,
-                initial_pos=(0.5725, 0.1265, 0.05),
-                random_delta_range=0.15,
-                resource=osp.join(World.MODEL_DIR, 'block/model.urdf'))
+                osp.join(World.MODEL_DIR, 'table/model.sdf'))
+
+            for block in self._blocks:
+                Gazebo.load_gazebo_model(
+                    block.name,
+                    Pose(position=block.initial_pos),
+                    block.resource)
             try:
                 block_states_sub = rospy.Subscriber(
                     '/gazebo/model_states', ModelStates,
@@ -217,7 +213,6 @@ class BlockWorld(World):
                     "Topic /gazebo/model_states is not available, aborting...")
                 print("Error message: ", e)
                 exit()
-            self._blocks.append(block)
         else:
             try:
                 self._sawyer_cali_marker_sub = rospy.Subscriber(
@@ -236,7 +231,7 @@ class BlockWorld(World):
                 block = Block(
                     name=block_name,
                     size=[0.1, 0.15, 0.065],
-                    initial_pos=(0.55, 0., 0.06),
+                    initial_pos=(0.55, 0., 0.03),
                     random_delta_range=0.15,
                     resource=vicon_topic)
                 try:
@@ -254,7 +249,6 @@ class BlockWorld(World):
                     exit()
                 self._blocks.append(block)
 
-
         # Add table to moveit
         # moveit needs a sleep before adding object
         rospy.sleep(1)
@@ -271,26 +265,27 @@ class BlockWorld(World):
         self._moveit_scene.add_box('table', pose_stamped_table,
                                    (1.0, 0.9, 0.1))
         # Add calibration marker to moveit
-        rospy.sleep(1)
-        pose_stamped_marker = PoseStamped()
-        pose_stamped_marker.header.frame_id = self._frame_id
-        pose_stamped_marker.pose.position.x = 1.055
-        pose_stamped_marker.pose.position.y = -0.404
-        # Leave redundant space
-        pose_stamped_marker.pose.position.z = 0.06
-        pose_stamped_marker.pose.orientation.x = 0
-        pose_stamped_marker.pose.orientation.y = 0
-        pose_stamped_marker.pose.orientation.z = 0
-        pose_stamped_marker.pose.orientation.w = 1.0
-        self._moveit_scene.add_box('marker', pose_stamped_marker,
-                                   (0.09, 0.08, 0.06))
+        if self._simulated:
+            rospy.sleep(1)
+            pose_stamped_marker = PoseStamped()
+            pose_stamped_marker.header.frame_id = self._frame_id
+            pose_stamped_marker.pose.position.x = 1.055
+            pose_stamped_marker.pose.position.y = -0.404
+            # Leave redundant space
+            pose_stamped_marker.pose.position.z = 0.06
+            pose_stamped_marker.pose.orientation.x = 0
+            pose_stamped_marker.pose.orientation.y = 0
+            pose_stamped_marker.pose.orientation.z = 0
+            pose_stamped_marker.pose.orientation.w = 1.0
+            self._moveit_scene.add_box('marker', pose_stamped_marker,
+                                       (0.09, 0.08, 0.06))
+
         # Add blocks to moveit
         for block in self._blocks:
             rospy.sleep(1)
             pose_stamped_block = PoseStamped()
             pose_stamped_block.header.frame_id = self._frame_id
             pos = block.position
-            pos.z += 0.03
             pose_stamped_block.pose.position = pos
             orientation = block.orientation
             pose_stamped_block.pose.orientation = orientation
@@ -370,7 +365,6 @@ class BlockWorld(World):
         move_object.header.frame_id = self._frame_id
         pose = Pose()
         pose.position = block.position
-        pose.position.z += 0.03
         pose.orientation = block.orientation
         move_object.primitive_poses.append(pose)
         move_object.operation = move_object.MOVE
@@ -402,6 +396,17 @@ class BlockWorld(World):
                         x=block.initial_pos.x + block_random_delta[0],
                         y=block.initial_pos.y + block_random_delta[1],
                         z=block.initial_pos.z)))
+
+    def set_sim_block_pos(self, block_name, position):
+        assert self._simulated
+        for block in self._blocks:
+            if block.name == block_name:
+                Gazebo.set_model_pose(
+                    block_name,
+                    new_pose=Pose(
+                        position=position
+                    )
+                )
 
     def _reset_real(self):
         """

@@ -1,7 +1,7 @@
-<robot name="block">
-  <link name="block">
+<robot name="pnp_block">
+  <link name="pnp_block">
     <inertial>
-      <origin xyz="0.025 0.025 0.025" />
+      <origin xyz="0.064 0.0275 0.03" />
       <mass value="0.7" />
       <!-- (1/12)*mass*(h^2 + d^2)  (1/12)*mass*(w^2 + d^2) (1/12)*mass*(w^2 + h^2) -->
       <!-- (1/12)*0.5*(0.045^2 + 0.045^2)  (1/12)*0.5*(0.045^2 + 0.045^2) (1/12)*0.5*(0.045^2 + 0.045^2) -->
@@ -10,20 +10,20 @@
 
     </inertial>
     <visual>
-      <origin xyz="0.025 0.025 0.025"/>
+      <origin xyz="0.064 0.0275 0.03"/>
       <geometry>
-        <box size="0.050 0.050 0.050" />
+        <box size="0.128 0.045 0.06" />
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0.025 0.025 0.025"/>
+      <origin xyz="0.064 0.0275 0.03"/>
       <geometry>
-        <box size="0.050 0.050 0.050" />
+        <box size="0.128 0.045 0.06" />
       </geometry>
     </collision>
   </link>
-  <gazebo reference="block">
-    <material>Gazebo/Red</material>
+  <gazebo reference="pnp_block">
+    <material>Gazebo/Yellow</material>
      <mu1>1000000000</mu1>
      <mu2>1000000000</mu2>
   </gazebo>
