@@ -407,6 +407,7 @@ class BlockWorld(World):
                         position=position
                     )
                 )
+        rospy.sleep(1)
 
     def _reset_real(self):
         """

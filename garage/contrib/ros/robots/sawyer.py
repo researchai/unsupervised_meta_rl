@@ -297,7 +297,7 @@ class Sawyer(Robot):
                 upper_bounds = np.concatenate(
                     (upper_bounds, np.array([self.joint_position_limits.high[i]]))
                 )
-            if self._control_mode == 'inc_position':
+            elif self._control_mode == 'inc_position':
                 lower_bounds = np.concatenate(
                     (lower_bounds, np.array([-0.04])))
                 upper_bounds = np.concatenate(
