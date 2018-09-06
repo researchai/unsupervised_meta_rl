@@ -234,6 +234,14 @@ class Sawyer(Robot):
         return limb_joint_angles
 
     @property
+    def limb_joint_velocities(self):
+        limb_joint_velocities = self._limb.joint_velocities()
+
+        limb_joint_velocities = np.array(
+            [limb_joint_velocities['right_j{}'.format(i)] for i in range(7)])
+        return limb_joint_velocities
+
+    @property
     def observation_space(self):
         """
         Observation space.
@@ -267,7 +275,8 @@ class Sawyer(Robot):
         elif self._control_mode == 'effort':
             self._set_limb_joint_torques(commands[:7])
 
-        self._set_gripper_position(commands[7])
+        if commands.shape[-1] > 7:
+            self._set_gripper_position(commands[7])
 
     @property
     def gripper_pose(self):
