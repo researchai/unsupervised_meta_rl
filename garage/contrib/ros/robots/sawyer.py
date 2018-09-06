@@ -176,22 +176,20 @@ class Sawyer(Robot):
             return
         if start_joint_angles is not None:
             self._limb.move_to_joint_positions(
-                start_joint_angles, timeout=5.0)
+                start_joint_angles, timeout=3.0)
         elif start_gripper_pose is not None:
             start_joint_angles = self._limb.ik_request(start_gripper_pose, self._tip_name)
             if start_joint_angles:
                 self._limb.move_to_joint_positions(
-                    start_joint_angles, timeout=5.0)
+                    start_joint_angles, timeout=3.0)
             else:
                 rospy.logerr('No Joint Angles provided for move_to_joint_positions. Staying put.')
         else:
             self._limb.move_to_joint_positions(
-                self._initial_joint_pos, timeout=5.0)
+                self._initial_joint_pos, timeout=3.0)
 
         if open_gripper:
             self._gripper.open()
-
-        rospy.sleep(1.0)
 
     def get_observation(self):
         """
@@ -263,9 +261,6 @@ class Sawyer(Robot):
                     'right_j0' -> 'right_j6' -> 'gripper'
                     list of command for different joints and gripper
         """
-        action_space = self.action_space
-        commands = np.clip(commands, action_space.low, action_space.high)
-
         if self._control_mode == 'inc_position':
             self._set_limb_joint_positions(commands[:7], True)
         elif self._control_mode == 'abs_position':
