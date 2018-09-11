@@ -149,10 +149,12 @@ class Sawyer(Robot):
         self._limb.set_joint_velocities(joint_angle_cmds)
 
     def _set_limb_joint_torques(self, commands):
-        joint_angle_cmds = {}
-
-        for i in range(7):
-            joint_angle_cmds['right_j{}'.format(i)] = commands[i]
+        joint_angle_cmds = {'right_j0': commands[0],
+                            'right_j1': commands[1],
+                            'right_j3': commands[2],
+                            'right_j4': commands[3],
+                            'right_j5': commands[4],
+                            'right_j6': commands[5]}
 
         self._limb.set_joint_torques(joint_angle_cmds)
 
@@ -268,13 +270,13 @@ class Sawyer(Robot):
         elif self._control_mode == 'velocity':
             self._set_limb_joint_velocities(commands[:7])
         elif self._control_mode == 'effort':
-            self._set_limb_joint_torques(commands[:7])
+            self._set_limb_joint_torques(commands[:6])
         elif self._control_mode == 'state':
             self._set_limb_joint_positions(commands[:7], False)
             self._set_limb_joint_velocities(commands[7:])
 
-        if commands.shape[-1] > 7:
-            self._set_gripper_position(commands[7])
+        if commands.shape[-1] > 7 or self._control_mode == 'effort':
+            self._set_gripper_position(commands[-1])
 
     @property
     def gripper_pose(self):
