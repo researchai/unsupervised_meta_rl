@@ -192,8 +192,8 @@ class BlockWorld(World):
         if self._simulated:
             Gazebo.load_gazebo_model(
                 'table',
-                Pose(position=Point(x=0.75, y=0.0, z=0.0)),
-                osp.join(World.MODEL_DIR, 'table/model.sdf'))
+                Pose(position=Point(x=0.35, y=-0.5, z=0.85)),
+                osp.join(World.MODEL_DIR, 'table/model.urdf'))
 
             for block in self._blocks:
                 Gazebo.load_gazebo_model(
@@ -384,11 +384,11 @@ class BlockWorld(World):
         # Randomize start position of blocks
         for block in self._blocks:
             block_random_delta = np.zeros(2)
-            while np.linalg.norm(block_random_delta) < 0.1:
-                block_random_delta = np.random.uniform(
-                    -block.random_delta_range,
-                    block.random_delta_range,
-                    size=2)
+            # while np.linalg.norm(block_random_delta) < 0.1:
+            #     block_random_delta = np.random.uniform(
+            #         -block.random_delta_range,
+            #         block.random_delta_range,
+            #         size=2)
             Gazebo.set_model_pose(
                 block.name,
                 new_pose=Pose(
