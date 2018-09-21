@@ -1,8 +1,8 @@
-<robot name="pnp_tray">
-  <link name="pnp_tray">
+<robot name="pnp_block_red">
+  <link name="pnp_block_red">
     <inertial>
-      <origin xyz="0.05 0.05 0.0005" />
-      <mass value="0.7" />
+      <origin xyz="0.025 0.025 0.025" />
+      <mass value="0.01" />
       <!-- (1/12)*mass*(h^2 + d^2)  (1/12)*mass*(w^2 + d^2) (1/12)*mass*(w^2 + h^2) -->
       <!-- (1/12)*0.5*(0.045^2 + 0.045^2)  (1/12)*0.5*(0.045^2 + 0.045^2) (1/12)*0.5*(0.045^2 + 0.045^2) -->
       <!--inertia  ixx="0.00016874999" ixy="0.0"  ixz="0.0"  iyy="0.00016874999"  iyz="0.0"  izz="0.00016874999" /-->
@@ -10,20 +10,21 @@
 
     </inertial>
     <visual>
-      <origin xyz="0.05 0.05 0.00025"/>
+      <origin xyz="0.025 0.025 0.025"/>
       <geometry>
-        <box size="0.10 0.10 0.0005" />
+        <box size="0.05 0.05 0.05" />
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0.05 0.05 0.00025"/>
+      <origin xyz="0.025 0.025 0.025"/>
       <geometry>
-        <box size="0.10 0.10 0.0005" />
+        <box size="0.05 0.05 0.05" />
       </geometry>
     </collision>
   </link>
-  <gazebo reference="pnp_tray">
-    <material>Gazebo/Black</material>
-    <static>true</static>
+  <gazebo reference="pnp_block_red">
+    <material>Gazebo/Red</material>
+     <mu1>100</mu1>
+     <mu2>100</mu2>
   </gazebo>
 </robot>

@@ -177,17 +177,17 @@ class Sawyer(Robot):
             return
         if start_joint_angles is not None:
             self._limb.move_to_joint_positions(
-                start_joint_angles, timeout=1.5)
+                start_joint_angles, timeout=10)
         elif start_gripper_pose is not None:
             start_joint_angles = self._limb.ik_request(start_gripper_pose, self._tip_name)
             if start_joint_angles:
                 self._limb.move_to_joint_positions(
-                    start_joint_angles, timeout=1.5)
+                    start_joint_angles, timeout=10)
             else:
                 rospy.logerr('No Joint Angles provided for move_to_joint_positions. Staying put.')
         else:
             self._limb.move_to_joint_positions(
-                self._initial_joint_pos, timeout=1.5)
+                self._initial_joint_pos, timeout=10)
 
         if open_gripper:
             self._gripper.open()
