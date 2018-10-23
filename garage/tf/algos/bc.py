@@ -1,158 +1,135 @@
+import numpy as np
 import tensorflow as tf
 
 from garage.misc import logger
 from garage.misc.overrides import overrides
-from garage.tf.algos import BatchPolopt
+from garage.tf.algos import OffPolicyRLAlgorithm
 from garage.tf.misc import tensor_utils
-from garage.tf.samplers import FixedSampler
-from garage.tf.misc.tensor_utils import flatten_inputs
-from garage.tf.misc.tensor_utils import graph_inputs
-from garage.tf.optimizers import LbfgsOptimizer
 
 
-class BC(BatchPolopt):
+class BC(OffPolicyRLAlgorithm):
     def __init__(self,
-                 optimizer=None,
-                 optimizer_args=None,
-                 sampler_cls=None,
-                 sampler_args=None,
-                 name="BC",
-                 policy=None,
+                 policy_lr=1e-4,
+                 policy_optimizer=tf.train.AdamOptimizer,
+                 name=None,
                  **kwargs):
         self.name = name
-        self._name_scope = tf.name_scope(self.name)
+        self.policy_lr = policy_lr
+        self.policy_optimizer = policy_optimizer
 
-        if optimizer is None:
-            if optimizer_args is None:
-                optimizer_args = dict()
-            optimizer = LbfgsOptimizer
-
-        if sampler_cls is None:
-            if sampler_args is None:
-                sampler_args = dict()
-            sampler_cls = FixedSampler
-
-        with self._name_scope:
-            self.optimizer = optimizer(**optimizer_args)
-
-        super(BC, self).__init__(policy=policy, **kwargs)
+        super(BC, self).__init__(**kwargs)
 
     @overrides
     def init_opt(self):
-        pol_loss_inputs, pol_opt_inputs = self._build_inputs()
-        self._policy_opt_inputs = pol_opt_inputs
+        with tf.name_scope(self.name, "BC"):
 
-        pol_loss = self._build_policy_loss(pol_loss_inputs)
-        self.optimizer.update_opt(
-            loss=pol_loss,
-            target=self.policy,
-            inputs=flatten_inputs(self._policy_opt_inputs))
+            with tf.name_scope("inputs"):
+                actions = tf.placeholder(
+                    tf.float32,
+                    shape=(None, self.env.action_space.flat_dim),
+                    name="input_action")
+                expert_actions = tf.placeholder(
+                    tf.float32,
+                    shape=(None, self.env.action_space.flat_dim),
+                    name="input_expert_action")
 
-        return dict()
+            with tf.name_scope("action_loss"):
+                # TODO: Does MSE work for BC?
+                action_loss = tf.reduce_mean(
+                    tf.square(actions - expert_actions))
+
+            with tf.name_scope("minimize_action_loss"):
+                policy_train_op = self.policy_optimizer(
+                    self.policy_lr, name="PolicyOptimizer").minimize(
+                        action_loss, var_list=self.policy.get_trainable_vars())
+
+            f_train_policy = tensor_utils.compile_function(
+                inputs=[actions, expert_actions],
+                outputs=[policy_train_op, action_loss])
+
+            self.f_train_policy = f_train_policy
 
     @overrides
     def optimize_policy(self, itr, samples_data):
-        policy_opt_input_values = self._policy_opt_input_values(samples_data)
+        transitions = self.replay_buffer.sample(self.buffer_batch_size)
+        expert_actions = transitions["action"]
 
-        loss_before = self.optimizer.loss(policy_opt_input_values)
-        self.optimizer.optimize(policy_opt_input_values)
-        loss_after = self.optimizer.loss(policy_opt_input_values)
+        actions = samples_data["actions"]
 
-        logger.record_tabular("{}/LossBefore".format(self.policy.name),
-                              loss_before)
-        logger.record_tabular("{}/LossAfter".format(self.policy.name),
-                              loss_after)
-        logger.record_tabular("{}/dLoss".format(self.policy.name),
-                              loss_before - loss_after)
+        _, action_loss = self.f_train_policy(actions, expert_actions)
+
+        return action_loss
 
     @overrides
     def get_itr_snapshot(self, itr, samples_data):
         return dict(
             itr=itr,
             policy=self.policy,
-            baseline=self.baseline,
             env=self.env,
         )
 
-    def _build_inputs(self):
-        observation_space = self.policy.observation_space
-        action_space = self.policy.action_space
+    @overrides
+    def train(self, sess=None):
+        created_session = True if (sess is None) else False
+        if sess is None:
+            sess = tf.Session()
+            sess.__enter__()
 
-        policy_dist = self.policy.distribution
+        sess.run(tf.global_variables_initializer())
+        self.start_worker(sess)
 
-        with tf.name_scope("inputs"):
-            obs_var = observation_space.new_tensor_variable(
-                name="obs", extra_dims=2)
-            action_var = action_space.new_tensor_variable(
-                name="action", extra_dims=2)
-            reward_var = tensor_utils.new_tensor(
-                name="reward", ndim=2, dtype=tf.float32)
+        if self.use_target:
+            self.f_init_target()
 
-            policy_state_info_vars = {
-                k: tf.placeholder(
-                    tf.float32, shape=[None] * 2 + list(shape), name=k)
-                for k, shape in self.policy.state_info_specs
-            }
-            policy_state_info_vars_list = [
-                policy_state_info_vars[k] for k in self.policy.state_info_keys
-            ]
+        episode_rewards = []
+        episode_policy_losses = []
+        last_average_return = None
 
-            # old policy distribution
-            policy_old_dist_info_vars = {
-                k: tf.placeholder(
-                    tf.float32,
-                    shape=[None] * 2 + list(shape),
-                    name="policy_old_%s" % k)
-                for k, shape in policy_dist.dist_info_specs
-            }
-            policy_old_dist_info_vars_list = [
-                policy_old_dist_info_vars[k]
-                for k in policy_dist.dist_info_keys
-            ]
+        for epoch in range(self.n_epochs):
+            with logger.prefix('epoch #%d | ' % epoch):
+                for epoch_cycle in range(self.n_epoch_cycles):
+                    # TODO: Couple sampling of policy to expert observations
+                    paths = self.obtain_samples(epoch)
+                    samples_data = self.process_samples(epoch, paths)
+                    episode_rewards.extend(
+                        samples_data["undiscounted_returns"])
+                    self.log_diagnostics(paths)
+                    for train_itr in range(self.n_train_steps):
+                        if self.replay_buffer.n_transitions_stored >= self.min_buffer_size:
+                            self.evaluate = True
+                            policy_loss = self.optimize_policy(
+                                epoch, samples_data)
 
-            policy_loss_inputs = graph_inputs(
-                "PolicyLossInputs",
-                obs_var=obs_var,
-                action_var=action_var,
-                reward_var=reward_var,
-                policy_state_info_vars=policy_state_info_vars,
-                policy_old_dist_info_vars=policy_old_dist_info_vars,
-            )
-            policy_opt_inputs = graph_inputs(
-                "PolicyOptInputs",
-                obs_var=obs_var,
-                action_var=action_var,
-                reward_var=reward_var,
-                policy_state_info_vars_list=policy_state_info_vars_list,
-                policy_old_dist_info_vars_list=policy_old_dist_info_vars_list,
-            )
+                            episode_policy_losses.append(policy_loss)
 
-        return policy_loss_inputs, policy_opt_inputs
+                    if self.plot:
+                        self.plotter.update_plot(self.policy,
+                                                 self.max_path_length)
+                        if self.pause_for_plot:
+                            input("Plotting evaluation run: Press Enter to "
+                                  "continue...")
 
-    def _build_policy_loss(self, loss_inputs):
-        pol_dist = self.policy.distribution
+                logger.log("Training finished")
+                logger.log("Saving snapshot #{}".format(epoch))
+                params = self.get_itr_snapshot(epoch, samples_data)
+                logger.save_itr_params(epoch, params)
+                logger.log("Saved")
+                if self.evaluate:
+                    logger.record_tabular('Epoch', epoch)
+                    logger.record_tabular('AverageReturn',
+                                          np.mean(episode_rewards))
+                    logger.record_tabular('StdReturn', np.std(episode_rewards))
+                    logger.record_tabular('Policy/AveragePolicyLoss',
+                                          np.mean(episode_policy_losses))
+                    last_average_return = np.mean(episode_rewards)
 
-        with tf.name_scope("policy_loss"):
-            pol_loss = None
+                if not self.smooth_return:
+                    episode_rewards = []
+                    episode_policy_losses = []
 
-        return pol_loss
+                logger.dump_tabular(with_prefix=False)
 
-    def _policy_opt_input_values(self, samples_data):
-        """ Map rollout samples to the policy optimizer inputs """
-        policy_state_info_list = [
-            samples_data["agent_infos"][k] for k in self.policy.state_info_keys
-        ]
-        policy_old_dist_info_list = [
-            samples_data["agent_infos"][k]
-            for k in self.policy.distribution.dist_info_keys
-        ]
-
-        policy_opt_input_values = self._policy_opt_inputs._replace(
-            obs_var=samples_data["observations"],
-            action_var=samples_data["actions"],
-            reward_var=samples_data["rewards"],
-            policy_state_info_vars_list=policy_state_info_list,
-            policy_old_dist_info_vars_list=policy_old_dist_info_list,
-        )
-
-        return flatten_inputs(policy_opt_input_values)
+        self.shutdown_worker()
+        if created_session:
+            sess.close()
+        return last_average_return
