@@ -3,10 +3,11 @@ import gym
 
 import tensorflow as tf
 
-from garage.replay_buffer import ReplayBuffer
+from garage.replay_buffer import SimpleReplayBuffer
+from garage.tf.envs import TfEnv
 
 
-def sample_from_expert(env, buffer_size=600):
+def sample_from_expert(env, size_in_transitions=600, time_horizon=200):
     """Sample actions and observations from the expert.
 
     We load the TensorFlow variables that define our expert from the file
@@ -21,22 +22,28 @@ def sample_from_expert(env, buffer_size=600):
           with size defined by buffer_size.
     """
     act = deepq.load("garage/tf/behavioral_cloning/cartpole_model.pkl")
-    buffer_shapes = {
-        "action": env.action_space.shape,
-        "observation": env.observation_space.shape
-    }
-    replay_buffer = ReplayBuffer(buffer_shapes, buffer_size)
+    replay_buffer = SimpleReplayBuffer(
+        env_spec=env.spec,
+        size_in_transitions=size_in_transitions,
+        time_horizon=time_horizon)
 
-    while (buffer_size > replay_buffer.size):
+    while not replay_buffer.full:
         obs, done = env.reset(), False
-        episode_rew = 0
         samples = 0
-        while not done and (buffer_size > replay_buffer.size):
+        while not done and (not replay_buffer.full):
             action = act(obs[None])[0]
-            replay_buffer.add_transition(action=action, observation=obs)
-            obs, rew, done, _ = env.step(action)
-            episode_rew += rew
+            buffer_action = [0, 1]
+            if not action:
+                buffer_action = [1, 0]
+            next_obs, rew, done, _ = env.step(action)
             samples += 1
+            replay_buffer.add_transition(
+                action=[buffer_action],
+                observation=[obs],
+                terminal=[done],
+                reward=[rew],
+                next_observation=[next_obs])
+            obs = next_obs
         print("Samples collected by episode in the expert", samples)
     return replay_buffer
 
@@ -92,16 +99,11 @@ def optimize_nn(num_actions, predicted_action_logits):
         - expert_action_ph: the placeholder for the expert actions. This is one
           of the two inputs to calculate the loss in our optimizer.
     """
-    expert_action_ph = tf.placeholder(tf.int32, shape=[None])
+    expert_action_ph = tf.placeholder(tf.int32, shape=[None, 2])
 
     with tf.variable_scope("loss"):
-        onehot_expert_actions = tf.one_hot(
-            indices=tf.cast(expert_action_ph, tf.int32),
-            depth=num_actions.bit_length())
-
         loss_sym = tf.losses.softmax_cross_entropy(
-            onehot_labels=onehot_expert_actions,
-            logits=predicted_action_logits)
+            onehot_labels=expert_action_ph, logits=predicted_action_logits)
         loss_sym = tf.reduce_mean(loss_sym)
 
     with tf.variable_scope("training"):
@@ -112,7 +114,8 @@ def optimize_nn(num_actions, predicted_action_logits):
 
 
 def main():
-    env = gym.make("CartPole-v0")
+    env_id = "CartPole-v0"
+    env = TfEnv(gym.make(env_id))
     replay_buffer = sample_from_expert(env)
     obs_ph, action_sym, logits_sym = build_nn(env)
     minimize_sym, loss_sym, expert_action_ph = (optimize_nn(
