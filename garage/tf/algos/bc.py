@@ -51,12 +51,10 @@ class BC(OffPolicyRLAlgorithm):
 
     @overrides
     def optimize_policy(self, itr, samples_data):
-        transitions = self.replay_buffer.sample(self.buffer_batch_size)
-        expert_actions = transitions["action"]
+        expert_actions = samples_data["expert_actions"]
+        target_actions = samples_data["target_actions"]
 
-        actions = samples_data["actions"]
-
-        _, action_loss = self.f_train_policy(actions, expert_actions)
+        _, action_loss = self.f_train_policy(target_actions, expert_actions)
 
         return action_loss
 
@@ -89,11 +87,12 @@ class BC(OffPolicyRLAlgorithm):
             with logger.prefix('epoch #%d | ' % epoch):
                 for epoch_cycle in range(self.n_epoch_cycles):
                     # TODO: Couple sampling of policy to expert observations
-                    paths = self.obtain_samples(epoch)
-                    samples_data = self.process_samples(epoch, paths)
+                    raw_samples = self.obtain_samples(epoch)
+                    samples_data = self.process_samples(epoch, raw_samples)
                     episode_rewards.extend(
                         samples_data["undiscounted_returns"])
-                    self.log_diagnostics(paths)
+                    # TODO: Override this method
+                    # self.log_diagnostics(raw_samples)
                     for train_itr in range(self.n_train_steps):
                         if self.replay_buffer.n_transitions_stored >= self.min_buffer_size:
                             self.evaluate = True
@@ -133,3 +132,36 @@ class BC(OffPolicyRLAlgorithm):
         if created_session:
             sess.close()
         return last_average_return
+
+    @overrides
+    def obtain_samples(self, itr):
+        """Select a batch of (obs,act) pairs from the expert. Then sample target with obs"""
+        expert_batch = self.replay_buffer.sample(self.buffer_batch_size)
+        assert "actions" in expert_batch
+        assert "observations" in expert_batch
+
+        # TODO: Calculat expert and target actions' reward
+        if self.policy.vectorized:
+            target_actions, _ = self.policy.get_actions(
+                expert_batch["observations"])
+        else:
+            target_actions = [
+                self.policy.get_action(exp_obs)
+                for exp_obs in expert_batch["observations"]
+            ]
+            target_actions = np.array(target_actions)
+
+        return dict(
+            observations=expert_batch["observations"],
+            expert_actions=expert_batch["actions"],
+            target_actions=target_actions,
+        )
+
+    @overrides
+    def process_samples(self, itr, raw_data):
+        """idk what goes on here tbh..."""
+        pass
+
+    @overrides
+    def log_diagnostics(self, paths):
+        pass
