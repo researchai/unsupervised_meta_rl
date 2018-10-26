@@ -1,10 +1,10 @@
 import numpy as np
 import tensorflow as tf
 
+from garage.algos import RLAlgorithm
 from garage.misc import logger
 from garage.misc.overrides import overrides
 from garage.replay_buffer import SimpleReplayBuffer
-from garage.tf.algos import RLAlgorithm
 from garage.tf.misc import tensor_utils
 from garage.tf.plotter import Plotter
 
@@ -22,6 +22,7 @@ class BC(RLAlgorithm):
                  n_epochs=500,
                  n_epoch_cycles=20,
                  n_train_steps=50,
+                 buffer_batch_size=64,
                  name=None,
                  **kwargs):
         self.env = env
@@ -35,20 +36,19 @@ class BC(RLAlgorithm):
         self.n_epochs = n_epochs
         self.n_epoch_cycles = n_epoch_cycles
         self.n_train_steps = n_train_steps
+        self.buffer_batch_size = buffer_batch_size
         self.name = name
 
         self.init_opt()
 
     def start_worker(self, sess):
         """Initialize sampler and plotter."""
-        self.sampler.start_worker()
         if self.plot:
             self.plotter = Plotter(self.env, self.policy, sess)
             self.plotter.start()
 
     def shutdown_worker(self):
         """Close sampler and plotter."""
-        self.sampler.shutdown_worker()
         if self.plot:
             self.plotter.close()
 
@@ -56,18 +56,20 @@ class BC(RLAlgorithm):
         with tf.name_scope(self.name, "BC"):
 
             with tf.name_scope("inputs"):
-                actions = tf.placeholder(
-                    tf.float32,
-                    shape=(None, self.env.action_space.flat_dim),
-                    name="input_action")
                 expert_actions = tf.placeholder(
                     tf.float32,
                     shape=(None, self.env.action_space.flat_dim),
                     name="input_expert_action")
+                observations = tf.placeholder(
+                    tf.float32,
+                    shape=(None, self.env.observation_space.flat_dim),
+                    name="input_observation")
 
+            target_actions = self.policy.get_action_sym(
+                observations, name="target_action")
             with tf.name_scope("action_loss"):
                 action_loss = tf.reduce_mean(
-                    tf.squared_difference(actions, expert_actions))
+                    tf.squared_difference(target_actions, expert_actions))
 
             with tf.name_scope("minimize_action_loss"):
                 policy_train_op = self.policy_optimizer(
@@ -75,40 +77,45 @@ class BC(RLAlgorithm):
                         action_loss, var_list=self.policy.get_trainable_vars())
 
             f_train_policy = tensor_utils.compile_function(
-                inputs=[actions, expert_actions],
+                inputs=[observations, expert_actions],
                 outputs=[policy_train_op, action_loss])
 
             self.f_train_policy = f_train_policy
 
     def optimize_policy(self, itr, samples_data):
         expert_actions = samples_data["expert_actions"]
-        target_actions = samples_data["target_actions"]
+        observations = samples_data["observations"]
 
-        _, action_loss = self.f_train_policy(target_actions, expert_actions)
+        _, action_loss = self.f_train_policy(observations, expert_actions)
 
         return action_loss
 
     def obtain_samples(self, itr):
         """Select a batch of (obs,act) pairs from the expert. Then sample target with obs"""
-        expert_batch = self.expert_dataset.sample(self.buffer_batch_size)
-        assert "action" in expert_batch
-        assert "observation" in expert_batch
+        batch_idx = np.random.randint(
+            self.expert_dataset["action"].shape[0],
+            size=self.buffer_batch_size)
+        expert_actions = self.expert_dataset["action"][batch_idx, :]
+        expert_observations = self.expert_dataset["observation"][batch_idx, :]
 
-        # TODO: Calculate expert and target actions' reward
-        if self.policy.vectorized:
-            target_actions, _ = self.policy.get_actions(
-                expert_batch["observation"])
-        else:
-            target_actions = [
-                self.policy.get_action(exp_obs)
-                for exp_obs in expert_batch["observation"]
-            ]
-            target_actions = np.array(target_actions)
+        assert expert_actions.shape[0] == expert_observations.shape[0]
+        assert expert_actions.shape[0] == self.buffer_batch_size
+
+        # TODO: Get target policy rewards
+        # if self.policy.vectorized:
+        #     target_actions, _ = self.policy.get_actions(
+        #         expert_batch["observation"])
+        # else:
+        #     target_actions = [
+        #         self.policy.get_action(exp_obs)
+        #         for exp_obs in expert_batch["observation"]
+        #     ]
+        #     target_actions = np.array(target_actions)
 
         return dict(
-            observations=expert_batch["observation"],
-            expert_actions=expert_batch["action"],
-            target_actions=target_actions,
+            observations=expert_observations,
+            expert_actions=expert_actions,
+            undiscounted_returns=[0],
         )
 
     def get_itr_snapshot(self, itr, samples_data):
@@ -119,7 +126,7 @@ class BC(RLAlgorithm):
         )
 
     def log_diagnostics(self, paths):
-        """ We break too many APIs for this to work! """
+        """ TODO: Refactor API to log diagnostics for actions instead of paths. """
         # self.policy.log_diagnostics(paths)
         pass
 
