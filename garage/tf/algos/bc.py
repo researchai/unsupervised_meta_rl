@@ -1,57 +1,41 @@
 import numpy as np
 import tensorflow as tf
 
-from garage.algos import RLAlgorithm
 from garage.misc import logger
 from garage.misc.overrides import overrides
 from garage.replay_buffer import SimpleReplayBuffer
+from garage.tf.algos.off_policy_rl_algorithm import OffPolicyRLAlgorithm
 from garage.tf.misc import tensor_utils
-from garage.tf.plotter import Plotter
 
 
-class BC(RLAlgorithm):
+class BC(OffPolicyRLAlgorithm):
     def __init__(self,
                  env,
                  policy,
                  expert_dataset,
-                 policy_lr=1e-3,
                  policy_optimizer=tf.train.AdamOptimizer,
-                 plot=False,
-                 pause_for_plot=False,
-                 smooth_return=True,
-                 n_epochs=500,
-                 n_epoch_cycles=20,
-                 n_train_steps=50,
-                 buffer_batch_size=64,
+                 policy_lr=1e-4,
+                 expert_batch_size=64,
                  name=None,
                  **kwargs):
-        self.env = env
-        self.policy = policy
         self.expert_dataset = expert_dataset
         self.policy_lr = policy_lr
         self.policy_optimizer = policy_optimizer
-        self.plot = plot
-        self.pause_for_plot = pause_for_plot
-        self.smooth_return = smooth_return
-        self.n_epochs = n_epochs
-        self.n_epoch_cycles = n_epoch_cycles
-        self.n_train_steps = n_train_steps
-        self.buffer_batch_size = buffer_batch_size
+        self.expert_batch_size = expert_batch_size
         self.name = name
 
-        self.init_opt()
+        # We don't need this for BC, but OffPolVecSampler expects this
+        replay_buffer = SimpleReplayBuffer(
+            env_spec=env.spec, size_in_transitions=int(1e6), time_horizon=100)
 
-    def start_worker(self, sess):
-        """Initialize sampler and plotter."""
-        if self.plot:
-            self.plotter = Plotter(self.env, self.policy, sess)
-            self.plotter.start()
+        super(BC, self).__init__(
+            env=env,
+            policy=policy,
+            qf=None,
+            replay_buffer=replay_buffer,
+            **kwargs)
 
-    def shutdown_worker(self):
-        """Close sampler and plotter."""
-        if self.plot:
-            self.plotter.close()
-
+    @overrides
     def init_opt(self):
         with tf.name_scope(self.name, "BC"):
 
@@ -82,6 +66,7 @@ class BC(RLAlgorithm):
 
             self.f_train_policy = f_train_policy
 
+    @overrides
     def optimize_policy(self, itr, samples_data):
         expert_actions = samples_data["expert_actions"]
         observations = samples_data["observations"]
@@ -90,45 +75,33 @@ class BC(RLAlgorithm):
 
         return action_loss
 
-    def obtain_samples(self, itr):
+    def sample_expert(self, itr):
         """Select a batch of (obs,act) pairs from the expert. Then sample target with obs"""
         batch_idx = np.random.randint(
             self.expert_dataset["action"].shape[0],
-            size=self.buffer_batch_size)
+            size=self.expert_batch_size)
         expert_actions = self.expert_dataset["action"][batch_idx, :]
         expert_observations = self.expert_dataset["observation"][batch_idx, :]
 
         assert expert_actions.shape[0] == expert_observations.shape[0]
-        assert expert_actions.shape[0] == self.buffer_batch_size
-
-        # TODO: Get target policy rewards
-        # if self.policy.vectorized:
-        #     target_actions, _ = self.policy.get_actions(
-        #         expert_batch["observation"])
-        # else:
-        #     target_actions = [
-        #         self.policy.get_action(exp_obs)
-        #         for exp_obs in expert_batch["observation"]
-        #     ]
-        #     target_actions = np.array(target_actions)
+        assert expert_actions.shape[0] == self.expert_batch_size
 
         return dict(
             observations=expert_observations,
             expert_actions=expert_actions,
-            undiscounted_returns=[0],
         )
 
-    def get_itr_snapshot(self, itr, samples_data):
+    @overrides
+    def get_itr_snapshot(self, itr, expert_data, target_data):
         return dict(
             itr=itr,
             policy=self.policy,
             env=self.env,
         )
 
+    @overrides
     def log_diagnostics(self, paths):
-        """ TODO: Refactor API to log diagnostics for actions instead of paths. """
-        # self.policy.log_diagnostics(paths)
-        pass
+        self.policy.log_diagnostics(paths)
 
     @overrides
     def train(self, sess=None):
@@ -147,12 +120,15 @@ class BC(RLAlgorithm):
         for epoch in range(self.n_epochs):
             with logger.prefix('epoch #%d | ' % epoch):
                 for epoch_cycle in range(self.n_epoch_cycles):
-                    samples_data = self.obtain_samples(epoch)
-                    episode_rewards.extend(
-                        samples_data["undiscounted_returns"])
-                    self.log_diagnostics(samples_data)
+                    expert_data = self.sample_expert(epoch)
+                    target_paths = self.obtain_samples(epoch)
+                    target_data = self.process_samples(epoch, target_paths)
+
+                    episode_rewards.extend(target_data["undiscounted_returns"])
+                    self.log_diagnostics(target_paths)
+
                     for train_itr in range(self.n_train_steps):
-                        policy_loss = self.optimize_policy(epoch, samples_data)
+                        policy_loss = self.optimize_policy(epoch, expert_data)
                         episode_policy_losses.append(policy_loss)
 
                     if self.plot:
@@ -163,7 +139,7 @@ class BC(RLAlgorithm):
 
                 logger.log("Training finished")
                 logger.log("Saving snapshot #{}".format(epoch))
-                params = self.get_itr_snapshot(epoch, samples_data)
+                params = self.get_itr_snapshot(epoch, expert_data, target_data)
                 logger.save_itr_params(epoch, params)
                 logger.log("Saved")
 
