@@ -15,14 +15,20 @@ class BC(OffPolicyRLAlgorithm):
                  expert_dataset,
                  policy_optimizer=tf.train.AdamOptimizer,
                  policy_lr=1e-4,
-                 expert_batch_size=64,
+                 expert_batch_size=128,
                  name=None,
+                 GET_EXPERT_REWARDS=False,
+                 expert_tf_session=None,
                  **kwargs):
         self.expert_dataset = expert_dataset
         self.policy_lr = policy_lr
         self.policy_optimizer = policy_optimizer
         self.expert_batch_size = expert_batch_size
         self.name = name
+
+        # Temp
+        self.GET_EXPERT_REWARDS = GET_EXPERT_REWARDS
+        self.expert_tf_session = expert_tf_session
 
         # We don't need this for BC, but OffPolVecSampler expects this
         replay_buffer = SimpleReplayBuffer(
@@ -76,20 +82,20 @@ class BC(OffPolicyRLAlgorithm):
         return action_loss
 
     def sample_expert(self, itr):
-        """Select a batch of (obs,act) pairs from the expert. Then sample target with obs"""
-        batch_idx = np.random.randint(
-            self.expert_dataset["action"].shape[0],
-            size=self.expert_batch_size)
-        expert_actions = self.expert_dataset["action"][batch_idx, :]
-        expert_observations = self.expert_dataset["observation"][batch_idx, :]
+        dataset_length = self.expert_dataset["action"].shape[0]
+        batch_idx = np.arange(dataset_length)
+        while True:
+            np.random.shuffle(batch_idx)
+            for batchnum in range(dataset_length // self.expert_batch_size):
+                batch = batch_idx[self.expert_batch_size * batchnum:
+                                  self.expert_batch_size * (batchnum + 1)]
+                exp_act = self.expert_dataset["action"][batch, :]
+                exp_obs = self.expert_dataset["observation"][batch, :]
 
-        assert expert_actions.shape[0] == expert_observations.shape[0]
-        assert expert_actions.shape[0] == self.expert_batch_size
+                assert exp_act.shape[0] == exp_obs.shape[0]
+                assert exp_act.shape[0] == self.expert_batch_size
 
-        return dict(
-            observations=expert_observations,
-            expert_actions=expert_actions,
-        )
+                yield dict(observations=exp_obs, expert_actions=exp_act)
 
     @overrides
     def get_itr_snapshot(self, itr, expert_data, target_data):
@@ -105,6 +111,9 @@ class BC(OffPolicyRLAlgorithm):
 
     @overrides
     def train(self, sess=None):
+        if self.GET_EXPERT_REWARDS:
+            return self.get_expert_rewards()
+
         created_session = True if (sess is None) else False
         if sess is None:
             sess = tf.Session()
@@ -115,12 +124,13 @@ class BC(OffPolicyRLAlgorithm):
 
         episode_rewards = []
         episode_policy_losses = []
+        expert_sampler = self.sample_expert(0)
         last_average_return = None
 
         for epoch in range(self.n_epochs):
             with logger.prefix('epoch #%d | ' % epoch):
                 for epoch_cycle in range(self.n_epoch_cycles):
-                    expert_data = self.sample_expert(epoch)
+                    expert_data = expert_sampler.__next__()
                     target_paths = self.obtain_samples(epoch)
                     target_data = self.process_samples(epoch, target_paths)
 
@@ -162,51 +172,29 @@ class BC(OffPolicyRLAlgorithm):
             sess.close()
         return last_average_return
 
+    def get_expert_rewards(self):
 
-def sample_expert_policy_to_dataset(env,
-                                    policy,
-                                    tf_session_pkl,
-                                    size_in_transitions=800,
-                                    time_horizon=200):
-    buffer_shapes = {
-        "action": env.action_space.shape,
-        "observation": env.observation_space.shape
-    }
-    replay_buffer = SimpleReplayBuffer(
-        env_spec=env.spec,
-        size_in_transitions=size_in_transitions,
-        time_horizon=time_horizon)
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, self.expert_tf_session)
+            self.start_worker(sess)
 
-    saver = tf.train.Saver()
-    with tf.Session() as sess:
-        expert_tf_session = (tf_session_pkl)
-        saver.restore(sess, expert_tf_session)
-        while not replay_buffer.full:
-            done = False
-            obs = env.reset()
-            samples = 0
-            while not done and (not replay_buffer.full):
-                action, _ = policy.get_action(obs)
-                # To visualize how our clone model behaves, make a
-                # prediction from the clone and step based on the retrieved
-                # action.
-                next_obs, reward, done, info = env.step(action)
-                samples += 1
-                replay_buffer.add_transition(
-                    action=[action],
-                    observation=[obs],
-                    terminal=[done],
-                    reward=[reward],
-                    next_observation=[next_obs])
-                obs = next_obs
-            print("Samples collected by episode in the expert", samples)
-        env.close()
+            episode_rewards = []
+            last_average_return = None
 
-    data = replay_buffer.sample(size_in_transitions - 1)
-    np.save("garage/tf/behavioral_cloning/expert_data.npy", data)
-    # Retrieve data as:
-    # expert = np.load("garage/tf/behavioral_cloning/expert_data.npy")
-    # obs = expert[()]["observation"]
-    # acts = expert[()]["action"]
+            with logger.prefix('(Expert Policy) | '):
+                for epoch in range(10):
+                    for epoch_cycle in range(self.n_epoch_cycles):
+                        paths = self.obtain_samples(0)
+                        samples_data = self.process_samples(0, paths)
+                        episode_rewards.extend(
+                            samples_data["undiscounted_returns"])
 
-    return replay_buffer
+                    logger.record_tabular('AverageReturn',
+                                          np.mean(episode_rewards))
+                    logger.record_tabular('StdReturn', np.std(episode_rewards))
+                    last_average_return = np.mean(episode_rewards)
+                    logger.dump_tabular(with_prefix=False)
+
+            self.shutdown_worker()
+        return last_average_return
