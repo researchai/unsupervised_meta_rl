@@ -108,7 +108,6 @@ class Plotter:
                 self.queue.get()
                 self.queue.task_done()
             self.queue.put(Message(op=Op.STOP, args=None, kwargs=None))
-            self.queue.join()
             self.worker_thread.join()
 
     @staticmethod
