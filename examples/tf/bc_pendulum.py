@@ -14,10 +14,10 @@ def run_task(*_):
     policy = ContinuousMLPPolicy(
         env_spec=env.spec,
         name="Actor",  # Has to match actor policy name from DDPG-trained expert
-        hidden_sizes=[64, 64],
+        hidden_sizes=[100, 100],
         hidden_nonlinearity=tf.nn.relu,
         output_nonlinearity=tf.nn.tanh)
-    expert_dataset_file = "garage/tf/behavioral_cloning/expert_data.npy"
+    expert_dataset_file = "garage/tf/behavioral_cloning/expert_data2.npy"
     expert_tf_session_files = "garage/tf/behavioral_cloning/ddpg_expert/ddpg_model.ckpt"
     expert_dataset = np.load(expert_dataset_file)[()]
 
@@ -25,7 +25,11 @@ def run_task(*_):
         env=env,
         policy=policy,
         expert_dataset=expert_dataset,
-        GET_EXPERT_REWARDS=True,
+        max_path_length=1024,
+        rollout_batch_size=10,
+        policy_lr=4e-3,
+        n_epochs=50,
+        #        GET_EXPERT_REWARDS=True,
         expert_tf_session=expert_tf_session_files)
 
     bc.train()

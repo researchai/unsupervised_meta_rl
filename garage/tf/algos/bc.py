@@ -59,7 +59,8 @@ class BC(OffPolicyRLAlgorithm):
                 observations, name="target_action")
             with tf.name_scope("action_loss"):
                 action_loss = tf.reduce_mean(
-                    tf.squared_difference(target_actions, expert_actions))
+                    tf.losses.mean_squared_error(
+                        predictions=target_actions, labels=expert_actions))
 
             with tf.name_scope("minimize_action_loss"):
                 policy_train_op = self.policy_optimizer(
@@ -131,11 +132,6 @@ class BC(OffPolicyRLAlgorithm):
             with logger.prefix('epoch #%d | ' % epoch):
                 for epoch_cycle in range(self.n_epoch_cycles):
                     expert_data = expert_sampler.__next__()
-                    target_paths = self.obtain_samples(epoch)
-                    target_data = self.process_samples(epoch, target_paths)
-
-                    episode_rewards.extend(target_data["undiscounted_returns"])
-                    self.log_diagnostics(target_paths)
 
                     for train_itr in range(self.n_train_steps):
                         policy_loss = self.optimize_policy(epoch, expert_data)
@@ -146,6 +142,12 @@ class BC(OffPolicyRLAlgorithm):
                         if self.pause_for_plot:
                             input("Plotting evaluation run: Press Enter to "
                                   "continue...")
+
+                target_paths = self.obtain_samples(epoch)
+                target_data = self.process_samples(epoch, target_paths)
+
+                episode_rewards.extend(target_data["undiscounted_returns"])
+                self.log_diagnostics(target_paths)
 
                 logger.log("Training finished")
                 logger.log("Saving snapshot #{}".format(epoch))
