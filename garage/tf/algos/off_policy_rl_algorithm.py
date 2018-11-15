@@ -66,8 +66,7 @@ class OffPolicyRLAlgorithm(RLAlgorithm):
         self.plot = plot
         self.pause_for_plot = pause_for_plot
         self.es = exploration_strategy
-        if not self.GET_EXPERT_REWARDS:
-            self.init_opt()
+        self.init_opt()
 
     def start_worker(self, sess):
         """Initialize sampler and plotter."""
