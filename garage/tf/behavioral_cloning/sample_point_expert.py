@@ -5,7 +5,8 @@ import tensorflow as tf
 
 from garage.envs import normalize
 from garage.replay_buffer import SimpleReplayBuffer
-from garage.tf.behavioral_cloning.point_env import PointEnv
+from sandbox.embed2learn.envs import PointEnv
+# from garage.tf.behavioral_cloning.point_env import PointEnv
 from garage.tf.envs import TfEnv
 from garage.tf.policies import GaussianMLPPolicy
 
@@ -117,7 +118,9 @@ def sample_from_experts_sequential(tasks, num_trajectories=50,
     all_tasks = {}
     for task_id, task in tasks.items():
         with tf.Graph().as_default():
-            env = TfEnv(normalize(PointEnv(goal=task)))
+            env = TfEnv(
+                normalize(
+                    PointEnv(goal=task, never_done=True, completion_bonus=0.)))
             dt = np.dtype(
                 [("action", env.spec.action_space.low.dtype,
                   env.spec.action_space.shape),
@@ -164,8 +167,8 @@ def sample_from_experts_sequential(tasks, num_trajectories=50,
                     completed_trajec += 1
             all_tasks.update({"task_" + task_id: trajec_per_task})
             env.close()
-    np.save("garage/tf/behavioral_cloning/point_data_sequential.npy",
-            all_tasks)
+    np.savez("garage/tf/behavioral_cloning/point_data_sequential.npz",
+             **all_tasks)
 
 
 def main(mode):
@@ -173,7 +176,7 @@ def main(mode):
     if (mode == "-r"):
         sample_from_experts_random(tasks)
     elif (mode == "-s"):
-        sample_from_experts_sequential(tasks)
+        sample_from_experts_sequential(tasks, num_trajectories=400)
     else:
         print("The option %s is invalid." % mode)
         print_help()
