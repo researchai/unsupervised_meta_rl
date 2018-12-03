@@ -13,6 +13,7 @@ class BC(OffPolicyRLAlgorithm):
                  env,
                  policy,
                  expert_dataset,
+                 stochastic_policy=False,
                  policy_optimizer=tf.train.AdamOptimizer,
                  policy_lr=1e-3,
                  expert_batch_size=128,
@@ -20,6 +21,7 @@ class BC(OffPolicyRLAlgorithm):
                  no_train=False,
                  **kwargs):
         self.expert_dataset = expert_dataset
+        self.stochastic_policy = stochastic_policy
         self.policy_lr = policy_lr
         self.policy_optimizer = policy_optimizer
         self.expert_batch_size = expert_batch_size
@@ -54,8 +56,15 @@ class BC(OffPolicyRLAlgorithm):
                     shape=(None, self.env.observation_space.flat_dim),
                     name="input_observation")
 
-            target_actions = self.policy.get_action_sym(
-                observations, name="target_action")
+            if self.stochastic_policy:
+                target_dist = self.policy.dist_info_sym(
+                    observations, name="target_action")
+                target_actions = target_dist['mean'] + \
+                    target_dist['log_std'] * tf.random_normal(tf.shape(target_dist['mean']))
+            else:
+                target_actions = self.policy.get_action_sym(
+                    observations, name="target_action")
+
             with tf.name_scope("action_loss"):
                 action_loss = tf.reduce_mean(
                     tf.losses.mean_squared_error(
@@ -63,8 +72,8 @@ class BC(OffPolicyRLAlgorithm):
 
             with tf.name_scope("minimize_action_loss"):
                 policy_train_op = self.policy_optimizer(
-                    self.policy_lr, name="PolicyOptimizer").minimize(
-                        action_loss, var_list=self.policy.get_trainable_vars())
+                    self.policy_lr,
+                    name="PolicyOptimizer").minimize(action_loss)
 
             f_train_policy = tensor_utils.compile_function(
                 inputs=[observations, expert_actions],
@@ -107,7 +116,9 @@ class BC(OffPolicyRLAlgorithm):
 
     @overrides
     def log_diagnostics(self, paths):
-        self.policy.log_diagnostics(paths)
+        # Broken for GaussianMLPPolicy + OffPolicyVecSampler
+        # self.policy.log_diagnostics(paths)
+        pass
 
     @overrides
     def train(self, sess=None):
@@ -172,15 +183,15 @@ class BC(OffPolicyRLAlgorithm):
 
 
 class BCExpertEvaluator(BC):
-    def __init__(self, env, policy, expert_tf_session, n_epochs=1, **kwargs):
+    def __init__(self, env, policy, expert_tf_session, **kwargs):
         self.expert_tf_session = expert_tf_session
 
         super(BCExpertEvaluator, self).__init__(
             env=env,
             policy=policy,
             expert_dataset=None,
-            n_epochs=n_epochs,
-            no_train=True)
+            no_train=True,
+            **kwargs)
 
     @overrides
     def train(self):
