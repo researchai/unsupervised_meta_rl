@@ -1,3 +1,9 @@
+"""
+This module implements a BC model and associated classes.
+
+BC (Behavioral Cloning) is a simple form of imitation learning that
+infers a target policy from a fixed dataset of expert demonstations.
+"""
 import numpy as np
 import tensorflow as tf
 
@@ -9,6 +15,15 @@ from garage.tf.misc import tensor_utils
 
 
 class BC(OffPolicyRLAlgorithm):
+    """
+    A Behavioral Cloning algorithm based on:
+    Pomerleau, Dean A. "Alvinn: An autonomous land vehicle in a neural network."
+    Advances in neural information processing systems. 1989.
+
+    Example:
+        $ python garage/examples/tf/bc_pointenv.py
+    """
+
     def __init__(self,
                  env,
                  policy,
@@ -18,34 +33,51 @@ class BC(OffPolicyRLAlgorithm):
                  policy_lr=1e-3,
                  expert_batch_size=128,
                  name=None,
-                 no_train=False,
+                 _no_train=False,
                  **kwargs):
+        """
+        Construct class.
+
+        Args:
+            env(): Environment
+            policy(): Target policy network to learn expert behavior.
+            expert_dataset(): Dataset of expert actions and observations.
+            stochastic_policy(bool): Flag to indicate target policy is stochastic.
+            policy_optimizer(): Optimizer for training target policy.
+            policy_lr(float): Learning rate for training target policy.
+            expert_batch_size(int): Batch size for each training step.
+            name(str): Name of the algorithm .
+            _no_train(bool): Flag for BCExpertEvaluator.
+        """
         self.expert_dataset = expert_dataset
         self.stochastic_policy = stochastic_policy
         self.policy_lr = policy_lr
         self.policy_optimizer = policy_optimizer
         self.expert_batch_size = expert_batch_size
         self.name = name
-        self.no_train = no_train
+        self._no_train = _no_train
 
-        # We don't need this for BC, but OffPolVecSampler expects this
-        dummy_replay_buffer = SimpleReplayBuffer(
+        # We don't need use this for BC, but OffPolVecSampler expects a ReplayBuffer
+        ph_replay_buffer = SimpleReplayBuffer(
             env_spec=env.spec, size_in_transitions=int(1e6), time_horizon=100)
 
         super(BC, self).__init__(
             env=env,
             policy=policy,
             qf=None,
-            replay_buffer=dummy_replay_buffer,
+            replay_buffer=ph_replay_buffer,
             **kwargs)
 
     @overrides
     def init_opt(self):
-        if self.no_train:
+        """Build graph for BC training."""
+        # Skip training graph construction if flag is set. This allows
+        # BCExpertEvaluator to load a trained expert policy without error.
+        if self._no_train:
             return
 
         with tf.name_scope(self.name, "BC"):
-
+            # define input placeholders
             with tf.name_scope("inputs"):
                 expert_actions = tf.placeholder(
                     tf.float32,
@@ -56,6 +88,7 @@ class BC(OffPolicyRLAlgorithm):
                     shape=(None, self.env.observation_space.flat_dim),
                     name="input_observation")
 
+            # define target policy action
             if self.stochastic_policy:
                 target_dist = self.policy.dist_info_sym(
                     observations, name="target_action")
@@ -65,11 +98,13 @@ class BC(OffPolicyRLAlgorithm):
                 target_actions = self.policy.get_action_sym(
                     observations, name="target_action")
 
+            # loss objective is MSE between expert and target actions
             with tf.name_scope("action_loss"):
                 action_loss = tf.reduce_mean(
                     tf.losses.mean_squared_error(
                         predictions=target_actions, labels=expert_actions))
 
+            # define minimizer function
             with tf.name_scope("minimize_action_loss"):
                 policy_train_op = self.policy_optimizer(
                     self.policy_lr,
@@ -83,14 +118,29 @@ class BC(OffPolicyRLAlgorithm):
 
     @overrides
     def optimize_policy(self, itr, samples_data):
+        """
+        Run BC optimization for a single batch.
+
+        Args:
+            itr(int): epoch number.
+            samples_data(dict): batch of expert actions and observations.
+
+        Returns:
+            action_loss: Loss of action from target policy.
+        """
         expert_actions = samples_data["expert_actions"]
         observations = samples_data["observations"]
 
         _, action_loss = self.f_train_policy(observations, expert_actions)
-
         return action_loss
 
     def gen_expert_sampler(self):
+        """
+        Generator for batch sampling expert dataset without replacement.
+
+        Returns:
+            batch_data(dict): batch of expert actions and observations.
+        """
         dataset_length = self.expert_dataset["action"].shape[0]
         batch_idx = np.arange(dataset_length)
         while True:
@@ -104,15 +154,12 @@ class BC(OffPolicyRLAlgorithm):
                 assert exp_act.shape[0] == exp_obs.shape[0]
                 assert exp_act.shape[0] == self.expert_batch_size
 
-                yield dict(observations=exp_obs, expert_actions=exp_act)
+                batch_data = dict(observations=exp_obs, expert_actions=exp_act)
+                yield batch_data
 
     @overrides
     def get_itr_snapshot(self, itr, expert_data, target_data):
-        return dict(
-            itr=itr,
-            policy=self.policy,
-            env=self.env,
-        )
+        return dict(itr=itr, policy=self.policy, env=self.env)
 
     @overrides
     def log_diagnostics(self, paths):
@@ -122,12 +169,12 @@ class BC(OffPolicyRLAlgorithm):
 
     @overrides
     def train(self, sess=None):
+        """Run BC algorithm."""
         created_session = True if (sess is None) else False
         if sess is None:
             sess = tf.Session()
             sess.__enter__()
-
-        sess.run(tf.global_variables_initializer())
+            sess.run(tf.global_variables_initializer())
         self.start_worker(sess)
 
         episode_rewards = []
@@ -144,12 +191,7 @@ class BC(OffPolicyRLAlgorithm):
                         policy_loss = self.optimize_policy(epoch, expert_data)
                         episode_policy_losses.append(policy_loss)
 
-                    if self.plot:
-                        self.plotter.update_plot(self.policy)
-                        if self.pause_for_plot:
-                            input("Plotting evaluation run: Press Enter to "
-                                  "continue...")
-
+                # parallel sampling used to collect reward data on target policy
                 target_paths = self.obtain_samples(epoch)
                 target_data = self.process_samples(epoch, target_paths)
 
@@ -175,6 +217,11 @@ class BC(OffPolicyRLAlgorithm):
                     episode_policy_losses = []
 
                 logger.dump_tabular(with_prefix=False)
+                if self.plot:
+                    self.plotter.update_plot(self.policy)
+                    if self.pause_for_plot:
+                        input("Plotting evaluation run: Press Enter to "
+                              "continue...")
 
         self.shutdown_worker()
         if created_session:
@@ -183,14 +230,30 @@ class BC(OffPolicyRLAlgorithm):
 
 
 class BCExpertEvaluator(BC):
-    def __init__(self, env, policy, expert_tf_session, **kwargs):
+    """
+    Evaluator class to measure the performance of a trained policy.
+    Can be used to measure an expert policy (if it exists) for comparison against
+    a BC-trained target policy.
+    """
+
+    def __init__(self, env, expert_policy, expert_tf_session, **kwargs):
+        """
+        Construct class.
+
+        Args:
+            env(): Environment.
+            expert_policy(): Expert policy network. Graph must match saved model exactly.
+            expert_tf_session(str): Path to tf checkpoint of expert policy network.
+        """
         self.expert_tf_session = expert_tf_session
 
+        # We set _no_train here to avoid adding new tf objects to the graph.
+        # See: https://github.com/tensorflow/tensorflow/issues/17257
         super(BCExpertEvaluator, self).__init__(
             env=env,
-            policy=policy,
+            policy=expert_policy,
             expert_dataset=None,
-            no_train=True,
+            _no_train=True,
             **kwargs)
 
     @overrides
@@ -203,64 +266,18 @@ class BCExpertEvaluator(BC):
             episode_rewards = []
             last_average_return = None
 
-            with logger.prefix('(Expert Policy) | '):
-                for epoch in range(self.n_epochs):
-                    for epoch_cycle in range(self.n_epoch_cycles):
-                        paths = self.obtain_samples(0)
-                        samples_data = self.process_samples(0, paths)
-                        episode_rewards.extend(
-                            samples_data["undiscounted_returns"])
+            for epoch in range(self.n_epochs):
+                with logger.prefix('(Expert Policy) epoch #%d | ' % epoch):
+                    paths = self.obtain_samples(epoch)
+                    samples_data = self.process_samples(epoch, paths)
+                    episode_rewards.extend(
+                        samples_data["undiscounted_returns"])
 
-                    logger.record_tabular('AverageReturn',
-                                          np.mean(episode_rewards))
-                    logger.record_tabular('StdReturn', np.std(episode_rewards))
+                    logger.log("Evaluation finished")
                     last_average_return = np.mean(episode_rewards)
+                    logger.record_tabular('AverageReturn', last_average_return)
+                    logger.record_tabular('StdReturn', np.std(episode_rewards))
                     logger.dump_tabular(with_prefix=False)
 
             self.shutdown_worker()
         return last_average_return
-
-
-def sample_from_expert(env,
-                       expert_policy,
-                       expert_tf_session,
-                       dataset_save_path,
-                       size_in_transitions=800,
-                       time_horizon=200):
-    replay_buffer = SimpleReplayBuffer(
-        env_spec=env.spec,
-        size_in_transitions=size_in_transitions,
-        time_horizon=time_horizon)
-
-    saver = tf.train.Saver()
-    with tf.Session() as sess:
-        saver.restore(sess, expert_tf_session)
-        while not replay_buffer.full:
-            done = False
-            obs = env.reset()
-            samples = 0
-            while not done and (not replay_buffer.full):
-                action, _ = expert_policy.get_action(obs)
-                # To visualize how our clone model behaves, make a
-                # prediction from the clone and step based on the retrieved
-                # action.
-                next_obs, reward, done, info = env.step(action)
-                samples += 1
-                replay_buffer.add_transition(
-                    action=[action],
-                    observation=[obs],
-                    terminal=[done],
-                    reward=[reward],
-                    next_observation=[next_obs])
-                obs = next_obs
-            print("Samples collected by episode in the expert", samples)
-        env.close()
-
-    data = replay_buffer.sample(size_in_transitions - 1)
-    np.savez(dataset_save_path, **data)
-    # Retrieve data as:
-    # expert = np.load("dataset_save_path")
-    # obs = expert["observation"]
-    # acts = expert["action"]
-
-    return data
