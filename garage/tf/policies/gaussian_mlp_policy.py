@@ -23,6 +23,7 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
                  adaptive_std=False,
                  std_share_network=False,
                  std_hidden_sizes=(32, 32),
+                 extra_dims=0,
                  min_std=1e-6,
                  std_hidden_nonlinearity=tf.nn.tanh,
                  hidden_nonlinearity=tf.nn.tanh,
@@ -63,7 +64,7 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
 
         with tf.variable_scope(name, "GaussianMLPPolicy"):
 
-            obs_dim = env_spec.observation_space.flat_dim
+            obs_dim = env_spec.observation_space.flat_dim + extra_dims
             action_dim = env_spec.action_space.flat_dim
 
             # create network
