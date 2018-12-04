@@ -8,7 +8,7 @@ from garage.tf.algos import BC
 from garage.tf.envs import TfEnv
 from garage.tf.policies import ContinuousMLPPolicy
 from garage.tf.policies import GaussianMLPPolicy
-from sandbox.embed2learn.envs import PointEnv
+from garage.envs import PointEnv
 
 
 def run_task(v):

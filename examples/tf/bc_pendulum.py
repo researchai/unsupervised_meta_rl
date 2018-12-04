@@ -4,7 +4,6 @@ import numpy as np
 
 from garage.misc.instrument import run_experiment
 from garage.tf.algos import BC, BCExpertEvaluator
-from garage.tf.algos.bc import sample_from_expert
 from garage.tf.envs import TfEnv
 from garage.tf.policies import ContinuousMLPPolicy
 
@@ -12,23 +11,7 @@ from garage.tf.policies import ContinuousMLPPolicy
 def run_bc(*_):
     env = TfEnv(gym.make('InvertedDoublePendulum-v2'))
     expert_dataset_path = "data/bc/inverted_double_pendulum_expert_data.npz"
-    # Load expert dataset, or generate it from an expert policy if not found
-    try:
-        expert_dataset = np.load(expert_dataset_path)
-    except FileNotFoundError:
-        # Policy has to exactly match actor policy graph from trained expert
-        policy = ContinuousMLPPolicy(
-            env_spec=env.spec,
-            name="Actor",
-            hidden_sizes=[64, 64],
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh)
-        expert_tf_session_ckpt = "data/bc/ddpg_expert/ddpg_model.ckpt"
-        expert_dataset = sample_from_expert(
-            env=env,
-            expert_policy=policy,
-            expert_tf_session=expert_tf_session_ckpt,
-            dataset_save_path=expert_dataset_path)
+    expert_dataset = np.load(expert_dataset_path)
 
     tf.reset_default_graph()
     policy = ContinuousMLPPolicy(
@@ -63,7 +46,12 @@ def run_eval(*_):
     expert_tf_session_ckpt = "data/bc/ddpg_expert/ddpg_model.ckpt"
 
     exp_eval = BCExpertEvaluator(
-        env=env, policy=policy, expert_tf_session=expert_tf_session_ckpt)
+        env=env,
+        expert_policy=policy,
+        expert_tf_session=expert_tf_session_ckpt,
+        max_path_length=1024,
+        rollout_batch_size=10,
+        n_epochs=1)
 
     exp_eval.train()
 
