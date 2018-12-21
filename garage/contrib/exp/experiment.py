@@ -1,7 +1,7 @@
 from garage.contrib.exp import Agent
-from garage.contrib.exp import Checkpointer
 from garage.contrib.exp import Logger
 from garage.contrib.exp import Observer
+from garage.contrib.exp import Snapshotor
 
 
 class Experiment():
@@ -9,7 +9,7 @@ class Experiment():
             self,
             observer: Observer,
             agent: Agent,
-            checkpointer: Checkpointer,
+        snapshotor: Snapshotor,
             logger: Logger,
             # common experiment variant,
             n_itr,

@@ -1,6 +1,6 @@
 import abc
 
 
-class Checkpointer(abc.ABC):
+class Snapshotor(abc.ABC):
     def __init__(self):
         pass
