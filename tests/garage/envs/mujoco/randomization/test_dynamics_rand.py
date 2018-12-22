@@ -294,3 +294,114 @@ class TestDynamicsRand(unittest.TestCase):
             .add()
 
         assert variations.get_list()[0].mean_std == (self._mean, self._std_dev)
+
+    def test_swimmer(self):
+        import time
+
+        env = SwimmerEnv()
+        filename = "/tmp/myfile.xml"
+        obj_type = 'geom'
+        obj_name = 'torso'
+        attrib = 'size'
+        f = open(filename, "w", encoding="utf-8")
+        m = env.sim.model
+        body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
+        geom_funcs = {'size': m.geom_size}
+        if obj_type == 'body':
+            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
+            val_to_access = body_funcs[attrib][obj_id]
+        elif obj_type == 'geom':
+            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
+            val_to_access = geom_funcs[attrib][obj_id]
+        else:
+            raise NotImplementedError("Choose body or geom for obj_type")
+
+        val = np.array(val_to_access)
+        print(f'Original {attrib}', val)  # get original attribute value
+
+        # Update size and store to new model
+        geom_funcs[attrib][obj_id] = 1 * val
+        env.sim.save(f, 'xml')
+        f.close()
+
+        env2 = SwimmerEnv(file_path=filename)
+        env2.reset()
+        action = np.ones(env2.action_space.shape) * 4000
+        if obj_type == 'body':
+            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
+            val_to_access = body_funcs[attrib][obj_id]
+        elif obj_type == 'geom':
+            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
+            val_to_access = geom_funcs[attrib][obj_id]
+        val = np.array(val_to_access)
+        print(f'New {attrib}', val)
+
+        for i in range(500):
+            time.sleep(0.01)
+            env2.step(action=action)
+            env2.render()
+
+    def test_reacher(self):
+        import time
+        from sawyer.mujoco.reacher_env import ReacherEnv
+        from mujoco_py import load_model_from_path, MjSim
+
+        env = ReacherEnv(goal_position=[0, 0, 0], control_method='position_control')
+        filename = "/home/gautam/RLgarage/gym-sawyer/sawyer/vendor/mujoco_models/myfile.xml"
+        obj_type = 'body'
+        obj_name = 'right_l6'
+        attrib = 'pos'
+        f = open(filename, "w", encoding="utf-8")
+        m = env.sim.model
+        body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
+        geom_funcs = {'size': m.geom_size}
+        if obj_type == 'body':
+            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
+            val_to_access = body_funcs[attrib][obj_id]
+        elif obj_type == 'geom':
+            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
+            val_to_access = geom_funcs[attrib][obj_id]
+        else:
+            raise NotImplementedError(f"obj_type {obj_type} not recognized")
+
+        val = np.array(val_to_access)
+        print(f'Original {attrib}', val)  # get original attribute value
+
+        # Update size and store to new model
+        body_funcs[attrib][obj_id] = 3 * val
+
+        for i in range(500):
+            time.sleep(0.01)
+            env.render()
+
+        env.sim.save(f, 'xml')
+        f.close()
+
+        env2 = ReacherEnv(goal_position=[0, 0, 0], control_method='position_control')
+        env2.model = load_model_from_path(filename)
+        env2.sim = MjSim(env2.model)
+        env2.data = env2.sim.data
+        env2.init_qpos = env2.sim.data.qpos
+        env2.init_qvel = env2.sim.data.qvel
+        env2.init_qacc = env2.sim.data.qacc
+        env2.init_ctrl = env2.sim.data.ctrl
+
+        env2.reset()
+        # action = np.ones(env2.action_space.shape) * 4
+
+        if obj_type == 'body':
+            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
+            val_to_access = body_funcs[attrib][obj_id]
+        elif obj_type == 'geom':
+            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
+            val_to_access = geom_funcs[attrib][obj_id]
+        else:
+            raise NotImplementedError(f"obj_type {obj_type} not recognized")
+
+        val = np.array(val_to_access)
+        print(f'New {attrib}', val)
+
+        for i in range(500):
+            time.sleep(0.01)
+            # env2.step(action=action)
+            env2.render()
