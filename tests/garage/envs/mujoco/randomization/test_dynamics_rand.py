@@ -344,14 +344,15 @@ class TestDynamicsRand(unittest.TestCase):
     def test_reacher(self):
         import time
         from sawyer.mujoco.reacher_env import ReacherEnv
-        from mujoco_py import load_model_from_path, MjSim
+        from mujoco_py import MjSim, load_model_from_xml
+        import lxml.etree as et
+        import io
+        from sawyer.garage.envs.mujoco.mujoco_env import MODEL_DIR
 
         env = ReacherEnv(goal_position=[0, 0, 0], control_method='position_control')
-        filename = "/home/gautam/RLgarage/gym-sawyer/sawyer/vendor/mujoco_models/myfile.xml"
         obj_type = 'body'
         obj_name = 'right_l6'
         attrib = 'pos'
-        f = open(filename, "w", encoding="utf-8")
         m = env.sim.model
         body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
         geom_funcs = {'size': m.geom_size}
@@ -370,27 +371,37 @@ class TestDynamicsRand(unittest.TestCase):
         # Update size and store to new model
         body_funcs[attrib][obj_id] = 3 * val
 
-        for i in range(500):
-            time.sleep(0.01)
-            env.render()
+        mem_io = io.StringIO()
+        env.sim.save(mem_io, 'xml')
+        env.close()
 
-        env.sim.save(f, 'xml')
-        f.close()
+        # Change the meshdir attribute to point to the write directory for STLs
+        mem_io.seek(0)
+        tree = et.parse(mem_io)
+        compiler = tree.find('compiler')
+        compiler.attrib['meshdir'] = MODEL_DIR+'/meshes/'
 
         env2 = ReacherEnv(goal_position=[0, 0, 0], control_method='position_control')
-        env2.model = load_model_from_path(filename)
+        env2.model = load_model_from_xml(et.tounicode(tree))
         env2.sim = MjSim(env2.model)
         env2.data = env2.sim.data
         env2.init_qpos = env2.sim.data.qpos
         env2.init_qvel = env2.sim.data.qvel
         env2.init_qacc = env2.sim.data.qacc
         env2.init_ctrl = env2.sim.data.ctrl
-
         env2.reset()
-        # action = np.ones(env2.action_space.shape) * 4
 
+        for i in range(500):
+            time.sleep(0.01)
+            if i % 20 == 0:
+                print('env2', i)
+            env2.render()
+
+        m = env2.sim.model
+        body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
+        geom_funcs = {'size': m.geom_size}
         if obj_type == 'body':
-            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
+            obj_id = env2.sim.model._body_name2id[obj_name]  # get ID
             val_to_access = body_funcs[attrib][obj_id]
         elif obj_type == 'geom':
             obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
@@ -401,7 +412,3 @@ class TestDynamicsRand(unittest.TestCase):
         val = np.array(val_to_access)
         print(f'New {attrib}', val)
 
-        for i in range(500):
-            time.sleep(0.01)
-            # env2.step(action=action)
-            env2.render()
