@@ -1,4 +1,5 @@
-import os.path as osp
+import io
+from lxml import etree
 
 from cached_property import cached_property
 import gym
@@ -12,20 +13,28 @@ from garage.misc.overrides import overrides
 
 class RandomizedEnv(gym.Env, Serializable):
     """
-    This class is just a wrapper class for the MujocoEnv to perform
-    the training using Dynamics Randomization.
-    Only code in the methods reset and terminate has been added.
+    Wrapper class for the MujocoEnv to perform training using Dynamics Randomization.
     """
 
-    def __init__(self, mujoco_env, variations):
+    def __init__(self, mujoco_env, variations, *args, **kwargs):
         """
         Set variations with the node in the XML file at file_path.
         """
         Serializable.quick_init(self, locals())
         self._wrapped_env = mujoco_env
         self._variations = variations
-        self._file_path = osp.join(MODEL_DIR, mujoco_env.FILE)
-        self._variations.initialize_variations(self._file_path)
+        self._wrapped_env_kwargs = kwargs
+        temp_buffer = io.StringIO()
+        self.wrapped_env.sim.save(temp_buffer, 'xml')
+
+        # Change the meshdir attribute to point to the write directory for STLs
+        temp_buffer.seek(0)
+        tree = etree.parse(temp_buffer)
+        compiler = tree.find('compiler')
+        compiler.attrib['meshdir'] = MODEL_DIR+'/meshes/'
+        self._xml_buffer = io.StringIO(etree.tounicode(tree))
+
+        self._variations.initialize_variations(self._xml_buffer)
 
     def reset(self):
         """
@@ -33,8 +42,14 @@ class RandomizedEnv(gym.Env, Serializable):
         corresponding parameters in the MuJoCo environment class are
         set.
         """
-        self._wrapped_env.model = load_model_from_xml(
+        model = load_model_from_xml(
             self._variations.get_randomized_xml_model())
+        env_class = self._wrapped_env.__class__
+        self._wrapped_env = env_class(**self._wrapped_env_kwargs)
+        if self._wrapped_env_kwargs is None:
+            print("No keyword args given for wrapped env "
+                  "{0}. Using default constructor".format(self._wrapped_env.__class__))
+        self._wrapped_env.model = model
         if 'action_space' in self._wrapped_env.__dict__:
             del self._wrapped_env.__dict__['action_space']
         self._wrapped_env.sim = MjSim(self._wrapped_env.model)

@@ -298,12 +298,16 @@ class TestDynamicsRand(unittest.TestCase):
     def test_swimmer(self):
         import time
 
-        env = SwimmerEnv()
-        filename = "/tmp/myfile.xml"
+        env_kwargs = {'ctrl_cost_coeff': 0.1}
+
+        env = SwimmerEnv(**env_kwargs)
         obj_type = 'geom'
         obj_name = 'torso'
         attrib = 'size'
-        f = open(filename, "w", encoding="utf-8")
+        upper_bound = [4.5, 4.5]
+        lower_bound = [0.5, 0.5]
+
+        # Setup to access variables within model
         m = env.sim.model
         body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
         geom_funcs = {'size': m.geom_size}
@@ -314,101 +318,95 @@ class TestDynamicsRand(unittest.TestCase):
             obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
             val_to_access = geom_funcs[attrib][obj_id]
         else:
-            raise NotImplementedError("Choose body or geom for obj_type")
+            raise NotImplementedError("obj_type {0} not recognized".format(obj_type))
 
+        # get original value of attribute
         val = np.array(val_to_access)
         print(f'Original {attrib}', val)  # get original attribute value
 
-        # Update size and store to new model
-        geom_funcs[attrib][obj_id] = 1 * val
-        env.sim.save(f, 'xml')
-        f.close()
+        variations = Variations()
+        variations.randomize() \
+            .at_xpath("//{1}[@name=\'{0}\']".format(obj_name, obj_type)) \
+            .attribute("{0}".format(attrib)) \
+            .with_method(Method.COEFFICIENT) \
+            .sampled_from(Distribution.UNIFORM) \
+            .with_range(lower_bound, upper_bound) \
+            .add()
 
-        env2 = SwimmerEnv(file_path=filename)
-        env2.reset()
-        action = np.ones(env2.action_space.shape) * 4000
-        if obj_type == 'body':
-            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
-            val_to_access = body_funcs[attrib][obj_id]
-        elif obj_type == 'geom':
-            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
-            val_to_access = geom_funcs[attrib][obj_id]
-        val = np.array(val_to_access)
-        print(f'New {attrib}', val)
+        randomized_env = randomize(env, variations, **env_kwargs)
+        randomized_vals = []
 
-        for i in range(500):
-            time.sleep(0.01)
-            env2.step(action=action)
-            env2.render()
+        for i in range(5):
+            randomized_env.reset()
+            obj_id = randomized_env.wrapped_env.sim.model._geom_name2id[obj_name]
+            val_to_access = randomized_env.wrapped_env.sim.model.geom_size[obj_id]
+            val = np.array(val_to_access)
+            print(f'Random {attrib} {val}')
+            randomized_vals.append(val)
+            for temp in range(500):
+                time.sleep(0.01)
+                if temp % 100 == 0:
+                    print('env', temp)
+                randomized_env.wrapped_env.sim.step()
+                randomized_env.wrapped_env.render()
+            randomized_env.wrapped_env.close()  # TODO: Doesn't actually close the mujoco window
+
+        print("All Randomized vals \n {0}".format(randomized_vals))
 
     def test_reacher(self):
         import time
         from sawyer.mujoco.reacher_env import ReacherEnv
-        from mujoco_py import MjSim, load_model_from_xml
-        import lxml.etree as et
-        import io
-        from sawyer.garage.envs.mujoco.mujoco_env import MODEL_DIR
 
-        env = ReacherEnv(goal_position=[0, 0, 0], control_method='position_control')
+        env_kwargs = {'goal_position': [0, 0, 0], 'control_method': 'position_control'}
+
+        env = ReacherEnv(**env_kwargs)
         obj_type = 'body'
         obj_name = 'right_l6'
         attrib = 'pos'
+        upper_bound = [1.5, 1.5, 1.5]
+        lower_bound = [0.5, 0.5, 0.5]
+
+        # Setup to access variables within model
         m = env.sim.model
         body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
         geom_funcs = {'size': m.geom_size}
         if obj_type == 'body':
-            obj_id = env.sim.model._body_name2id[obj_name]  # get ID
+            obj_id = m._body_name2id[obj_name]  # get ID
             val_to_access = body_funcs[attrib][obj_id]
         elif obj_type == 'geom':
-            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
+            obj_id = m._geom_name2id[obj_name]  # get ID
             val_to_access = geom_funcs[attrib][obj_id]
         else:
             raise NotImplementedError(f"obj_type {obj_type} not recognized")
 
+        # get original value of attribute
         val = np.array(val_to_access)
-        print(f'Original {attrib}', val)  # get original attribute value
+        print(f'Original {attrib} {val}')  # get original attribute value
 
-        # Update size and store to new model
-        body_funcs[attrib][obj_id] = 3 * val
+        variations = Variations()
+        variations.randomize() \
+            .at_xpath("//{1}[@name=\'{0}\']".format(obj_name, obj_type)) \
+            .attribute("{0}".format(attrib)) \
+            .with_method(Method.COEFFICIENT) \
+            .sampled_from(Distribution.UNIFORM) \
+            .with_range(lower_bound, upper_bound) \
+            .add()
 
-        mem_io = io.StringIO()
-        env.sim.save(mem_io, 'xml')
-        env.close()
+        randomized_env = randomize(env, variations, **env_kwargs)
+        randomized_vals = []
 
-        # Change the meshdir attribute to point to the write directory for STLs
-        mem_io.seek(0)
-        tree = et.parse(mem_io)
-        compiler = tree.find('compiler')
-        compiler.attrib['meshdir'] = MODEL_DIR+'/meshes/'
+        for i in range(5):
+            randomized_env.reset()
+            obj_id = randomized_env.wrapped_env.sim.model._body_name2id[obj_name]
+            val_to_access = randomized_env.wrapped_env.sim.model.body_pos[obj_id]
+            val = np.array(val_to_access)
+            print(f'Random {attrib} {val}')
+            randomized_vals.append(val)
+            for temp in range(500):
+                time.sleep(0.01)
+                if temp % 100 == 0:
+                    print('env', temp)
+                # randomized_env.wrapped_env.sim.step()
+                randomized_env.wrapped_env.render()
 
-        env2 = ReacherEnv(goal_position=[0, 0, 0], control_method='position_control')
-        env2.model = load_model_from_xml(et.tounicode(tree))
-        env2.sim = MjSim(env2.model)
-        env2.data = env2.sim.data
-        env2.init_qpos = env2.sim.data.qpos
-        env2.init_qvel = env2.sim.data.qvel
-        env2.init_qacc = env2.sim.data.qacc
-        env2.init_ctrl = env2.sim.data.ctrl
-        env2.reset()
-
-        for i in range(500):
-            time.sleep(0.01)
-            if i % 20 == 0:
-                print('env2', i)
-            env2.render()
-
-        m = env2.sim.model
-        body_funcs = {'mass': m.body_mass, 'pos': m.body_pos}
-        geom_funcs = {'size': m.geom_size}
-        if obj_type == 'body':
-            obj_id = env2.sim.model._body_name2id[obj_name]  # get ID
-            val_to_access = body_funcs[attrib][obj_id]
-        elif obj_type == 'geom':
-            obj_id = env.sim.model._geom_name2id[obj_name]  # get ID
-            val_to_access = geom_funcs[attrib][obj_id]
-        else:
-            raise NotImplementedError(f"obj_type {obj_type} not recognized")
-
-        val = np.array(val_to_access)
-        print(f'New {attrib}', val)
-
+        print(f'All Randomized vals \n {randomized_vals}')

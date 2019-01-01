@@ -114,7 +114,7 @@ class Variations:
         """
         return VariationSpec(self)
 
-    def initialize_variations(self, xml_file_path):
+    def initialize_variations(self, file_path_or_xml_buffer):
         """
         Once all the variations have been added to the list member of this
         class, this method finds each variation as a node within the model
@@ -125,11 +125,11 @@ class Variations:
 
         Parameters
         ----------
-        xml_file_path : string
-            absolute path to the location of the XML file that contains the
-            model
+        file_path_or_xml_buffer : string
+            buffered string object or the absolute path to an XML file
+            containing the model
         """
-        self._parsed_model = etree.parse(xml_file_path)
+        self._parsed_model = etree.parse(file_path_or_xml_buffer)
         self._elem_cache = {}
         self._default_cache = {}
         for v in self._list:
@@ -140,8 +140,8 @@ class Variations:
             self._elem_cache[v] = e
 
             if v.attrib not in e.attrib:
-                raise ValueError("Attribute %s doesn't exist in node %s" %
-                                 (v.attrib, v.xpath))
+                raise ValueError("Attribute {0} doesn't exist in node {1}"
+                                 .format(v.attrib, v.xpath))
             val = e.attrib[v.attrib].split(' ')
             if len(val) == 1:
                 self._default_cache[v] = float(e.attrib[v.attrib])
