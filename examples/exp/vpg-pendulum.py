@@ -1,25 +1,26 @@
 """Basic example of Experiment"""
 import gym
 
-from garage.baselines import LinearFeatureBaseline
 from garage.contrib.exp import Experiment
 from garage.contrib.torch.algos import VPG
 from garage.contrib.exp.loggers import BasicLogger
 from garage.contrib.exp.snapshotors import DiskSnapshotor
 from garage.contrib.torch.policies import GaussianMLPPolicy
+from garage.contrib.exp.core.misc import get_env_spec
 
-env = gym.make('CartPole-v1')
 
-policy = GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=(32, 32))
+env = gym.make('Pendulum-v0')
+env_spec = get_env_spec(env)
 
-baseline = LinearFeatureBaseline(env_spec=env.spec)
+policy = GaussianMLPPolicy(env_spec=env_spec, hidden_sizes=(32, 32))
+
+# baseline = LinearFeatureBaseline(env_spec=env_spec)
 
 agent = VPG(
-    env_spec=env.spec,
+    env_spec=env_spec,
     policy=policy,
-    baseline=baseline,
-    discount=0.99,
-    optimizer_args = dict(tf_optimizer_args=dict(learning_rate=0.01, )))
+    # baseline=baseline,
+    discount=0.99)
 
 # Alternatives: HDFS, S3, etc.
 snapshotor = DiskSnapshotor(exp_dir='garage-vpg-cartpole')

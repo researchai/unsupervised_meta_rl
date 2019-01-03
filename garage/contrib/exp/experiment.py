@@ -4,7 +4,6 @@ from garage.contrib.exp import Agent
 from garage.contrib.exp import Logger
 from garage.contrib.exp import Snapshotor
 
-
 class Experiment():
     def __init__(
             self,
@@ -20,7 +19,7 @@ class Experiment():
             discount=0.99,
     ):
         if sampler is None:
-            from garage.sampler import BatchSampler
+            from garage.contrib.exp.samplers import BatchSampler
             sampler = BatchSampler(env=env, max_path_length=max_path_length)
 
         self.env = env
@@ -40,6 +39,7 @@ class Experiment():
             itr = itr + 1
 
             obs = self.sampler.reset()
+            print("reset", obs)
             while self.sampler.sample_count < self.batch_size:
                 actions = self.agent.get_actions(obs)
                 obs = self.sampler.step(actions)

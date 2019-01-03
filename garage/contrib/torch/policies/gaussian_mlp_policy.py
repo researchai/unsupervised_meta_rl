@@ -19,7 +19,7 @@ class GaussianMLPPolicy(nn.Module, Policy):
                  hidden_nonlinearity=torch.tanh,
                  output_nonlinearity=torch.tanh):
         """
-        Diagonal MLP Gaussian policies.
+        Diagonal MLP Gaussian policy.
 
         Args:
             env_spec: Observation and action spec of gym environment.
@@ -33,7 +33,7 @@ class GaussianMLPPolicy(nn.Module, Policy):
         if adaptive_std:
             raise NotImplementedError
 
-        nn.Module.__init__()
+        nn.Module.__init__(self)
 
         obs_dim = env_spec.observation_space.flat_dim
         action_dim = env_spec.action_space.flat_dim
@@ -44,15 +44,28 @@ class GaussianMLPPolicy(nn.Module, Policy):
         self.log_std = nn.Parameter(math.log(init_std) * torch.ones(action_dim, dtype=torch.float32))
 
     def forward(self, obs):
-        return self.sample(obs)
+        obs = torch.Tensor(obs)
+        return self._sample(obs).data.numpy()
 
-    def sample(self, obs):
-        actions = self.policy(obs).sample()
-        logpdf = self.logpdf(actions)
+    def _sample(self, obs):
+        actions = self._policy(obs).sample()
+        logpdf = self._logpdf(obs, actions)
         return actions, logpdf
 
-    def logpdf(self, obs, action):
-        return self.policy(obs).log_prob(action).sum(dim=1)
+    def _logpdf(self, obs, action):
+        action = torch.Tensor(action)
+        return self._policy(obs).log_prob(action).sum(dim=1)
 
-    def policy(self, obs):
+    def _policy(self, obs):
         return Normal(self.mu(obs), self.log_std.exp())
+
+    def sample(self, obs):
+        obs = torch.Tensor(obs)
+        actions, logpdf = self._sample(obs)
+        return actions.data.numpy(), logpdf.data.numpy()
+
+    def logpdf(self, obs, action):
+        obs = torch.Tensor(obs)
+        action = torch.Tensor(action)
+        logpdf = self._logpdf(obs, action)
+        return logpdf.data.numpy()

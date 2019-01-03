@@ -31,7 +31,8 @@ class VPG(Agent):
 
     def get_actions(self, obs):
         self.policy.eval()
-        return self.policy.sample(obs)
+        actions, _ = self.policy.sample(obs)
+        return actions
 
     def train_once(self, samples):
         samples = self._process_sample(samples)

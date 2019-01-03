@@ -1,4 +1,4 @@
-from garage.contrib.exp.snapshotors import Snapshotor
+from garage.contrib.exp.snapshotors.snapshotor import Snapshotor
 
 
 class DiskSnapshotor(Snapshotor):

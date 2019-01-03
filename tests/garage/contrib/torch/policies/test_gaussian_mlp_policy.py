@@ -2,7 +2,7 @@ import unittest
 import gym
 import torch
 
-from garage.contrib.torch.core.misc import get_env_spec
+from garage.contrib.exp.core.misc import get_env_spec
 from garage.contrib.torch.policies.gaussian_mlp_policy import GaussianMLPPolicy
 
 
