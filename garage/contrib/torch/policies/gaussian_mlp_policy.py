@@ -4,10 +4,12 @@ import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
 
+from garage.contrib.exp.core import Policy
 from garage.contrib.torch.core.mlp import MLP
 
 
-class GaussianMLPPolicy(nn.Module):
+
+class GaussianMLPPolicy(nn.Module, Policy):
     def __init__(self,
                  env_spec,
                  hidden_sizes=(32,32),
@@ -31,7 +33,7 @@ class GaussianMLPPolicy(nn.Module):
         if adaptive_std:
             raise NotImplementedError
 
-        super(GaussianMLPPolicy, self).__init__()
+        nn.Module.__init__()
 
         obs_dim = env_spec.observation_space.flat_dim
         action_dim = env_spec.action_space.flat_dim
@@ -45,7 +47,9 @@ class GaussianMLPPolicy(nn.Module):
         return self.sample(obs)
 
     def sample(self, obs):
-        return self.policy(obs).sample()
+        actions = self.policy(obs).sample()
+        logpdf = self.logpdf(actions)
+        return actions, logpdf
 
     def logpdf(self, obs, action):
         return self.policy(obs).log_prob(action).sum(dim=1)

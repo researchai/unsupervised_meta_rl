@@ -39,9 +39,9 @@ class Experiment():
         while itr <= self.n_itr:
             itr = itr + 1
 
-            states = self.sampler.reset()
+            obs = self.sampler.reset()
             while self.sampler.sample_count < self.batch_size:
-                actions = self.agent.act(states)
-                states = self.sampler.step(actions)
+                actions = self.agent.get_actions(obs)
+                obs = self.sampler.step(actions)
 
             self.agent.train_once(self.sampler.get_samples())

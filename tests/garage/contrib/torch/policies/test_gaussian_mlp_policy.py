@@ -16,4 +16,4 @@ class TestGaussianMLPPolicy(unittest.TestCase):
         obs.unsqueeze_(0)
         action = policy.sample(obs)
         logpdf = policy.logpdf(obs, action)
-        print(obs, action, logpdf)
+        # print(obs, action, logpdf)
