@@ -37,11 +37,13 @@ class Experiment():
 
         while itr <= self.n_itr:
             itr = itr + 1
+            print('Itration', itr)
 
             obs = self.sampler.reset()
-            print("reset", obs)
+            # print("reset", obs)
             while self.sampler.sample_count < self.batch_size:
                 actions = self.agent.get_actions(obs)
                 obs = self.sampler.step(actions)
 
             self.agent.train_once(self.sampler.get_samples())
+            print(self.sampler.get_summary())

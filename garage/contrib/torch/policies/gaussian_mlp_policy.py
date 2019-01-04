@@ -45,7 +45,7 @@ class GaussianMLPPolicy(nn.Module, Policy):
 
     def forward(self, obs):
         obs = torch.Tensor(obs)
-        return self._sample(obs).data.numpy()
+        return self._sample(obs)
 
     def _sample(self, obs):
         actions = self._policy(obs).sample()

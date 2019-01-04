@@ -18,12 +18,13 @@ class BatchSampler:
         self.rewards = []
         self.infos = []
 
-        self._sample_count = 0
-        self._path_count = 0
-
         self.env_spec = get_env_spec(self._env)
         self.obs_dim = self.env_spec.observation_space.flat_dim
         self.action_dim = self.env_spec.action_space.flat_dim
+
+        self._sample_count = 0
+        self._path_count = 0
+        self._last_obs = np.zeros((n_env, self.obs_dim))
 
     def reset(self):
         self.path_idx = [i for i in range(self.n_env)]
@@ -31,13 +32,15 @@ class BatchSampler:
         self.actions = []
         self.rewards = []
         self.infos = []
+        self._path_count = self._sample_count = 0
 
         ret_obs = []
 
         for i in range(self.n_env):
             obs = self.envs[i].reset()
             ret_obs.append(obs)
-            self.observations.append(obs.reshape(1, -1))
+            self._last_obs[i] = obs
+            self.observations.append(np.zeros((0, self.obs_dim)))
             self.actions.append(np.zeros((0, self.action_dim)))
             self.rewards.append(np.array([]))
             self.infos.append([])
@@ -53,24 +56,24 @@ class BatchSampler:
             obs, rew, done, info = env.step(actions[i])
             ret_obs.append(obs)
 
-            # print(self.actions[idx], actions[i])
+            self.observations[idx] = np.vstack((self.observations[idx], [self._last_obs[i]]))
             self.actions[idx] = np.vstack((self.actions[idx], [actions[i]]))
             self.rewards[idx] = np.append(self.rewards[idx], rew)
             self.infos[idx].append(info)
-            if not done:
-                self.observations[idx] = np.vstack((self.observations[idx], [obs]))
-            else:
+            if done:
                 idx = idx + 1
                 self.path_idx[i] = idx
 
-                self.observations.append(env.reset().reshape(1, -1))
+                self._last_obs[i] = env.reset()
+                self.observations.append(np.zeros((0, self.obs_dim)))
                 self.actions.append(np.zeros((0, self.action_dim)))
                 self.rewards.append(np.array([]))
                 self.infos.append([])
 
                 self._path_count = self._path_count + 1
-
-            self._sample_count = self._sample_count + 1
+            else:
+                self._last_obs[i] = obs
+                self._sample_count = self._sample_count + 1
 
         return np.array(ret_obs)
 
@@ -89,3 +92,12 @@ class BatchSampler:
     @property
     def path_count(self):
         return self._path_count
+
+    def get_summary(self):
+        return {
+            'AverageReturn': self.average_return
+        }
+
+    @property
+    def average_return(self):
+        return np.concatenate(self.rewards).mean()

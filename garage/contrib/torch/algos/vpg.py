@@ -3,6 +3,7 @@ import torch
 
 from garage.contrib.exp.core import Policy
 from garage.contrib.exp.agents import Agent
+from garage.misc.special import discount_cumsum
 
 
 class VPG(Agent):
@@ -37,7 +38,8 @@ class VPG(Agent):
     def train_once(self, samples):
         samples = self._process_sample(samples)
 
-        pi_loss = -(samples['logp_pi'], samples['adv']).mean()
+        # print('Shape', samples['logp_pi'].shape, samples['adv'].shape)
+        pi_loss = -(samples['logp_pi'] * samples['adv']).mean()
         self.policy.train()
         self.policy_pi_opt.zero_grad()
         pi_loss.backward()
@@ -45,26 +47,28 @@ class VPG(Agent):
 
     def _process_sample(self, samples):
         self.policy.eval()
-        logp_pi_all = np.array([], dtype=np.float32)
+        logp_pi_all = torch.empty((0, ))
         adv_all = np.array([], dtype=np.float32)
+        n_path = len(samples['observations'])
 
-        for path in samples:
-            obs = path['observations']
-            actions = path['actions']
-            rews = path['rewards']
+        for i in range(n_path):
+            obs = torch.Tensor(samples['observations'][i])
+            actions = torch.Tensor(samples['actions'][i]).view(-1, 1)
+            # print('obs shape', obs.shape)
+            # print('action shape', actions.shape)
+            rews = samples['rewards'][i]
 
-            logp_pi = self.policy.logpdf(obs, actions)
-            advs = np.zeros_like(rews)
+            logp_pi = self.policy._logpdf(obs, actions)
+            advs = discount_cumsum(rews, self.discount)
 
-            discounted_adv = 0
-            for i in reversed(range(len(rews))):
-                discounted_adv = rews[i] + self.discount * discounted_adv
-                advs[i] = discounted_adv
-
-            logp_pi_all += logp_pi
-            adv_all += advs
+            # print(logp_pi_all.shape, logp_pi.shape)
+            logp_pi_all = torch.cat((logp_pi_all, logp_pi))
+            adv_all = np.concatenate((adv_all, advs))
 
         return {
             'logp_pi': logp_pi_all,
-            'adv': adv_all
+            'adv': torch.Tensor(adv_all)
         }
+
+    def get_summary(self):
+        pass
