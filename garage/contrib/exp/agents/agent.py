@@ -4,8 +4,7 @@ import abc
 class Agent(abc.ABC):
     @abc.abstractmethod
     def get_actions(self, obs):
-        """
-        Get actions given a batch of observations.
+        """Get actions given a batch of observations.
 
         Args:
             obs: Tensor(batch_size, observation_dim)
@@ -19,8 +18,7 @@ class Agent(abc.ABC):
 
     @abc.abstractmethod
     def train_once(self, samples):
-        """
-        Train policy given trajectories sampled under latest policy.
+        """Train policy given trajectories sampled under latest policy.
 
         Args:
             samples: [Trajectory]
@@ -29,6 +27,16 @@ class Agent(abc.ABC):
                     actions: Tensor(path_len, action_dim),
                     rewards: Tensor(path_len)
                 }
+
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_summary(self):
+        """Report summary of last epoch.
+
+        Returns:
+            dict: statistics of last epoch.
 
         """
         raise NotImplementedError

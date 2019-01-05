@@ -4,7 +4,7 @@ import gym
 from garage.contrib.exp import Experiment
 from garage.contrib.torch.algos import VPG
 from garage.contrib.exp.loggers import BasicLogger
-from garage.contrib.exp.snapshotors import DiskSnapshotor
+from garage.contrib.exp.checkpointer import DiskCheckpointer
 from garage.contrib.torch.policies import GaussianMLPPolicy
 from garage.contrib.exp.core.misc import get_env_spec
 
@@ -23,7 +23,7 @@ agent = VPG(
     discount=0.99)
 
 # Alternatives: HDFS, S3, etc.
-snapshotor = DiskSnapshotor(exp_dir='garage-vpg-cartpole')
+snapshotor = DiskCheckpointer(exp_dir='garage-vpg-cartpole')
 
 # Alternativs: Tensorboard, Plotter
 logger = BasicLogger()
@@ -43,7 +43,7 @@ Initialize or load checkpoint from exp_dir.
 exp = Experiment(
     env=env,
     agent=agent,
-    snapshotor=snapshotor,
+    checkpointer=snapshotor,
     logger=logger,
     # exp variant
     n_itr=40,
