@@ -1,16 +1,15 @@
-from os import listdir, path, remove
-
 import pickle as pkl
+from os import listdir, path, remove, makedirs, rmdir
 
-from garage.contrib.exp.checkpointer.checkpointer import Checkpointer
-from garage.contrib.exp.checkpointer.checkpointer import get_now_timestamp
-from garage.contrib.exp.checkpointer.checkpointer import get_timestamp
-from garage.contrib.exp.checkpointer.checkpointer import cat_for_fname
+from garage.contrib.exp.checkpointers.checkpointer import Checkpointer
+from garage.contrib.exp.checkpointers.checkpointer import cat_for_fname
+from garage.contrib.exp.checkpointers.checkpointer import get_now_timestamp
+from garage.contrib.exp.checkpointers.checkpointer import get_timestamp
 
 
 class DiskCheckpointer(Checkpointer):
-    def __init__(self, exp_dir, resume, prefix):
-        super(DiskCheckpointer, self).__init__(resume, prefix)
+    def __init__(self, exp_dir, prefix, resume=True):
+        super(DiskCheckpointer, self).__init__(prefix, resume)
         self.exp_dir = exp_dir
 
     def load(self, **kwargs):
@@ -24,7 +23,7 @@ class DiskCheckpointer(Checkpointer):
 
         A checkpoints might consist of several files, each is named
         in the format of [prefix_]timestamp_object.pkl and corresponds
-        to a named argument.
+        to a named entry in kwargs.
 
         Args:
             **kwargs: Objects to save.
@@ -34,7 +33,7 @@ class DiskCheckpointer(Checkpointer):
             dict: restored objects from disk.
 
         """
-        latest_checkpoint = self._get_latest_checkpoint(kwargs.keys(), dry=True)
+        latest_checkpoint, _ = self._get_latest_checkpoint(kwargs.keys(), dry=True)
         if not latest_checkpoint or not self.resume:
             self.save(**kwargs)
             return kwargs
@@ -49,11 +48,15 @@ class DiskCheckpointer(Checkpointer):
                 The name of argument is used to name checkpoint file.
 
         """
+        makedirs(self.exp_dir, exist_ok=True)
         timestamp = get_now_timestamp()
 
         for name, obj in kwargs.items():
-            filename = cat_for_fname(self.exp_dir, timestamp, name)
+            filename = cat_for_fname(self.prefix, timestamp, name)
+            filename = path.join(self.exp_dir, filename)
             pkl.dump(obj, open(filename, 'wb'))
+
+        print("Saved checkpoint", self.prefix + "_" + timestamp)
 
         self._clean_outdated(timestamp)
 
@@ -67,7 +70,9 @@ class DiskCheckpointer(Checkpointer):
         Returns:
 
         """
-        return self._get_latest_checkpoint(kwargs.keys(), dry=False)
+        checkpoint, timestamp = self._get_latest_checkpoint(kwargs.keys(), dry=False)
+        print("Loaded from checkpoint", self.prefix + "_" + timestamp)
+        return checkpoint
 
     def _is_valid_name(self, filename):
         """Test if name is valid saved object filename.
@@ -83,12 +88,12 @@ class DiskCheckpointer(Checkpointer):
         if len(segs) < 2 + bool(self.prefix):
             return False
 
-        segs[-1], subfix = segs[-1].split('.')
-        if subfix != 'pkl':
+        segs[-1], subfix = path.splitext(segs[-1])
+        if subfix != '.pkl':
             return False
 
         if self.prefix:
-            if segs[0] != self.exp_dir:
+            if segs[0] != self.prefix:
                 return False;
             if not get_timestamp(segs[1]):
                 return False
@@ -105,7 +110,10 @@ class DiskCheckpointer(Checkpointer):
             list: list of valid saved object filenames.
 
         """
-        return [path.join(self.exp_dir, f) for f in listdir(self.exp_dir) if self._is_valid_name(f)]
+        if not path.exists(self.exp_dir):
+            return []
+        else:
+            return [path.join(self.exp_dir, f) for f in listdir(self.exp_dir) if self._is_valid_name(f)]
 
     def _get_latest_checkpoint(self, obj_names, dry=False):
         """Get latest valid checkpoint.
@@ -127,14 +135,16 @@ class DiskCheckpointer(Checkpointer):
             for obj_name in obj_names:
                 for file in files:
                     if obj_name in file:
-                        cp['obj_name'] = pkl.load(open(file, 'rb')) if not dry else ""
+                        cp[obj_name] = pkl.load(open(file, 'rb')) if not dry else ""
 
-            if len(cp) == len(obj_names) and timestamp > latest_timestamp:
+            if len(cp) == len(obj_names) and \
+                (not latest_timestamp or timestamp > latest_timestamp):
                 ret_cp = cp
+                latest_timestamp = timestamp
 
-        return ret_cp
+        return ret_cp, latest_timestamp
 
-    def _clean_outdated(self, latest_timestamp):
+    def _clean_outdated(self, latest_timestamp=None):
         """Remove checkpoints other than latest_timestamp.
 
         Args:
@@ -143,5 +153,9 @@ class DiskCheckpointer(Checkpointer):
         """
         files = self._get_saved_names()
         for file in files:
-            if latest_timestamp not in files:
+            if not latest_timestamp or latest_timestamp not in file:
                 remove(file)
+
+        if not latest_timestamp and path.exists(self.exp_dir) \
+            and not listdir(self.exp_dir):
+            rmdir(self.exp_dir)

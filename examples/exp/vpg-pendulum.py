@@ -2,15 +2,17 @@
 import gym
 
 from garage.contrib.exp import Experiment
-from garage.contrib.torch.algos import VPG
-from garage.contrib.exp.loggers import BasicLogger
-from garage.contrib.exp.checkpointer import DiskCheckpointer
-from garage.contrib.torch.policies import GaussianMLPPolicy
+from garage.contrib.exp.checkpointers import DiskCheckpointer
 from garage.contrib.exp.core.misc import get_env_spec
-
+from garage.contrib.exp.loggers import BasicLogger
+from garage.contrib.exp.samplers import BatchSampler
+from garage.contrib.torch.algos import VPG
+from garage.contrib.torch.policies import GaussianMLPPolicy
 
 env = gym.make('Pendulum-v0')
 env_spec = get_env_spec(env)
+
+sampler = BatchSampler(env=env, max_path_length=100)
 
 policy = GaussianMLPPolicy(env_spec=env_spec, hidden_sizes=(32, 32))
 
@@ -23,7 +25,7 @@ agent = VPG(
     discount=0.99)
 
 # Alternatives: HDFS, S3, etc.
-snapshotor = DiskCheckpointer(exp_dir='garage-vpg-cartpole')
+checkpointer = DiskCheckpointer(exp_dir='garage-exp-pendulum', resume=True, prefix='exp')
 
 # Alternativs: Tensorboard, Plotter
 logger = BasicLogger()
@@ -31,24 +33,18 @@ logger = BasicLogger()
 Initialize or load checkpoint from exp_dir.
 
 /exp_dir
-    /checkpoint
-        prefix-policy.pkl
-        prefix-algo.pkl
-        prefix-env.pkl
-        prefix-replaybuffer.pkl
-    /logs
-        prefix-summary.log
-        prefix-info.log
+    prefix_timestamp_agent.pkl
+    prefix_timestamp_sampler.pkl
 """
 exp = Experiment(
     env=env,
+    sampler=sampler,
     agent=agent,
-    checkpointer=snapshotor,
+    checkpointer=checkpointer,
     logger=logger,
     # exp variant
     n_itr=40,
     batch_size=4000,
-    max_path_length=100,
 )
 
 exp.train()

@@ -1,8 +1,9 @@
 import gym
 
 from garage.contrib.exp import Agent
-from garage.contrib.exp import Logger
 from garage.contrib.exp import Checkpointer
+from garage.contrib.exp import Logger
+
 
 class Experiment():
     def __init__(
@@ -15,12 +16,10 @@ class Experiment():
             # common experiment variant,
             n_itr=10,
             batch_size=1000,
-            max_path_length=100,
-            discount=0.99,
     ):
         if sampler is None:
             from garage.contrib.exp.samplers import BatchSampler
-            sampler = BatchSampler(env=env, max_path_length=max_path_length)
+            sampler = BatchSampler(env=env)
 
         if checkpointer.resume:
             checkpoint = checkpointer.load(sampler=sampler, agent=agent)
@@ -33,8 +32,6 @@ class Experiment():
         self.sampler = sampler
         self.n_itr = n_itr
         self.batch_size = batch_size
-        self.max_path_length = max_path_length
-        self.discount = discount
 
         self.itr = 0
 
@@ -50,11 +47,11 @@ class Experiment():
         self.agent.train_once(self.sampler.get_samples())
 
     def train(self):
-        while self.itr <= self.n_itr:
+        while self.itr < self.n_itr:
             self.train_once()
 
             print('Sampler Summary', self.sampler.get_summary())
             print('Agent Summary', self.agent.get_summary())
 
-            self.checkpointer.next_epoch()
+            # self.checkpointer.next_epoch()
             self.checkpointer.save(sampler=self.sampler, agent=self.agent)

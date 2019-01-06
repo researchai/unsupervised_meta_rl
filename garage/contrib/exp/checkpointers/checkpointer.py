@@ -12,12 +12,12 @@ def get_timestamp(name):
     return re.search(isoformat_regex, name).group(0)
 
 
-def cat_for_fname(self, *args):
+def cat_for_fname(*args):
     return '_'.join(args) + '.pkl'
 
 
 class Checkpointer(abc.ABC):
-    def __init__(self, resume, prefix):
+    def __init__(self, prefix, resume=True):
         self.resume = resume
         self.prefix = prefix
 
