@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 
-from garage.contrib.exp.core import Policy
 from garage.contrib.exp.agents import Agent
+from garage.contrib.exp.core import Policy
 from garage.misc.special import discount_cumsum
 
 
@@ -35,8 +35,8 @@ class VPG(Agent):
         actions, _ = self.policy.sample(obs)
         return actions
 
-    def train_once(self, samples):
-        logp_pi, adv = self._process_sample(samples)
+    def train_once(self, paths):
+        logp_pi, adv = self._process_sample(paths)
 
         pi_loss = -(logp_pi * adv).mean()
         self.policy.train()
@@ -44,16 +44,15 @@ class VPG(Agent):
         pi_loss.backward()
         self.policy_pi_opt.step()
 
-    def _process_sample(self, samples):
+    def _process_sample(self, paths):
         self.policy.eval()
         logp_pi_all = torch.empty((0, ))
         adv_all = np.array([], dtype=np.float32)
-        n_path = len(samples['observations'])
 
-        for i in range(n_path):
-            obs = torch.Tensor(samples['observations'][i])
-            actions = torch.Tensor(samples['actions'][i]).view(-1, 1)
-            rews = samples['rewards'][i]
+        for path in paths:
+            obs = torch.Tensor(path['observations'])
+            actions = torch.Tensor(path['actions']).view(-1, 1)
+            rews = path['rewards']
 
             logp_pi = self.policy._logpdf(obs, actions)
             advs = discount_cumsum(rews, self.discount)

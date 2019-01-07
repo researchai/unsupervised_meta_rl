@@ -1,6 +1,7 @@
 import copy
-import numpy as np
+
 import gym
+import numpy as np
 
 from garage.contrib.exp.core.misc import get_env_spec
 
@@ -13,10 +14,7 @@ class BatchSampler:
 
         self.envs = [copy.deepcopy(env) for _ in range(n_env)]
         self.path_idx = [i for i in range(self.n_env)]
-        self.observations = []
-        self.actions = []
-        self.rewards = []
-        self.infos = []
+        self.paths = []
 
         self.env_spec = get_env_spec(self._env)
         self.obs_dim = self.env_spec.observation_space.flat_dim
@@ -26,12 +24,16 @@ class BatchSampler:
         self._path_count = 0
         self._last_obs = np.zeros((n_env, self.obs_dim))
 
+    def _empty_path(self):
+        # (observation, action, reward, info)
+        return (np.zeros((0, self.obs_dim)),
+                np.zeros((0, self.action_dim)),
+                np.array([]),
+                [])
+
     def reset(self):
         self.path_idx = [i for i in range(self.n_env)]
-        self.observations = []
-        self.actions = []
-        self.rewards = []
-        self.infos = []
+        self.paths = []
         self._path_count = self._sample_count = 0
 
         ret_obs = []
@@ -40,10 +42,7 @@ class BatchSampler:
             obs = self.envs[i].reset()
             ret_obs.append(obs)
             self._last_obs[i] = obs
-            self.observations.append(np.zeros((0, self.obs_dim)))
-            self.actions.append(np.zeros((0, self.action_dim)))
-            self.rewards.append(np.array([]))
-            self.infos.append([])
+            self.paths.append(self._empty_path())
 
         return np.array(ret_obs)
 
@@ -53,23 +52,21 @@ class BatchSampler:
         for i in range(self.n_env):
             idx = self.path_idx[i]
             env = self.envs[i]
+            obs_all, action_all, rew_all, info_all = self.paths[idx]
             obs, rew, done, info = env.step(actions[i])
             ret_obs.append(obs)
 
-            self.observations[idx] = np.vstack((self.observations[idx], [self._last_obs[i]]))
-            self.actions[idx] = np.vstack((self.actions[idx], [actions[i]]))
-            self.rewards[idx] = np.append(self.rewards[idx], rew)
-            self.infos[idx].append(info)
+            obs_all = np.vstack((obs_all, self._last_obs[i]))
+            action_all = np.vstack((action_all, actions[i]))
+            rew_all = np.append(rew_all, rew)
+            info_all.append(info)
+            self.paths[idx] = (obs_all, action_all, rew_all, info_all)
+
             if done:
                 idx = idx + 1
                 self.path_idx[i] = idx
-
+                self.paths.append(self._empty_path())
                 self._last_obs[i] = env.reset()
-                self.observations.append(np.zeros((0, self.obs_dim)))
-                self.actions.append(np.zeros((0, self.action_dim)))
-                self.rewards.append(np.array([]))
-                self.infos.append([])
-
                 self._path_count = self._path_count + 1
             else:
                 self._last_obs[i] = obs
@@ -78,12 +75,12 @@ class BatchSampler:
         return np.array(ret_obs)
 
     def get_samples(self):
-        return {
-            'observations': self.observations.copy(),
-            'actions': self.actions.copy(),
-            'rewards': self.rewards.copy(),
-            'infos': self.infos.copy()
-        }
+        return [{
+            'observations': obs.copy(),
+            'actions': a.copy(),
+            'rewards': rew.copy(),
+            'infos': info.copy()
+        } for (obs, a, rew, info) in self.paths]
 
     @property
     def sample_count(self):
@@ -100,4 +97,4 @@ class BatchSampler:
 
     @property
     def average_return(self):
-        return np.concatenate(self.rewards).mean()
+        return np.concatenate([rews for _, _, rews, _ in self.paths]).mean()
