@@ -41,8 +41,8 @@ class Sampler(abc.ABC):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def sample_count(self):
         """Count of interactions with environment in current batch.
 
@@ -51,8 +51,8 @@ class Sampler(abc.ABC):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def path_count(self):
         """Count of completed paths in current batch.
 

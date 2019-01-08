@@ -4,10 +4,12 @@ import gym
 import numpy as np
 
 from garage.contrib.exp.core.misc import get_env_spec
+from garage.contrib.exp.loggers.summary_helper import Summary
 from garage.contrib.exp.samplers.sampler import Sampler
 
 
 class BatchSampler(Sampler):
+    """Multiple environments batch sampler"""
     def __init__(self, env: gym.Env, n_env=1, max_path_length=100):
         self._env = env
         self.n_env = n_env
@@ -92,10 +94,15 @@ class BatchSampler(Sampler):
         return self._path_count
 
     def get_summary(self):
-        return {
-            'AverageReturn': self.average_return
-        }
+        return Summary({
+            'AverageReward': self.rewards.mean(),
+            'StdReward': np.std(self.rewards),
+            'MaxReward': np.max(self.rewards),
+            'MinReward': np.min(self.rewards),
+            'NumSteps': self.sample_count,
+            'NumPaths': self.path_count,
+        })
 
     @property
-    def average_return(self):
-        return np.concatenate([rews for _, _, rews, _ in self.paths]).mean()
+    def rewards(self):
+        return np.concatenate([rews for _, _, rews, _ in self.paths])

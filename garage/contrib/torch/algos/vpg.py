@@ -3,7 +3,8 @@ import torch
 
 from garage.contrib.exp.agents import Agent
 from garage.contrib.exp.core import Policy
-from garage.misc.special import discount_cumsum
+from garage.contrib.exp.loggers.summary_helper import Summary
+from garage.misc.special import discount_cumsum, explained_variance_1d
 
 
 class VPG(Agent):
@@ -29,12 +30,16 @@ class VPG(Agent):
 
         self.policy_pi_opt = torch.optim.Adam(self.policy.parameters())
 
+        self.stats = Summary()
+
     def get_actions(self, obs):
         self.policy.eval()
         actions, _ = self.policy.sample(obs)
         return actions
 
     def train_once(self, paths):
+        self.stats.reset()
+
         logp_pi, adv = self._process_sample(paths)
 
         pi_loss = -(logp_pi * adv).mean()
@@ -48,10 +53,22 @@ class VPG(Agent):
         logp_pi_all = torch.empty((0, ))
         adv_all = np.array([], dtype=np.float32)
 
+        # For stats
+        rtns_all = np.array([])
+        undiscounted_rtns_all = np.array([])
+        predicted_rtns_all = np.array([])
+
         # Add 'return' to paths required by baseline
         for path in paths:
             rews = path['rewards']
-            path['returns'] = discount_cumsum(rews, self.discount)
+
+            rtns = discount_cumsum(rews, self.discount)
+            undiscounted_rtns = discount_cumsum(rews, 1)
+
+            path['returns'] = rtns
+            rtns_all = np.append(rtns_all, rtns)
+            undiscounted_rtns_all = np.append(undiscounted_rtns_all, undiscounted_rtns)
+
         self.baseline.fit(paths)
 
         for path in paths:
@@ -65,8 +82,17 @@ class VPG(Agent):
 
             logp_pi_all = torch.cat((logp_pi_all, logp_pi))
             adv_all = np.concatenate((adv_all, advs))
+            predicted_rtns_all = np.append(predicted_rtns_all, baselines)
+
+        # Save stats
+        self.stats.scalar('AverageDiscountedReturn', rtns_all.mean())
+        self.stats.scalar('AverageReturn', undiscounted_rtns_all.mean())
+        self.stats.scalar('ExplainedVariance', explained_variance_1d(predicted_rtns_all, rtns_all))
+        self.stats.scalar('StdReturn', rtns_all.std())
+        self.stats.scalar('MinReturn', rtns_all.min())
+        self.stats.scalar('MaxReturn', rtns_all.max())
 
         return logp_pi_all, torch.Tensor(adv_all)
 
     def get_summary(self):
-        pass
+        return self.stats.copy()

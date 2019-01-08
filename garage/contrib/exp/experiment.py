@@ -3,6 +3,7 @@ import gym
 from garage.contrib.exp import Agent
 from garage.contrib.exp import Checkpointer
 from garage.contrib.exp import Logger
+from garage.contrib.exp import Sampler
 
 
 class Experiment():
@@ -12,8 +13,8 @@ class Experiment():
             agent: Agent,
         checkpointer: Checkpointer,
             logger: Logger,
-            sampler=None,
-            # common experiment variant,
+        sampler: Sampler = None,
+        # common experiment parameters:
             n_itr=10,
             batch_size=1000,
     ):
