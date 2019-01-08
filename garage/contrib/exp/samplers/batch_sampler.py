@@ -4,9 +4,10 @@ import gym
 import numpy as np
 
 from garage.contrib.exp.core.misc import get_env_spec
+from garage.contrib.exp.samplers.sampler import Sampler
 
 
-class BatchSampler:
+class BatchSampler(Sampler):
     def __init__(self, env: gym.Env, n_env=1, max_path_length=100):
         self._env = env
         self.n_env = n_env

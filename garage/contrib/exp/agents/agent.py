@@ -21,11 +21,12 @@ class Agent(abc.ABC):
         """Train policy given trajectories sampled under latest policy.
 
         Args:
-            samples: [Trajectory]
-                Trajectory: {
+            samples: [Path]
+                Path: {
                     observations: Tensor(path_len, observation_dim),
                     actions: Tensor(path_len, action_dim),
-                    rewards: Tensor(path_len)
+                    rewards: Tensor(path_len),
+                    infos: Array(path_len)
                 }
 
         """
@@ -33,10 +34,10 @@ class Agent(abc.ABC):
 
     @abc.abstractmethod
     def get_summary(self):
-        """Report summary of last epoch.
+        """Report summary of current epoch.
 
         Returns:
-            dict: statistics of last epoch.
+            dict: statistics of current epoch.
 
         """
         raise NotImplementedError
