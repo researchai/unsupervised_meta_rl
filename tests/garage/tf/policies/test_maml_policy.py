@@ -1,4 +1,6 @@
 import tensorflow as tf
+
+from garage.tf.algos.maml import MAML
 from garage.tf.envs import TfEnv
 from garage.tf.policies import GaussianMLPPolicy
 from garage.tf.policies.maml_policy import MamlPolicy
@@ -12,6 +14,9 @@ def test_maml_policy():
             env_spec=box_env, hidden_sizes=(1, ))
 
     maml_policy = MamlPolicy(wrapped_policy=policy, n_tasks=2)
+    
+    algo = MAML(policy=maml_policy)
+
     gradient_vars = list()
     params = policy.get_params_internal()
 

@@ -6,33 +6,13 @@ from garage.envs import Step
 
 
 class PointEnv(gym.Env, Serializable):
-    """A simple 2D point environment.
+    def __init__(self, goal=None):
+        if goal is None:
+            self.goal = np.array([0, 0])
+        else:
+            self.goal = goal
 
-    Attributes:
-        observation_space (:obj:`gym.spaces.Box`): The observation space
-        action_space (:obj:`gym.spaces.Box`): The action space
-
-    Args:
-        goal (:obj:`np.ndarray`, optional): A 2D array representing the goal
-            position
-        done_bonus (float, optional): A numerical bonus added to the reward
-            once the point as reached the goal
-        never_done (bool, optional): Never send a `done` signal, even if the
-            agent achieves the goal.
-    """
-
-    def __init__(
-            self,
-            goal=np.array((1., 1.), dtype=np.float32),
-            done_bonus=0.,
-            never_done=False,
-    ):
-        self._goal = np.array(goal, dtype=np.float32)
-        self._done_bonus = done_bonus
-        self._never_done = never_done
-
-        self._point = np.zeros_like(self._goal)
-
+        # Always call Serializable constructor last
         Serializable.quick_init(self, locals())
 
     @property
@@ -46,27 +26,31 @@ class PointEnv(gym.Env, Serializable):
             low=-0.1, high=0.1, shape=(2, ), dtype=np.float32)
 
     def reset(self):
-        self._point = np.zeros_like(self._goal)
-        return np.copy(self._point)
+        self._state = np.random.uniform(-1, 1, size=(2, ))
+        observation = np.copy(self._state)
+        return observation
 
     def step(self, action):
-        # enforce action space
-        a = action.copy()  # NOTE: we MUST copy the action before modifying it
-        a = np.clip(a, self.action_space.low, self.action_space.high)
+        # a = action.copy()
+        # a = np.clip(a, self.action_space.low, self.action_space.high)
+        self._state = self._state + np.clip(action, self.action_space.low, self.action_space.high)
+        x, y = self._state
+        reward = -((x - self.goal[0])**2 + (y - self.goal[1])**2)**0.5
+        done = False
+        next_observation = np.copy(self._state)
+        # print(reward, self.goal)
+        return Step(observation=next_observation, reward=reward, done=done)
 
-        dist = np.linalg.norm(self._point - self._goal)
-        done = dist < np.linalg.norm(self.action_space.low)
+    def render(self, mode=None):
+        print('current state:', self._state)
 
-        # dense reward
-        reward = -dist
-        # done bonus
-        if done:
-            reward += self._done_bonus
-
-        # sometimes we don't want to terminate
-        done = done and not self._never_done
-
-        return Step(np.copy(self._point), reward, done)
-
-    def render(self, mode="human"):
+    def log_diagnostics(self, paths):
         pass
+
+    def reset_task(self, task):
+        self.goal = task
+
+    @property
+    def task_space(self):
+        return gym.spaces.Box(
+            low=-10., high=10., shape=(2, ), dtype=np.float32)

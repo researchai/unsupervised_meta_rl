@@ -4,7 +4,7 @@ import sys
 import time
 import traceback
 
-from joblib.pool import MemmappingPool
+from joblib.pool import MemmapingPool
 
 from garage.misc.prog_bar_counter import ProgBarCounter
 
@@ -34,7 +34,7 @@ class StatefulPool:
             self.manager = mp.Manager()
             self.queue = mp.Queue()
             self.worker_queue = mp.Queue()
-            self.pool = MemmappingPool(
+            self.pool = MemmapingPool(
                 self.n_parallel,
                 temp_folder="/tmp",
             )

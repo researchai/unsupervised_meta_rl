@@ -12,9 +12,10 @@ from garage.tf.samplers import BatchSampler
 
 
 class OnPolicyVectorizedSampler(BatchSampler):
-    def __init__(self, algo, n_envs=None):
+    def __init__(self, algo, n_envs=None, vec_env_executor_cls=VecEnvExecutor):
         super(OnPolicyVectorizedSampler, self).__init__(algo)
         self.n_envs = n_envs
+        self.vec_env_executor_cls = vec_env_executor_cls
 
     @overrides
     def start_worker(self):
@@ -31,7 +32,7 @@ class OnPolicyVectorizedSampler(BatchSampler):
                 pickle.loads(pickle.dumps(self.algo.env))
                 for _ in range(n_envs)
             ]
-            self.vec_env = VecEnvExecutor(
+            self.vec_env = self.vec_env_executor_cls(
                 envs=envs, max_path_length=self.algo.max_path_length)
         self.env_spec = self.algo.env.spec
 
