@@ -49,10 +49,6 @@ class MamlPolicy(Policy, Serializable):
 
         print("Done with creating variables\n\n\n")
 
-        # Create parameters update operation
-        for p, adapted_p in zip(params, adapted_param[0]):
-            
-
         def maml_get_variable(name, shape=None, **kwargs):
             scope = tf.get_variable_scope()
             idx = 0
