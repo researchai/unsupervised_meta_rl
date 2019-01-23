@@ -1,6 +1,7 @@
-"""Basic example of Experiment"""
+"""Basic example of Experiment."""
 import gym
 
+from garage.baselines.linear_feature_baseline import LinearFeatureBaseline
 from garage.contrib.exp import Experiment
 from garage.contrib.exp.checkpointers import DiskCheckpointer
 from garage.contrib.exp.core.misc import get_env_spec
@@ -18,21 +19,19 @@ policy = GaussianMLPPolicy(env_spec=env_spec, hidden_sizes=(32, 32))
 
 baseline = LinearFeatureBaseline(env_spec=env_spec)
 
-agent = VPG(
-    env_spec=env_spec,
-    policy=policy,
-    baseline=baseline,
-    discount=0.99)
+agent = VPG(env_spec=env_spec, policy=policy, baseline=baseline, discount=0.99)
 
 # Alternatives: HDFS, S3, etc.
-checkpointer = DiskCheckpointer(exp_dir='garage-exp-pendulum', resume=True, prefix='exp')
+checkpointer = DiskCheckpointer(
+    exp_dir='garage-exp-pendulum', resume=True, prefix='exp')
 
 # Alternativs: Tensorboard, Plotter
 logger = BasicLogger()
 """
 Initialize or load checkpoint from exp_dir.
 
-If get interrupted and restarted, experiment will resume from last checkpoint.
+If get interrupted and restarted,
+run_experiment will resume from last checkpoint.
 
 /exp_dir
     prefix_timestamp_agent.pkl

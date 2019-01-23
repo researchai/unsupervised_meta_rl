@@ -14,7 +14,7 @@ class Experiment():
         checkpointer: Checkpointer,
             logger: Logger,
         sampler: Sampler = None,
-        # common experiment parameters:
+        # common run_experiment parameters:
             n_itr=10,
             batch_size=1000,
     ):

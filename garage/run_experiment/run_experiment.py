@@ -207,7 +207,7 @@ remote_confirmed = False
 
 def run_experiment(method_call=None,
                    batch_tasks=None,
-                   exp_prefix="experiment",
+                   exp_prefix="run_experiment",
                    exp_name=None,
                    log_dir=None,
                    script="scripts/run_experiment.py",
@@ -234,12 +234,12 @@ def run_experiment(method_call=None,
                    added_project_directories=[],
                    **kwargs):
     """
-    Serialize the method call and run the experiment using the
+    Serialize the method call and run the run_experiment using the
     specified mode.
     :param method_call: A method call.
     :param script: The name of the entrance point python script
-    :param mode: Where and how to run the experiment. Should be one of "local",
-     "local_docker", "ec2", or "lab_kube".
+    :param mode: Where and how to run the run_experiment.
+     Should be one of "local", "local_docker", "ec2", or "lab_kube".
     :param dry: Whether to do a dry-run, which only prints the commands without
      executing them.
     :param exp_prefix: Name prefix for the experiments
@@ -255,20 +255,20 @@ def run_experiment(method_call=None,
      a few configuration changes including
     certain environment flags
     :param sync_s3_pkl: Whether to sync pkl files during execution of the
-     experiment (they will always be synced at
-    the end of the experiment)
+     run_experiment (they will always be synced at
+    the end of the run_experiment)
     :param sync_s3_png: Whether to sync png files during execution of the
-     experiment (they will always be synced at
-    the end of the experiment)
+     run_experiment (they will always be synced at
+    the end of the run_experiment)
     :param sync_s3_log: Whether to sync log files during execution of the
-     experiment (they will always be synced at
-    the end of the experiment)
+     run_experiment (they will always be synced at
+    the end of the run_experiment)
     :param confirm_remote: Whether to confirm before launching experiments
      remotely
-    :param terminate_machine: Whether to terminate machine after experiment
+    :param terminate_machine: Whether to terminate machine after run_experiment
      finishes. Only used when using mode="ec2". This is useful when one wants
-     to debug after an experiment finishes abnormally.
-    :param periodic_sync: Whether to synchronize certain experiment files
+     to debug after an run_experiment finishes abnormally.
+    :param periodic_sync: Whether to synchronize certain run_experiment files
      periodically during execution.
     :param periodic_sync_interval: Time interval between each periodic sync,
      in seconds.
@@ -578,11 +578,11 @@ def to_docker_command(params,
                       env=None,
                       local_code_dir=None):
     """
-    :param params: The parameters for the experiment. If logging directory
+    :param params: The parameters for the run_experiment. If logging directory
      parameters are provided, we will create docker volume mapping to make sure
      that the logging files are created at the correct locations
     :param docker_image: docker image to run the command on
-    :param script: script command for running experiment
+    :param script: script command for running run_experiment
     :return:
     """
     log_dir = params.get("log_dir")
@@ -1099,11 +1099,11 @@ def to_lab_kube_pod(params,
                     sync_all_data_node_to_s3=False,
                     terminate_machine=True):
     """
-    :param params: The parameters for the experiment. If logging directory
+    :param params: The parameters for the run_experiment. If logging directory
     parameters are provided, we will create docker volume mapping to make sure
     that the logging files are created at the correct locations
     :param docker_image: docker image to run the command on
-    :param script: script command for running experiment
+    :param script: script command for running run_experiment
     :return:
     """
     log_dir = params.get("log_dir")

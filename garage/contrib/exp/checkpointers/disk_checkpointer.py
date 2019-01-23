@@ -18,7 +18,7 @@ class DiskCheckpointer(Checkpointer):
         Load checkpoint from exp_dir directory.
 
         If there's no saved checkpoint, create an initial checkpoint instead.
-        This usually happens when an experiment is run for the first time
+        This usually happens when an run_experiment is run for the first time
         and the initial states will be saved.
 
         A checkpoints might consist of several files, each is named
