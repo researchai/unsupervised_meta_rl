@@ -69,6 +69,24 @@ class TestKerasModel(TfGraphTestCase):
 
         assert np.array_equal(model_output, model_pickled_output)
 
+    def test_mlp_keras_API(self):
+
+        input_var = Input(shape=(5, ))
+
+        mlp = MLPModel(input_var=input_var, output_dim=2, hidden_sizes=(4, 4))
+
+        self.sess.run(tf.global_variables_initializer())
+
+        data = np.random.random((2, 5))
+
+        model_output = self.sess.run(
+            mlp.outputs[0], feed_dict={mlp.inputs[0]: data})
+
+        input_var_2 = Input(shape=(5, ))
+        output = mlp(input_var_2)
+        model_output_different_input = self.sess.run(
+            output, feed_dict={input_var_2: data})
+
     def test_autopickable_mlp_pickling(self):
         input_var = Input(shape=(5, ))
 
@@ -101,8 +119,7 @@ class TestKerasModel(TfGraphTestCase):
             output_dim=2,
             hidden_sizes=(4, 4),
             init_std=2.0,
-            adaptive_std=True,
-            scope="GaussianMLPModel2")
+            adaptive_std=True)
 
         self.sess.run(tf.global_variables_initializer())
 
@@ -120,6 +137,10 @@ class TestKerasModel(TfGraphTestCase):
             model_pickled.outputs, feed_dict={model_pickled.inputs[0]: data})
         result_from_pickled_model2 = self.sess.run(
             model_pickled2.outputs, feed_dict={model_pickled2.inputs[0]: data})
+
+        tf.summary.FileWriter("./log", self.sess.graph)
+
+        print("Distribution: ", model.model.layers[-1]._dist)
 
         assert np.array_equal(result_from_model, result_from_pickled_model)
         assert np.array_equal(result_from_model2, result_from_pickled_model2)
