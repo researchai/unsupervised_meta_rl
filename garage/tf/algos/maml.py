@@ -39,6 +39,7 @@ class MAML(BatchPolopt):
                  name="MAML",
                  policy=None,
                  policy_ent_coeff=0.0,
+                 sampler_cls=MultitaskVecterizedSampler,
                  **kwargs):
 
         assert isinstance(policy, MamlPolicy)
@@ -57,7 +58,7 @@ class MAML(BatchPolopt):
             self.policy_ent_coeff = float(policy_ent_coeff)
         super(MAML, self).__init__(
             policy=policy,
-            sampler_cls=MultitaskVecterizedSampler,
+            sampler_cls=sampler_cls,
             **kwargs)
 
     def init_opt(self):
@@ -74,7 +75,13 @@ class MAML(BatchPolopt):
 
         # Build one step adaptation operations.
         obs_flat_vars = [i.flat.obs_var for i in loss_inputs]
-        maml_infos = self.policy.initialize(gradient_vars, inputs=obs_flat_vars)
+        maml_infos, adapt_opt, adapt_opt_input = self.policy.initialize(gradient_vars, inputs=obs_flat_vars)
+
+        self.f_adapt = tensor_utils.compile_function(
+            flatten_inputs(opt_inputs[0]),
+            adapt_opt,
+            log_name="adaptation",
+        )
 
         # Buil inputs to compute the final loss
         pol_loss, pol_kl = self._build_final_loss(loss_inputs, kl_inputs, maml_infos)
@@ -574,9 +581,6 @@ class MAML(BatchPolopt):
 
         self._fit_baseline(samples_data)
 
-    def adapt_policy(self, env, sess=None):
-        pass
-
     def train(self, sess=None):
         created_session = True if (sess is None) else False
         if sess is None:
@@ -594,9 +598,6 @@ class MAML(BatchPolopt):
                 paths = self.obtain_samples(itr)
                 logger.log("Processing samples...")
                 samples_data = self.process_samples(itr, paths)
-                # last_average_return = samples_data["average_return"]
-                # logger.log("Logging diagnostics...")
-                # self.log_diagnostics(paths)
                 logger.log("Optimizing policy...")
                 self.optimize_policy(itr, samples_data)
                 logger.log("Saving snapshot...")
@@ -667,3 +668,30 @@ class MAML(BatchPolopt):
             baseline=self.baseline,
             env=self.env,
         )
+
+    def adapt_policy(self, n_itr=1, sess=None):
+
+        assert n_itr > 0
+
+        if sess is None:
+            sess = tf.get_default_session()
+            sess = tf.Session() if not sess else sess
+
+        self.start_worker(sess)
+        policy_params = policy.get_params_internal()
+        values_before_adapt = sess.run(policy_params)
+
+        for itr in range(n_itr):
+            with logger.prefix('itr #%d | ' % itr):
+                logger.log('Obtaining samples...')
+                paths = self.obtain_samples(itr)
+                logger.log('Processing samples...')
+                samples_data = self.process_samples(itr, paths)
+                logger.log('Computing adapted policy parameters...')
+                params = self.f_adapt(*samples_data)
+                self.f_update_policy(*params)
+
+        # Revert the policy as not adapted
+        self.f_update_policy(values_before_adapt)
+
+        return params

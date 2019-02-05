@@ -53,7 +53,8 @@ def test_maml_policy(*_):
 run_experiment(
     test_maml_policy,
     n_parallel=1,
-    snapshot_mode="last",
+    exp_prefix='maml',
+    snapshot_mode='last',
     seed=1,
     plot=False,
 )

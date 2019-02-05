@@ -36,6 +36,8 @@ class MamlPolicy(Policy, Serializable):
         print("Creating maml variables now...")
         global MAML_VARIABLE_STORE
 
+        update_opts = []
+
         # One step adaptation
         for i in range(self.n_tasks):
             params = self.wrapped_policy.get_params_internal()
@@ -46,6 +48,9 @@ class MamlPolicy(Policy, Serializable):
                 name = "maml_policy/{}/{}".format(i, p.name)
                 self._adapted_param_store[name] = adapted_param
                 print("Created: {} with:\n\t{}\n\t{}\n".format(name, p.name, g.name))
+
+                if i == 0:
+                    update_opts.append(tf.assign(p, adapted_param))
 
         print("Done with creating variables\n\n\n")
 
@@ -83,7 +88,8 @@ class MamlPolicy(Policy, Serializable):
         # Use the original get_variable
         variable_scope.get_variable = original_get_variable
 
-        return all_model_infos
+        update_opts_input = inputs[0] if inputs else all_model_infos[0][0]
+        return all_model_infos, update_opts, update_opts_input
     
     @property
     def recurrent(self):
@@ -101,4 +107,3 @@ class MamlPolicy(Policy, Serializable):
 
     def get_params_internal(self, **tags):
         return self.wrapped_policy.get_params_internal(**tags)
-

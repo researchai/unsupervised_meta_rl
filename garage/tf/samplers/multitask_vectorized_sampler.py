@@ -38,14 +38,14 @@ class MultitaskVecterizedSampler(OnPolicyVectorizedSampler):
         all_paths = []
 
         import time
+        pbar = ProgBarCounter(self.algo.batch_size)
         for task in range(self.algo.policy.n_tasks):
             paths = []
             n_samples = 0
             obses = self.vec_env.reset()
             dones = np.asarray([True] * self.vec_env.num_envs)
             running_paths = [None] * self.vec_env.num_envs
-
-            pbar = ProgBarCounter(self.algo.batch_size)
+            
             policy_time = 0
             env_time = 0
             process_time = 0
