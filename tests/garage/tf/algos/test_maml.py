@@ -21,6 +21,8 @@ def test_maml_policy(*_):
         env_spec=env.spec,
         regressor_args=dict(hidden_sizes=(32, 32)),
     )
+    import ipdb
+    ipdb.set_trace()
     maml_policy = MamlPolicy(wrapped_policy=policy, n_tasks=4)
     
     algo = MAML(
@@ -31,24 +33,6 @@ def test_maml_policy(*_):
     )
     algo.train()
 
-    # gradient_vars = list()
-    # params = policy.get_params_internal()
-
-    # for i in range(2):
-    #     g_i = list()
-    #     for p in params:
-    #         grad = tf.placeholder(
-    #             dtype=p.dtype, 
-    #             shape=p.shape, 
-    #             name="maml/{}/grad/{}".format(i, p.name[:-2])
-    #         )
-    #         g_i.append(grad)
-    #     gradient_vars.append(g_i)
-
-    # maml_policy.initialize(gradient_var=gradient_vars)
-    # sess = tf.Session()
-    # merged = tf.summary.merge_all()
-    # writer = tf.summary.FileWriter("./graphh", sess.graph)
 
 run_experiment(
     test_maml_policy,

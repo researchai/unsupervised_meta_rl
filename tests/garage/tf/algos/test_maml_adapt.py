@@ -4,16 +4,21 @@ import joblib
 import tensorflow as tf
 
 from garage.envs.point_env import PointEnv
+from garage.tf.envs import TfEnv
 from garage.tf.algos import MAML
 from garage.tf.samplers import OnPolicyVectorizedSampler
 
 
 def adapt_policy(pkl_path, env):
-    with tf.Session():
-        snapshot = joblib.load(pkl_path)
+    sess = tf.Session()
+    with sess.as_default():
 
+        snapshot = joblib.load(pkl_path)
         policy = snapshot['policy']
         baseline = snapshot['baseline']
+        p_before = sess.run(baseline.get_params_internal())
+        sess.run(tf.global_variables_initializer())
+        p_after = sess.run(baseline.get_params_internal())
 
         algo = MAML(
             policy=policy,
@@ -23,7 +28,8 @@ def adapt_policy(pkl_path, env):
             max_path_length=100,
         )
 
-        params = algo.adapt_policy()
+        params = algo.adapt_policy(sess=sess)
+        policy.update_params(params)
 
 
 if __name__ == '__main__':
@@ -31,5 +37,5 @@ if __name__ == '__main__':
         print('Usage: %s PKL_FILENAME' % sys.argv[0])
         sys.exit(0)
 
-    env = PointEnv()
+    env = TfEnv(PointEnv())
     adapt_policy(sys.argv[1], env)

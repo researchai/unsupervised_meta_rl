@@ -669,6 +669,25 @@ class MAML(BatchPolopt):
             env=self.env,
         )
 
+    def _policy_adapt_opt_values(self, samples_data):
+        policy_state_info_list = [
+            samples_data["agent_infos"][k] for k in self.policy.state_info_keys
+        ]
+        policy_old_dist_info_list = [
+            samples_data["agent_infos"][k]
+            for k in self.policy.distribution.dist_info_keys
+        ]
+        values = self._policy_opt_inputs[0]._replace(
+            obs_var=samples_data["observations"],
+            action_var=samples_data["actions"],
+            reward_var=samples_data["rewards"],
+            baseline_var=samples_data["baselines"],
+            valid_var=samples_data["valids"],
+            policy_state_info_vars_list=policy_state_info_list,
+            policy_old_dist_info_vars_list=policy_old_dist_info_list,
+        )
+        return flatten_inputs(values)
+
     def adapt_policy(self, n_itr=1, sess=None):
 
         assert n_itr > 0
@@ -678,7 +697,7 @@ class MAML(BatchPolopt):
             sess = tf.Session() if not sess else sess
 
         self.start_worker(sess)
-        policy_params = policy.get_params_internal()
+        policy_params = self.policy.get_params_internal()
         values_before_adapt = sess.run(policy_params)
 
         for itr in range(n_itr):
@@ -687,11 +706,12 @@ class MAML(BatchPolopt):
                 paths = self.obtain_samples(itr)
                 logger.log('Processing samples...')
                 samples_data = self.process_samples(itr, paths)
+                values = self._policy_adapt_opt_values(samples_data)
                 logger.log('Computing adapted policy parameters...')
-                params = self.f_adapt(*samples_data)
-                self.f_update_policy(*params)
+                params = self.f_adapt(*values)
+                self.policy.update_params(params)
 
         # Revert the policy as not adapted
-        self.f_update_policy(values_before_adapt)
+        self.policy.update_params(values_before_adapt)
 
         return params

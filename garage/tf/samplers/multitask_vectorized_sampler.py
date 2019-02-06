@@ -124,5 +124,3 @@ class MultitaskVecterizedSampler(OnPolicyVectorizedSampler):
             processed = super().process_samples(itr, p)
             all_samples.append(processed)
         return all_samples
-
-

@@ -26,6 +26,9 @@ class MamlPolicy(Policy, Serializable):
         self._initialized = False
         self._adaptation_step_size = adaptation_step_size
         self._adapted_param_store = dict()
+
+        self._create_update_opts()
+
         super().__init__(wrapped_policy._env_spec)
         Serializable.quick_init(self, locals())
 
@@ -50,7 +53,7 @@ class MamlPolicy(Policy, Serializable):
                 print("Created: {} with:\n\t{}\n\t{}\n".format(name, p.name, g.name))
 
                 if i == 0:
-                    update_opts.append(tf.assign(p, adapted_param))
+                    update_opts.append(adapted_param)
 
         print("Done with creating variables\n\n\n")
 
@@ -107,3 +110,21 @@ class MamlPolicy(Policy, Serializable):
 
     def get_params_internal(self, **tags):
         return self.wrapped_policy.get_params_internal(**tags)
+
+    def _create_update_opts(self):
+        params = self.get_params_internal()
+
+        self.update_opts = []
+        self.adapated_placeholders = []
+        for p in params:
+            ph = tf.placeholder(
+                dtype=p.dtype,
+                shape=p.shape,
+            )
+            self.adapated_placeholders.append(ph)
+            self.update_opts.append(tf.assign(p, ph))
+
+    def update_params(self, params):
+        feed_dict = dict(zip(self.adapated_placeholders, params))
+        sess = tf.get_default_session()
+        sess.run(self.update_opts, feed_dict=feed_dict)
