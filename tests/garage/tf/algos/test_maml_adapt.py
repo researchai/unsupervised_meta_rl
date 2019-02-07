@@ -20,6 +20,9 @@ def adapt_policy(pkl_path, env):
         sess.run(tf.global_variables_initializer())
         p_after = sess.run(baseline.get_params_internal())
 
+        # This is kinda messy now.
+        # The adaptation step have to be done with a single
+        # task sampler. 
         algo = MAML(
             policy=policy,
             baseline=baseline,

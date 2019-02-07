@@ -35,7 +35,7 @@ class MAML(BatchPolopt):
                  pg_loss=PGLoss.VANILLA,
                  clip_range=0.01,
                  optimizer=None,
-                 optimizer_args=None,
+                 optimizer_args=dict(),
                  name="MAML",
                  policy=None,
                  policy_ent_coeff=0.0,
@@ -89,7 +89,7 @@ class MAML(BatchPolopt):
             loss=pol_loss,
             target=self.policy.wrapped_policy,
             leq_constraint=(pol_kl, self.clip_range),
-            inputs=flatten_inputs([self._policy_opt_inputs, kl_opt_inputs]),
+            inputs=flatten_inputs([self._policy_opt_inputs, self._kl_opt_inputs]),
             constraint_name="mean_kl")
 
         print("done with initializing the whole graph!")
@@ -538,17 +538,26 @@ class MAML(BatchPolopt):
             ))
 
         # Input values for computing kl divergence
-        # TODO check dimension
+        # TODO rewrite the reshape part..
         obs_values = np.concatenate([d["observations"] for d in samples_data])
         valid_values = np.concatenate([d["valids"] for d in samples_data])
         policy_state_info_list = []
-        for i in range(self.policy.n_tasks):
-            for k in self.policy.state_info_keys:
-                policy_state_info_list.append(samples_data[i]["agent_infos"][k])
+        for k in self.policy.state_info_keys:
+            lst = []
+            for i in range(self.policy.n_tasks):
+                lst.append(samples_data[i]["agent_infos"][k])
+            lst_arr = np.array(lst)
+            policy_state_info_list.append(
+                np.reshape(lst_arr, newshape=(-1,)+lst_arr.shape[2:4]))
+        
         policy_old_dist_info_list = []
-        for i in range(self.policy.n_tasks):
-            for k in self.policy.distribution.dist_info_keys:
-                policy_old_dist_info_list.append(samples_data[i]["agent_infos"][k])
+        for k in self.policy.distribution.dist_info_keys:
+            lst = []
+            for i in range(self.policy.n_tasks):
+                lst.append(samples_data[i]["agent_infos"][k])
+            lst_arr = np.array(lst)
+            policy_old_dist_info_list.append(
+                np.reshape(lst_arr, newshape=(-1,)+lst_arr.shape[2:4]))
 
         kl_inputs = self._kl_opt_inputs._replace(
             obs_var=obs_values,
@@ -556,7 +565,6 @@ class MAML(BatchPolopt):
             policy_old_dist_info_vars_list=policy_old_dist_info_list,
             policy_state_info_vars_list=policy_state_info_list,
         )
-
         return flatten_inputs([policy_opt_input_values, kl_inputs])
 
     def optimize_policy(self, itr, samples_data):
