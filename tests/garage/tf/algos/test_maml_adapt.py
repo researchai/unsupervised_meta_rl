@@ -51,5 +51,5 @@ if __name__ == '__main__':
         print('Usage: %s PKL_FILENAME' % sys.argv[0])
         sys.exit(0)
 
-    env = TfEnv(PointEnv())
+    env = TfEnv(PointEnv(goal=(2, 2)))
     adapt_policy(sys.argv[1], env)

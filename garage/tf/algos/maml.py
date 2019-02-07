@@ -492,7 +492,7 @@ class MAML(BatchPolopt):
                     surr_vanilla = lr * adv_valid
                     losses.append(surr_vanilla)
 
-        surr_loss_mean = tf.reduce_mean(losses)
+        surr_loss_mean = -tf.reduce_mean(losses)
 
         with tf.name_scope("kl"):
             policy_dist_info_flat = self.policy.wrapped_policy.dist_info_sym(
@@ -511,9 +511,9 @@ class MAML(BatchPolopt):
 
         # Only use the vanilla surrogate loss now
         # Not sure what is the proper way to clip this loss
-        surr_obj = tf.identity(surr_loss_mean, name="surr_obj")
+        surr_loss = tf.identity(surr_loss_mean, name="surr_loss")
 
-        return surr_obj, pol_mean_kl
+        return surr_loss, pol_mean_kl
 
     def _policy_opt_input_values(self, samples_data):
         """ Map rollout samples to the policy optimizer inputs """

@@ -36,9 +36,7 @@ class MamlPolicy(Policy, Serializable):
 
         assert not self._initialized, "The MAML policy is initialized and can be initialized once."
 
-        print("Creating maml variables now...")
         global MAML_VARIABLE_STORE
-
         update_opts = []
 
         # One step adaptation
@@ -50,12 +48,8 @@ class MamlPolicy(Policy, Serializable):
                 adapted_param = p - self._adaptation_step_size * g
                 name = "maml_policy/{}/{}".format(i, p.name)
                 self._adapted_param_store[name] = adapted_param
-                print("Created: {} with:\n\t{}\n\t{}\n".format(name, p.name, g.name))
-
                 if i == 0:
                     update_opts.append(adapted_param)
-
-        print("Done with creating variables\n\n\n")
 
         def maml_get_variable(name, shape=None, **kwargs):
             scope = tf.get_variable_scope()
@@ -65,7 +59,6 @@ class MamlPolicy(Policy, Serializable):
                 idx += 1
                 fullname = "{}/{}:{}".format(scope.name, name, idx)
             MAML_VARIABLE_STORE.add(fullname)
-            print("Retrieved: {}".format(fullname))
             return self._adapted_param_store[fullname]
 
         # build the model with these parameters
@@ -77,8 +70,6 @@ class MamlPolicy(Policy, Serializable):
         original_get_variable = variable_scope.get_variable
         variable_scope.get_variable = maml_get_variable
 
-        print("Rebuilding the graphs:")
-        print(self._adapted_param_store)
         all_model_infos = list()
         for i in range(self.n_tasks):
             input_for_adapted = inputs[i] if inputs else None
