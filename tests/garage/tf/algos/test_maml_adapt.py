@@ -16,9 +16,20 @@ def adapt_policy(pkl_path, env):
         snapshot = joblib.load(pkl_path)
         policy = snapshot['policy']
         baseline = snapshot['baseline']
-        p_before = sess.run(baseline.get_params_internal())
+
+        # retrieve paramters before running re-init
+        policy_params_before = policy.get_param_values()
+        baseline_params_before = baseline.get_param_values()
+
+        # This line below will re-init everything...
+        # Still waiting for the garage team to resolve this problem.
+        # See https://github.com/rlworkgroup/garage/issues/511 for
+        # details.
         sess.run(tf.global_variables_initializer())
-        p_after = sess.run(baseline.get_params_internal())
+
+        # Setting params values to the unpacked ones
+        policy.set_param_values(policy_params_before)
+        baseline.set_param_values(baseline_params_before)
 
         # This is kinda messy now.
         # The adaptation step have to be done with a single
