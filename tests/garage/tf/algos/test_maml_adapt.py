@@ -1,15 +1,32 @@
 import sys
 
 import joblib
+import numpy as np
 import tensorflow as tf
 
 from garage.envs.point_env import PointEnv
-from garage.tf.envs import TfEnv
 from garage.tf.algos import MAML
+from garage.tf.envs import TfEnv
 from garage.tf.samplers import OnPolicyVectorizedSampler
 
 
-def adapt_policy(pkl_path, env):
+def evaluate(policy, env, max_path_length=100, render=True):
+    ret = 0
+    o = env.reset()
+    for _ in range(max_path_length):
+        if render:
+            env.render()
+        a, _ = policy.get_actions(np.array([o]))
+        o, r, d, _ = env.step(a[0])
+        ret += r
+        if d:
+            if render:
+                env.render()
+            break
+    return ret
+
+
+def adapt_policy_and_evaluate(pkl_path, env, eval_epoch=5):
     sess = tf.Session()
     with sess.as_default():
 
@@ -45,6 +62,11 @@ def adapt_policy(pkl_path, env):
         params = algo.adapt_policy(sess=sess)
         policy.update_params(params)
 
+        returns = list()
+        for _ in range(eval_epoch):
+            returns.append(evaluate(policy, env))
+        import ipdb
+        ipdb.set_trace()
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -52,4 +74,4 @@ if __name__ == '__main__':
         sys.exit(0)
 
     env = TfEnv(PointEnv(goal=(2, 2)))
-    adapt_policy(sys.argv[1], env)
+    adapt_policy_and_evaluate(sys.argv[1], env)

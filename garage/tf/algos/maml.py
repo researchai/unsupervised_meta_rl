@@ -490,9 +490,9 @@ class MAML(BatchPolopt):
                         name="lr")
 
                     surr_vanilla = lr * adv_valid
-                    losses.append(surr_vanilla)
+                    losses.append(-tf.reduce_mean(surr_vanilla))
 
-        surr_loss_mean = -tf.reduce_mean(losses)
+        surr_loss_mean = tf.reduce_mean(losses)
 
         with tf.name_scope("kl"):
             policy_dist_info_flat = self.policy.wrapped_policy.dist_info_sym(

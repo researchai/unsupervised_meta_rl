@@ -18,7 +18,7 @@ class MamlPolicy(Policy, Serializable):
     garage model design). This should be fixed in future.
     """
 
-    def __init__(self, wrapped_policy, n_tasks, adaptation_step_size=1e-2, name="MamlPolicy"):
+    def __init__(self, wrapped_policy, n_tasks, adaptation_step_size=0.5, name="MamlPolicy"):
 
         self.wrapped_policy = wrapped_policy
         self.n_tasks = n_tasks

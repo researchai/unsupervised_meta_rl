@@ -17,10 +17,10 @@ def test_maml_policy(*_):
     tasks = [(-3., 0.), (3., 0.), (0., 3.), (0., -3.)]
     env = TfEnv(MultitaskEnv(PointEnv(), tasks))
     policy = GaussianMLPPolicy(
-            env_spec=env.spec, hidden_sizes=(64, 64))
+            env_spec=env.spec, hidden_sizes=(100, 100))
     baseline = GaussianMLPBaseline(
         env_spec=env.spec,
-        regressor_args=dict(hidden_sizes=(64, 64)),
+        regressor_args=dict(hidden_sizes=(100, 100)),
     )
     maml_policy = MamlPolicy(wrapped_policy=policy, n_tasks=4)
     
