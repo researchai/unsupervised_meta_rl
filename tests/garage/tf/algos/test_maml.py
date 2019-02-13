@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from garage.envs.point_env import PointEnv
 from garage.envs.multitask_env import MultitaskEnv
-from garage.misc.instrument import run_experiment
+from garage.experiment import run_experiment
 from garage.tf.algos.maml import MAML
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
