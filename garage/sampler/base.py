@@ -13,19 +13,18 @@ class Sampler:
         """
         raise NotImplementedError
 
-    def obtain_samples(self, itr):
+    def obtain_samples(self):
         """
         Collect samples for the given iteration number.
-        :param itr: Iteration number.
         :return: A list of paths.
         """
         raise NotImplementedError
 
-    def process_samples(self, itr, paths):
+    def process_samples(self, paths):
         """
         Return processed sample data (typically a dictionary of concatenated
         tensors) based on the collected paths.
-        :param itr: Iteration number.
+
         :param paths: A list of collected paths.
         :return: Processed sample data.
         """
@@ -45,7 +44,7 @@ class BaseSampler(Sampler):
         """
         self.algo = algo
 
-    def process_samples(self, itr, paths):
+    def process_samples(self, paths):
         baselines = []
         returns = []
 
@@ -59,8 +58,8 @@ class BaseSampler(Sampler):
         for idx, path in enumerate(paths):
             path_baselines = np.append(all_path_baselines[idx], 0)
             deltas = path["rewards"] + \
-                     self.algo.discount * path_baselines[1:] - \
-                     path_baselines[:-1]
+                self.algo.discount * path_baselines[1:] - \
+                path_baselines[:-1]
             path["advantages"] = special.discount_cumsum(
                 deltas, self.algo.discount * self.algo.gae_lambda)
             path["returns"] = special.discount_cumsum(path["rewards"],
@@ -182,7 +181,6 @@ class BaseSampler(Sampler):
             self.algo.baseline.fit(paths)
         logger.log("fitted")
 
-        logger.record_tabular('Iteration', itr)
         logger.record_tabular('AverageDiscountedReturn',
                               average_discounted_return)
         logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))

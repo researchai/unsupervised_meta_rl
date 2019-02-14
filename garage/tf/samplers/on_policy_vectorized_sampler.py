@@ -40,8 +40,7 @@ class OnPolicyVectorizedSampler(BatchSampler):
         self.vec_env.close()
 
     @overrides
-    def obtain_samples(self, itr):
-        logger.log("Obtaining samples for iteration %d..." % itr)
+    def obtain_samples(self):
         paths = []
         n_samples = 0
         obses = self.vec_env.reset()

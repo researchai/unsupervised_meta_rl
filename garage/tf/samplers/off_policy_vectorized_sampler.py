@@ -58,11 +58,10 @@ class OffPolicyVectorizedSampler(BatchSampler):
         self.vec_env.close()
 
     @overrides
-    def obtain_samples(self, itr):
+    def obtain_samples(self):
         """
         Collect samples for the given iteration number.
 
-        :param itr: Iteration number.
         :return: A list of paths.
         """
         paths = []
@@ -150,11 +149,10 @@ class OffPolicyVectorizedSampler(BatchSampler):
         return paths
 
     @overrides
-    def process_samples(self, itr, paths):
+    def process_samples(self, paths):
         """
         Return processed sample data based on the collected paths.
 
-        :param itr: Iteration number.
         :param paths: A list of collected paths.
         :return: Processed sample data.
         """

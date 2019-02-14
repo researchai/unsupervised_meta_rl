@@ -100,11 +100,28 @@ class BatchPolopt(RLAlgorithm):
         if self.plot:
             self.plotter.close()
 
-    def obtain_samples(self, itr):
-        return self.sampler.obtain_samples(itr)
+    def obtain_samples(self):
+        return self.sampler.obtain_samples()
 
-    def process_samples(self, itr, paths):
-        return self.sampler.process_samples(itr, paths)
+    def process_samples(self, paths):
+        return self.sampler.process_samples(paths)
+
+    def train_once(self, paths, sess=None):
+        logger.log("Processing samples...")
+        processed_paths = self.process_samples(paths)
+        last_average_return = processed_paths["average_return"]
+        logger.log("Logging diagnostics...")
+        self.log_diagnostics(paths)
+
+        logger.log("Optimizing policy...")
+        self.optimize_policy(processed_paths)
+
+        if self.plot:
+            self.plotter.update_plot(self.policy, self.max_path_length)
+            if self.pause_for_plot:
+                input("Plotting evaluation run: Press Enter to " "continue...")
+
+        return last_average_return
 
     def train(self, sess=None):
         created_session = True if (sess is None) else False
@@ -121,19 +138,16 @@ class BatchPolopt(RLAlgorithm):
             with logger.prefix('itr #%d | ' % itr):
                 logger.log("Obtaining samples...")
                 paths = self.obtain_samples(itr)
-                logger.log("Processing samples...")
-                samples_data = self.process_samples(itr, paths)
-                last_average_return = samples_data["average_return"]
-                logger.log("Logging diagnostics...")
-                self.log_diagnostics(paths)
-                logger.log("Optimizing policy...")
-                self.optimize_policy(itr, samples_data)
-                logger.log("Saving snapshot...")
-                params = self.get_itr_snapshot(itr, samples_data)
-                if self.store_paths:
-                    params["paths"] = samples_data["paths"]
-                logger.save_itr_params(itr, params)
-                logger.log("Saved")
+                last_average_return = self.train_once(paths)
+
+                # TODO: support snapshotor
+                # logger.log("Saving snapshot...")
+                # params = self.get_itr_snapshot(itr, samples_data)
+                # if self.store_paths:
+                #     params["paths"] = samples_data["paths"]
+                # logger.save_itr_params(itr, params)
+                # logger.log("Saved")
+
                 logger.record_tabular('Time', time.time() - start_time)
                 logger.record_tabular('ItrTime', time.time() - itr_start_time)
                 logger.dump_tabular(with_prefix=False)

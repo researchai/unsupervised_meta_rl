@@ -29,7 +29,7 @@ class BatchSampler(BaseSampler):
     def shutdown_worker(self):
         parallel_sampler.terminate_task(scope=self.algo.scope)
 
-    def obtain_samples(self, itr):
+    def obtain_samples(self):
         cur_policy_params = self.algo.policy.get_param_values()
         cur_env_params = self.algo.env.get_param_values()
         paths = parallel_sampler.sample_paths(
@@ -45,7 +45,7 @@ class BatchSampler(BaseSampler):
             paths_truncated = truncate_paths(paths, self.algo.batch_size)
             return paths_truncated
 
-    def process_samples(self, itr, paths):
+    def process_samples(self, paths):
         baselines = []
         returns = []
 
@@ -61,8 +61,8 @@ class BatchSampler(BaseSampler):
         for idx, path in enumerate(paths):
             path_baselines = np.append(all_path_baselines[idx], 0)
             deltas = path["rewards"] + \
-                     self.algo.discount * path_baselines[1:] - \
-                     path_baselines[:-1]
+                self.algo.discount * path_baselines[1:] - \
+                path_baselines[:-1]
             path["advantages"] = special.discount_cumsum(
                 deltas, self.algo.discount * self.algo.gae_lambda)
             path["deltas"] = deltas
@@ -132,7 +132,6 @@ class BatchSampler(BaseSampler):
             average_return=np.mean(undiscounted_returns),
         )
 
-        logger.record_tabular('Iteration', itr)
         logger.record_tabular('AverageDiscountedReturn',
                               average_discounted_return)
         logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))

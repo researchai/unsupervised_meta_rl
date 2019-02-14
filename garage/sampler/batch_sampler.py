@@ -24,7 +24,7 @@ class BatchSampler(BaseSampler):
         """Shutdown worker function."""
         parallel_sampler.terminate_task(scope=self.algo.scope)
 
-    def obtain_samples(self, itr):
+    def obtain_samples(self):
         """Obtain samples function."""
         cur_params = self.algo.policy.get_param_values()
         paths = parallel_sampler.sample_paths(
