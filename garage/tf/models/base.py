@@ -54,7 +54,7 @@ class BaseModel(abc.ABC):
         pass
 
 
-class AutoPickableModel(BaseModel, metaclass=abc.ABCMeta):
+class Model(BaseModel, metaclass=abc.ABCMeta):
     """
     Abstract class for models with automatic pickling.
 
@@ -133,7 +133,16 @@ class AutoPickableModel(BaseModel, metaclass=abc.ABCMeta):
         self.__dict__.update(out.__dict__)
 
 
-class TfModel(AutoPickableModel):
+class Network:
+    """Network."""
+
+    def __init__(self, model, inputs, name, variable_scope):
+        self.inputs = inputs
+        with tf.name_scope(name=name):
+            with variable_scope:
+                self.outputs = model._build(*inputs)
+
+class TfModel(Model):
     r"""
     Model class for TensorFlow.
 
@@ -153,18 +162,18 @@ class TfModel(AutoPickableModel):
 
          input_1                      input_2
             |                            |
-    ============== Parent (TfModel)===============
-    |       |                            |       |
-    |       |          Parameters        |       |
-    |    ===========  /           \  =========== |
-    |    | Child 1 | /             \ | Child 2 | |
-    |    |(TfModel)|/               \|(TfModel)| |
-    |    ===========                 =========== |
-    |       |                            |       |
-    ==============================================
+    ============== Model (TfModel)===================
+    |       |                            |          |
+    |       |            Parameters      |          |
+    |    =============  /           \  ============ |
+    |    |  Network1 | /             \ | Network2 | |
+    |    | (Network) |/               \|(Network) | |
+    |    =============                 ============ |
+    |       |                            |          |
+    =================================================
             |                            |
        (model.outputs) OR                |
-    (model.default.outputs)        model.child_2.outputs
+    (model.default.outputs)        model.Network2.outputs
 
     The parameters inside a model will be initialized when calling build().
     Do not call tf.global_variable_initializers() after building a model as it
@@ -180,23 +189,7 @@ class TfModel(AutoPickableModel):
     def __init__(self, name):
         super().__init__()
         self._name = name or self._name
-        self._is_parent = True
-        self._is_built = False
-        self._variable_scope = tf.variable_scope(self.name, reuse=False)
-        self._name_scope = tf.name_scope("default")
-        self._siblings = {}
-
-    @classmethod
-    def _new_child(cls, other, name):
-        """Class method for constructing child model with the given name."""
-        twin = cls(**other.init_spec[1])
-        twin._name = name
-        twin._is_parent = False
-        twin._default_parameters = other._default_parameters
-        twin._is_built = other._is_built
-        twin._variable_scope = other.variable_scope
-        twin._name_scope = tf.name_scope(name)
-        return twin
+        self._networks = {}
 
     def build(self, *inputs, name=None):
         """
@@ -227,43 +220,26 @@ class TfModel(AutoPickableModel):
           outputs: Output tensor of the model with the given inputs.
 
         """
-        if not name:
-            if 'default' in self._siblings:
-                raise ValueError("Subgraph {} already exists!".format(
-                    self.name))
-            with self._name_scope:
-                if not self._is_built:
-                    _variable_scope = self.variable_scope
-                else:
-                    _variable_scope = tf.variable_scope(
-                        self._variable_scope._name_or_scope, reuse=True)
-                with _variable_scope:
-                    self._inputs = inputs
-                    outputs = self._build(*inputs)
-                    self._outputs = outputs
-                    self._siblings['default'] = self
-                    if not self._is_built:
-                        variables = self._get_variables().values()
-                        tf.get_default_session().run(
-                            tf.variables_initializer(variables))
-                        if self._default_parameters:
-                            self.parameters = self._default_parameters
-                        self._is_built = True
-        elif name in self._siblings:
-            raise ValueError("Subgraph {} already exists!".format(name))
-        elif not self._is_parent:
-            raise ValueError("Child of a model should not be built!")
-        else:
-            twin = type(self)._new_child(self, name)
-            setattr(self, name, twin)
-            self._siblings[name] = twin
-            outputs = twin.build(*inputs)
-            if not self._is_built:
-                self._inputs = inputs
-                self._outputs = list(outputs)
-                self._is_built = True
+        network_name = name or "default"
 
-        return outputs
+        if len(self._networks) == 0:
+            _variable_scope = tf.variable_scope(self.name, reuse=False)
+            network = Network(self, inputs, network_name, _variable_scope)
+            self._inputs = inputs
+            self._outputs = network.outputs
+            variables = self._get_variables().values()
+            tf.get_default_session().run(
+                tf.variables_initializer(variables))
+            if self._default_parameters:
+                self.parameters = self._default_parameters
+        else:
+            if network_name in self._networks:
+                raise ValueError("Network {} already exists!".format(network_name))
+            _variable_scope = tf.variable_scope(self.name, reuse=True)
+            network = Network(self, inputs, network_name, _variable_scope)
+        setattr(self, network_name, network)
+        self._networks[network_name] = network
+        return network.outputs
 
     def _build(self, *inputs):
         """
@@ -272,16 +248,6 @@ class TfModel(AutoPickableModel):
         User should implement _build inside their subclassed model.
         """
         pass
-
-    @property
-    def variable_scope(self):
-        """Variable scope of the model."""
-        return self._variable_scope
-
-    @property
-    def name_scope(self):
-        """Name scope of the model."""
-        return self._name_scope
 
     @property
     def parameters(self):
@@ -302,12 +268,5 @@ class TfModel(AutoPickableModel):
         return {
             v.name: v
             for v in tf.global_variables(
-                scope=self.variable_scope._name_or_scope)
+                self.name)
         }
-
-    def __getstate__(self):
-        """Object.__getstate__."""
-        if not self._is_parent:
-            raise ValueError("Child of a model should not be pickled!")
-
-        return super().__getstate__()

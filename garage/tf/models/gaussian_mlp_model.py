@@ -1,6 +1,7 @@
 """GaussianMLPModel."""
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from garage.misc import ext
 from garage.tf.core.mlp import mlp
@@ -46,18 +47,18 @@ class GaussianMLPModel(TfModel):
                  output_dim,
                  name=None,
                  hidden_sizes=(32, 32),
+                 hidden_nonlinearity=tf.nn.tanh,
+                 output_nonlinearity=None,
                  learn_std=True,
-                 init_std=1.0,
                  adaptive_std=False,
                  std_share_network=False,
-                 std_hidden_sizes=(32, 32),
+                 init_std=1.0,
                  min_std=1e-6,
                  max_std=None,
+                 std_hidden_sizes=(32, 32),
                  std_hidden_nonlinearity=tf.nn.tanh,
                  std_output_nonlinearity=None,
-                 std_parameterization='exp',
-                 hidden_nonlinearity=tf.nn.tanh,
-                 output_nonlinearity=None):
+                 std_parameterization='exp'):
         # Network parameters
         super().__init__(name)
         self._hidden_sizes = hidden_sizes
@@ -123,7 +124,7 @@ class GaussianMLPModel(TfModel):
     def _build(self, *inputs):
         action_dim = self._output_dim
         state_input = inputs[0]
-        with tf.variable_scope("dist_params"):
+        with tf.variable_scope('dist_params'):
             if self._std_share_network:
                 # mean and std networks share an MLP
                 b = np.concatenate([
@@ -138,10 +139,10 @@ class GaussianMLPModel(TfModel):
                     hidden_nonlinearity=self._hidden_nonlinearity,
                     output_nonlinearity=self._output_nonlinearity,
                     output_b_init=b,
-                    name="mean_std_network")
-                with tf.variable_scope("mean_network"):
+                    name='mean_std_network')
+                with tf.variable_scope('mean_network'):
                     mean_network = mean_std_network[..., :action_dim]
-                with tf.variable_scope("std_network"):
+                with tf.variable_scope('std_network'):
                     std_network = mean_std_network[..., action_dim:]
 
             else:
@@ -153,7 +154,7 @@ class GaussianMLPModel(TfModel):
                     hidden_sizes=self._hidden_sizes,
                     hidden_nonlinearity=self._hidden_nonlinearity,
                     output_nonlinearity=self._output_nonlinearity,
-                    name="mean_network")
+                    name='mean_network')
 
                 # std network
                 if self._adaptive_std:
@@ -165,7 +166,7 @@ class GaussianMLPModel(TfModel):
                         hidden_nonlinearity=self._std_hidden_nonlinearity,
                         output_nonlinearity=self._std_output_nonlinearity,
                         output_b_init=b,
-                        name="std_network")
+                        name='std_network')
                 else:
                     p = tf.constant_initializer(self._init_std_param)
                     std_network = parameter(
@@ -173,27 +174,27 @@ class GaussianMLPModel(TfModel):
                         length=action_dim,
                         initializer=p,
                         trainable=self._learn_std,
-                        name="std_network")
+                        name='std_network')
 
         mean_var = mean_network
         std_param_var = std_network
 
-        with tf.variable_scope("std_limits"):
+        with tf.variable_scope('std_limits'):
             if self._min_std_param:
                 std_param_var = tf.maximum(std_param_var, self._min_std_param)
             if self._max_std_param:
                 std_param_var = tf.minimum(std_param_var, self._max_std_param)
 
-        with tf.variable_scope("std_parameterization"):
+        with tf.variable_scope('std_parameterization'):
             # build std_var with std parameterization
-            if self._std_parameterization == "exp":
+            if self._std_parameterization == 'exp':
                 std_var = tf.exp(std_param_var)
-            elif self._std_parameterization == "softplus":
+            elif self._std_parameterization == 'softplus':
                 std_var = tf.log(1. + tf.exp(std_param_var))
             else:
                 raise NotImplementedError
 
-        dist = tf.contrib.distributions.MultivariateNormalDiag(
+        dist = tfp.distributions.MultivariateNormalDiag(
             mean_var, std_var)
 
         action_var = dist.sample(seed=ext.get_seed())
