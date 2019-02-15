@@ -109,6 +109,9 @@ class CEM(RLAlgorithm, Serializable):
         self.n_evals = n_evals
         self.plotter = Plotter()
 
+    def get_actions(self, obs):
+        return self.policy.get_actions(obs)
+
     def train(self):
         parallel_sampler.populate_task(self.env, self.policy)
         if self.plot:

@@ -102,6 +102,9 @@ class BatchPolopt(RLAlgorithm):
         if self.plot:
             self.plotter.close()
 
+    def get_actions(self, obs):
+        return self.policy.get_actions(obs)
+
     def obtain_samples(self):
         return self.sampler.obtain_samples()
 

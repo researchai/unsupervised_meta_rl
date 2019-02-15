@@ -81,6 +81,9 @@ class OffPolicyRLAlgorithm(RLAlgorithm):
         if self.plot:
             self.plotter.close()
 
+    def get_actions(self, obs):
+        return self.policy.get_actions(obs)
+
     def obtain_samples(self, itr):
         """Sample data for this iteration."""
         return self.sampler.obtain_samples(itr)

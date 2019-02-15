@@ -86,6 +86,9 @@ class BatchPolopt(RLAlgorithm):
     def shutdown_worker(self):
         self.sampler.shutdown_worker()
 
+    def get_actions(self, obs):
+        return self.policy.get_actions(obs)
+
     def process_samples(self, paths):
         baselines = []
         returns = []

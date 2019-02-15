@@ -57,6 +57,9 @@ class CMAES(RLAlgorithm, Serializable):
         self.batch_size = batch_size
         self.plotter = Plotter()
 
+    def get_actions(self, obs):
+        return self.policy.get_actions(obs)
+
     def train(self):
 
         cur_std = self.sigma0
