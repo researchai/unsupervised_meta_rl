@@ -87,7 +87,7 @@ class OffPolicyRLAlgorithm(RLAlgorithm):
 
     def process_samples(self, itr, paths):
         """Process samples from rollout paths."""
-        return self.sampler.process_samples(itr, paths)
+        raise NotImplementedError
 
     def log_diagnostics(self, paths):
         """Log diagnostic information on current paths."""

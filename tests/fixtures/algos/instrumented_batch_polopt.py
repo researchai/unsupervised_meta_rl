@@ -34,7 +34,7 @@ class InstrumentedBatchPolopt(BatchPolopt):
                     conn.send(ExpLifecycle.OBTAIN_SAMPLES)
                     paths = self.sampler.obtain_samples(itr)
                     conn.send(ExpLifecycle.PROCESS_SAMPLES)
-                    samples_data = self.sampler.process_samples(itr, paths)
+                    samples_data = self.process_samples(itr, paths)
                     self.log_diagnostics(paths)
                     conn.send(ExpLifecycle.OPTIMIZE_POLICY)
                     self.optimize_policy(itr, samples_data)

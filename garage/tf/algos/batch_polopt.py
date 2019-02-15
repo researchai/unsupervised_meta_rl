@@ -1,8 +1,10 @@
 import time
 
+import numpy as np
 import tensorflow as tf
 
 from garage.algos import RLAlgorithm
+from garage.misc import special, tensor_utils
 import garage.misc.logger as logger
 from garage.tf.plotter import Plotter
 from garage.tf.samplers import BatchSampler
@@ -104,7 +106,103 @@ class BatchPolopt(RLAlgorithm):
         return self.sampler.obtain_samples()
 
     def process_samples(self, paths):
-        return self.sampler.process_samples(paths)
+        baselines = []
+        returns = []
+
+        max_path_length = self.algo.max_path_length
+
+        if hasattr(self.algo.baseline, "predict_n"):
+            all_path_baselines = self.algo.baseline.predict_n(paths)
+        else:
+            all_path_baselines = [
+                self.algo.baseline.predict(path) for path in paths
+            ]
+
+        for idx, path in enumerate(paths):
+            path_baselines = np.append(all_path_baselines[idx], 0)
+            deltas = path["rewards"] + \
+                self.algo.discount * path_baselines[1:] - \
+                path_baselines[:-1]
+            path["advantages"] = special.discount_cumsum(
+                deltas, self.algo.discount * self.algo.gae_lambda)
+            path["deltas"] = deltas
+
+        for idx, path in enumerate(paths):
+            # baselines
+            path['baselines'] = all_path_baselines[idx]
+            baselines.append(path['baselines'])
+
+            # returns
+            path["returns"] = special.discount_cumsum(path["rewards"],
+                                                      self.algo.discount)
+            returns.append(path["returns"])
+
+        # make all paths the same length
+        obs = [path["observations"] for path in paths]
+        obs = tensor_utils.pad_tensor_n(obs, max_path_length)
+
+        actions = [path["actions"] for path in paths]
+        actions = tensor_utils.pad_tensor_n(actions, max_path_length)
+
+        rewards = [path["rewards"] for path in paths]
+        rewards = tensor_utils.pad_tensor_n(rewards, max_path_length)
+
+        returns = [path["returns"] for path in paths]
+        returns = tensor_utils.pad_tensor_n(returns, max_path_length)
+
+        advantages = [path["advantages"] for path in paths]
+        advantages = tensor_utils.pad_tensor_n(advantages, max_path_length)
+
+        baselines = tensor_utils.pad_tensor_n(baselines, max_path_length)
+
+        agent_infos = [path["agent_infos"] for path in paths]
+        agent_infos = tensor_utils.stack_tensor_dict_list([
+            tensor_utils.pad_tensor_dict(p, max_path_length)
+            for p in agent_infos
+        ])
+
+        env_infos = [path["env_infos"] for path in paths]
+        env_infos = tensor_utils.stack_tensor_dict_list([
+            tensor_utils.pad_tensor_dict(p, max_path_length) for p in env_infos
+        ])
+
+        valids = [np.ones_like(path["returns"]) for path in paths]
+        valids = tensor_utils.pad_tensor_n(valids, max_path_length)
+
+        average_discounted_return = (np.mean(
+            [path["returns"][0] for path in paths]))
+
+        undiscounted_returns = [sum(path["rewards"]) for path in paths]
+
+        ent = np.sum(
+            self.algo.policy.distribution.entropy(agent_infos) *
+            valids) / np.sum(valids)
+
+        samples_data = dict(
+            observations=obs,
+            actions=actions,
+            rewards=rewards,
+            advantages=advantages,
+            baselines=baselines,
+            returns=returns,
+            valids=valids,
+            agent_infos=agent_infos,
+            env_infos=env_infos,
+            paths=paths,
+            average_return=np.mean(undiscounted_returns),
+        )
+
+        logger.record_tabular('AverageDiscountedReturn',
+                              average_discounted_return)
+        logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))
+        logger.record_tabular('NumTrajs', len(paths))
+        logger.record_tabular('Entropy', ent)
+        logger.record_tabular('Perplexity', np.exp(ent))
+        logger.record_tabular('StdReturn', np.std(undiscounted_returns))
+        logger.record_tabular('MaxReturn', np.max(undiscounted_returns))
+        logger.record_tabular('MinReturn', np.min(undiscounted_returns))
+
+        return samples_data
 
     def train_once(self, paths, sess=None):
         logger.log("Processing samples...")
@@ -180,5 +278,5 @@ class BatchPolopt(RLAlgorithm):
         """
         raise NotImplementedError
 
-    def optimize_policy(self, itr, samples_data):
+    def optimize_policy(self, samples_data):
         raise NotImplementedError
