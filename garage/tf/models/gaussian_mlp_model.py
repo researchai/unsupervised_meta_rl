@@ -1,6 +1,7 @@
 """Gaussian MLP Model."""
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from garage.core import Serializable
 from garage.misc import ext
@@ -202,7 +203,7 @@ class GaussianMLPModel(Model, Serializable):
             else:
                 raise NotImplementedError
 
-        dist = tf.contrib.distributions.MultivariateNormalDiag(
+        dist = tfp.distributions.MultivariateNormalDiag(
             mean_var, std_var)
         sample_var = dist.sample(seed=ext.get_seed())
 

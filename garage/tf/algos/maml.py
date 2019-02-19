@@ -674,7 +674,7 @@ class MAML(BatchPolopt):
             itr=itr,
             policy=self.policy,
             baseline=self.baseline,
-            env=self.env,
+            # env=self.env,
         )
 
     def _policy_adapt_opt_values(self, samples_data):
