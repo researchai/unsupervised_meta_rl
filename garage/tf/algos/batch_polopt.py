@@ -102,32 +102,37 @@ class BatchPolopt(RLAlgorithm):
         if self.plot:
             self.plotter.close()
 
-    def get_actions(self, obs):
-        return self.policy.get_actions(obs)
+    def get_actions(self, obses):
+        return self.policy.get_actions(obses)
 
     def obtain_samples(self):
-        return self.sampler.obtain_samples()
+        obs = self.sampler.reset()
+        while self.sampler.sample_count < self.batch_size:
+            actions = self.policy.get_actions(obs)
+            obs = self.sampler.step(actions)
+        
+        return self.sampler.get_samples()
 
     def process_samples(self, paths):
         baselines = []
         returns = []
 
-        max_path_length = self.algo.max_path_length
+        max_path_length = self.max_path_length
 
-        if hasattr(self.algo.baseline, "predict_n"):
-            all_path_baselines = self.algo.baseline.predict_n(paths)
+        if hasattr(self.baseline, "predict_n"):
+            all_path_baselines = self.baseline.predict_n(paths)
         else:
             all_path_baselines = [
-                self.algo.baseline.predict(path) for path in paths
+                self.baseline.predict(path) for path in paths
             ]
 
         for idx, path in enumerate(paths):
             path_baselines = np.append(all_path_baselines[idx], 0)
             deltas = path["rewards"] + \
-                self.algo.discount * path_baselines[1:] - \
+                self.discount * path_baselines[1:] - \
                 path_baselines[:-1]
             path["advantages"] = special.discount_cumsum(
-                deltas, self.algo.discount * self.algo.gae_lambda)
+                deltas, self.discount * self.gae_lambda)
             path["deltas"] = deltas
 
         for idx, path in enumerate(paths):
@@ -137,7 +142,7 @@ class BatchPolopt(RLAlgorithm):
 
             # returns
             path["returns"] = special.discount_cumsum(path["rewards"],
-                                                      self.algo.discount)
+                                                      self.discount)
             returns.append(path["returns"])
 
         # make all paths the same length
@@ -178,7 +183,7 @@ class BatchPolopt(RLAlgorithm):
         undiscounted_returns = [sum(path["rewards"]) for path in paths]
 
         ent = np.sum(
-            self.algo.policy.distribution.entropy(agent_infos) *
+            self.policy.distribution.entropy(agent_infos) *
             valids) / np.sum(valids)
 
         samples_data = dict(
