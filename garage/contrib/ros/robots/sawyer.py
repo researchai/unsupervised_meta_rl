@@ -4,6 +4,7 @@ from collections import namedtuple
 import gym
 from intera_core_msgs.msg import JointLimits
 import intera_interface
+import intera_motion_interface
 import moveit_msgs.msg
 import numpy as np
 import rospy
@@ -137,8 +138,8 @@ class Sawyer(Robot):
         for i in range(7):
             joint_angle_cmds['right_j{}'.format(i)] = next_joint_positions[i]
 
-        if self.safety_predict(joint_angle_cmds):
-            self._limb.move_to_joint_positions(joint_angle_cmds, timeout=0.15)
+        # if self.safety_predict(joint_angle_cmds):
+        self._limb.move_to_joint_positions(joint_angle_cmds, timeout=10)
 
     def _set_limb_joint_velocities(self, commands):
         joint_angle_cmds = {}
@@ -327,3 +328,18 @@ class Sawyer(Robot):
             np.concatenate((lower_bounds, np.array([0]))),
             np.concatenate((upper_bounds, np.array([100]))),
             dtype=np.float32)
+
+    def trajectory_go(self, trajectory):
+        motion_traj = intera_motion_interface.MotionTrajectory(limb=self._limb)
+        wpt_opts = intera_motion_interface.MotionWaypointOptions(max_joint_speed_ratio=0.5,
+                                                                 max_joint_accel=0.5)
+        waypoint = intera_motion_interface.MotionWaypoint(options=wpt_opts.to_msg(), limb=self._limb)
+        joint_angles = self._limb.joint_ordered_angles()
+        waypoint.set_joint_angles(joint_angles=joint_angles)
+        motion_traj.append_waypoint(waypoint.to_msg())
+
+        for joint_angles in trajectory:
+            waypoint.set_joint_angles(joint_angles=joint_angles)
+            motion_traj.append_waypoint(waypoint.to_msg())
+
+        result = motion_traj.send_trajectory(timeout=None)
