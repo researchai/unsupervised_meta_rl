@@ -17,6 +17,9 @@ from garage.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from garage.tf.policies.gaussian_mlp_policy_with_model import (
     GaussianMLPPolicyWithModel)
 
+from garage.tf.policies.maml_policy import MamlPolicy
+
+
 __all__ = [
     "Policy",
     "StochasticPolicy",
@@ -32,4 +35,5 @@ __all__ = [
     "GaussianLSTMPolicy",
     "GaussianMLPPolicy",
     "GaussianMLPPolicyWithModel",
+    "MamlPolicy",
 ]
