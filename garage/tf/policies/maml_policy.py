@@ -56,7 +56,8 @@ class MamlPolicy(StochasticPolicy2):
             update_opts_input: Input for calculating adapted parameters.
         """
 
-        assert not self._initialized, "The MAML policy is initialized and can be initialized once."
+        assert not self._initialized,
+            "The MAML policy is initialized and can be initialized once."
 
         global MAML_VARIABLE_STORE, MAML_TASK_INDEX
         update_opts = []
@@ -115,7 +116,7 @@ class MamlPolicy(StochasticPolicy2):
 
     @property
     def recurrent(self):
-        """Indicates whether the policy is recurrent."""
+        """Indicate whether the policy is recurrent."""
         return self.wrapped_policy.recurrent
 
     def get_action(self, observation):
