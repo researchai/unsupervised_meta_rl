@@ -2,8 +2,9 @@ import numpy as np
 import tensorflow as tf
 
 from garage.core import Serializable
-from garage.logger import logger
 from garage.misc import krylov
+from garage.misc import logger
+from garage.misc.tensor_utils import flatten_tensors, unflatten_tensors
 from garage.tf.misc import tensor_utils
 from garage.tf.optimizers.utils import LazyDict, sliced_fun
 
@@ -59,7 +60,10 @@ class PerlmutterHvp:
 
     def build_eval(self, inputs):
         def eval(x):
-            xs = tuple(self.target.flat_to_params(x, trainable=True))
+            param_vals = tf.get_default_session().run(self.target.get_params())
+            shapes = [val.shape for val in param_vals]
+            xs = tuple(unflatten_tensors(x, shapes))
+            # xs = tuple(self.target.flat_to_params(x, trainable=True))
             ret = sliced_fun(self.opt_fun["f_hx_plain"], self._num_slices)(
                 inputs, xs) + self.reg_coeff * x
             return ret
@@ -289,7 +293,10 @@ class ConjugateGradientOptimizer(Serializable):
                 name,
                 "optimize",
                 values=[inputs, extra_inputs, subsample_grouped_inputs]):
-            prev_param = np.copy(self._target.get_param_values(trainable=True))
+            prev_param = np.copy(flatten_tensors(
+                tf.get_default_session().run(self._target.get_params(trainable=True))))
+            param_vals = tf.get_default_session().run(self._target.get_params())
+            shapes = [val.shape for val in param_vals]
             inputs = tuple(inputs)
             if extra_inputs is None:
                 extra_inputs = tuple()
@@ -343,7 +350,7 @@ class ConjugateGradientOptimizer(Serializable):
                     self._max_backtracks)):  # yapf: disable
                 cur_step = ratio * flat_descent_step
                 cur_param = prev_param - cur_step
-                self._target.set_param_values(cur_param, trainable=True)
+                self._target.update_params(unflatten_tensors(cur_param, shapes))
                 loss, constraint_val = sliced_fun(
                     self._opt_fun["f_loss_constraint"],
                     self._num_slices)(inputs, extra_inputs)
@@ -367,7 +374,7 @@ class ConjugateGradientOptimizer(Serializable):
                 if constraint_val >= self._max_constraint_val:
                     logger.log("Violated because constraint %s is violated" %
                                self._constraint_name)
-                self._target.set_param_values(prev_param, trainable=True)
+                self._target.update_params(unflatten_tensors(cur_param, shapes))
             logger.log("backtrack iters: %d" % n_iter)
             logger.log("computing loss after")
             logger.log("optimization finished")
