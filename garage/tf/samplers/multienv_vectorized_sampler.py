@@ -31,7 +31,7 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
             for each VecEnvExecutor.
     """
 
-    def __init__(self, algo, envs, n_envs=1):
+    def __init__(self, algo, envs, n_envs=2):
         super().__init__(algo=algo, n_envs=n_envs)
         self.envs = envs
         self.vec_envs = []
@@ -55,7 +55,7 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
         self.env_spec = self.envs[0].spec
 
     @overrides
-    def obtain_samples(self, itr, batch_size=None):
+    def obtain_samples(self, itr, batch_size=None, adaptation_data=None):
         """
         Sample from environments.
 
@@ -93,7 +93,10 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
                 t = time.time()
                 policy.reset(dones)
 
-                actions, agent_infos = policy.get_actions(obses)
+                if adaptation_data is None:
+                    actions, agent_infos = policy.get_actions(obses)
+                else:
+                    actions, agent_infos = policy.get_actions_with_adaptation_data(obses, adaptation_data[i])
 
                 policy_time += time.time() - t
                 t = time.time()
@@ -167,3 +170,8 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
             processed = super().process_samples(itr, p)
             all_samples.append(processed)
         return all_samples
+
+    @overrides
+    def shutdown_worker(self):
+        for vec_env in self.vec_envs:
+            vec_env.close()
