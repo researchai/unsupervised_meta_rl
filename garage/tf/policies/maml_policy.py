@@ -1,6 +1,7 @@
 """Maml Policy."""
 import tensorflow as tf
 
+from garage.tf.misc import tensor_utils
 from garage.tf.policies.base2 import StochasticPolicy2
 
 # This is an alternative variable store for maml.
@@ -34,11 +35,13 @@ class MamlPolicy(StochasticPolicy2):
         self._initialized = False
         self._adaptation_step_size = adaptation_step_size
         self._adapted_param_store = dict()
+        self._all_model_outputs = list()
+
         self._create_update_opts()
 
         super().__init__(wrapped_policy._env_spec)
 
-    def initialize(self, gradient_var, inputs):
+    def initialize(self, gradient_var, inputs, adaptation_inputs):
         """
         Initialize the MAML Policy.
 
@@ -49,14 +52,14 @@ class MamlPolicy(StochasticPolicy2):
         Args:
             gradient_var: Gradient variables for one step adaptation.
             inputs: Input tensors for rebuilding the models.
-
+            adaptation_inputs: Input placeholder of adaptation data.
         Returns:
             all_model_outputs: The outputs of rebuilt models.
             update_opts: Adapted parameter tensors.
             update_opts_input: Input for calculating adapted parameters.
         """
 
-        assert not self._initialized,
+        assert not self._initialized, \
             "The MAML policy is initialized and can be initialized once."
 
         global MAML_VARIABLE_STORE, MAML_TASK_INDEX
@@ -98,13 +101,12 @@ class MamlPolicy(StochasticPolicy2):
             original_get_variable = variable_scope.get_variable
             variable_scope.get_variable = maml_get_variable
 
-            all_model_outputs = list()
             for i in range(self.n_tasks):
                 input_for_adapted = inputs[i]
                 model_infos = model.build(
                     input_for_adapted, name="task{}".format(i))
                 MAML_TASK_INDEX += 1
-                all_model_outputs.append(model_infos)
+                self._all_model_outputs.append(model_infos)
 
             self._initialized = True
 
@@ -112,7 +114,25 @@ class MamlPolicy(StochasticPolicy2):
         variable_scope.get_variable = original_get_variable
         update_opts_input = inputs[0]
 
-        return all_model_outputs, update_opts, update_opts_input
+        # Build get_action_with_adaptation_data.
+        # Here, just use the last set of params.
+        input_ph = tf.placeholder(
+            dtype=inputs[0].dtype,
+            shape=inputs[0].shape,)
+        MAML_TASK_INDEX -= 1
+        model_outputs = model.build(
+            input_ph, name='get_action_with_adaptation_data')
+        MAML_TASK_INDEX += 1
+
+        assert MAML_TASK_INDEX == self.n_tasks
+
+        outputs = [model_outputs[0], model_outputs[1], model_outputs[2]]
+        self._f_get_actions_with_adaptation = tensor_utils.compile_function(
+            tensor_utils.flatten_inputs([input_ph, adaptation_inputs[-1]]),
+            outputs,
+            log_name='get_action_with_adaptation_data',)
+
+        return self._all_model_outputs, update_opts, update_opts_input
 
     @property
     def recurrent(self):
@@ -126,6 +146,12 @@ class MamlPolicy(StochasticPolicy2):
     def get_actions(self, observations):
         """Get actions from the policy."""
         return self.wrapped_policy.get_actions(observations)
+
+    def get_actions_with_adaptation_data(self, observations, adaptation_data):
+        observations = self.wrapped_policy.observation_space.flatten_n(observations)
+        data = tensor_utils.flatten_inputs([observations, adaptation_data])
+        actions, means, std_param = self._f_get_actions_with_adaptation(*data)
+        return actions, dict(mean=means, log_std=std_param)
 
     def _create_update_opts(self):
         """Create assign operations for updating parameters."""
@@ -150,3 +176,23 @@ class MamlPolicy(StochasticPolicy2):
     def get_params(self, trainable=True):
         """Get the trainable variables."""
         return self.wrapped_policy.get_params(trainable)
+
+    @property
+    def distribution(self):
+        return self.wrapped_policy.distribution
+
+    def __getstate__(self):
+        """Object.__getstate__."""
+        new_dict = self.__dict__.copy()
+        del new_dict['_f_get_actions_with_adaptation']
+        del new_dict['_adapted_param_store']
+        del new_dict['_all_model_outputs']
+        del new_dict['adapated_placeholders']
+        del new_dict['update_opts']
+        del new_dict['_initialized']
+        return new_dict
+
+    def __setstate__(self, state):
+        """Object.__setstate__."""
+        self.__dict__.update(state)
+        self._initialize()
