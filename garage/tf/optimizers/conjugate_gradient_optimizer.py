@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from garage.core import Serializable
 from garage.misc import krylov
-from garage.misc import logger
+from garage.logger import logger, tabular
 from garage.misc.tensor_utils import flatten_tensors, unflatten_tensors
 from garage.tf.misc import tensor_utils
 from garage.tf.optimizers.utils import LazyDict, sliced_fun

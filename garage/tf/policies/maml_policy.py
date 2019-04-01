@@ -28,10 +28,9 @@ class MamlPolicy(StochasticPolicy2):
                  n_tasks,
                  adaptation_step_size=0.5,
                  name="MamlPolicy"):
-
+        super().__init__(name, wrapped_policy._env_spec)
         self.wrapped_policy = wrapped_policy
         self.n_tasks = n_tasks
-        self.name = name
         self._initialized = False
         self._adaptation_step_size = adaptation_step_size
         self._adapted_param_store = dict()
@@ -39,7 +38,6 @@ class MamlPolicy(StochasticPolicy2):
 
         self._create_update_opts()
 
-        super().__init__(wrapped_policy._env_spec)
 
     def initialize(self, gradient_var, inputs, adaptation_inputs):
         """
@@ -194,5 +192,7 @@ class MamlPolicy(StochasticPolicy2):
 
     def __setstate__(self, state):
         """Object.__setstate__."""
+        import ipdb
+        ipdb.set_trace()
         self.__dict__.update(state)
-        self._initialize()
+        # self.wrapped_policy._initialize()

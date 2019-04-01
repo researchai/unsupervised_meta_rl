@@ -14,7 +14,7 @@ class Policy2:
     def __init__(self, name, env_spec):
         self._name = name
         self._env_spec = env_spec
-        self._variable_scope = tf.VariableScope(name)
+        self._variable_scope = tf.variable_scope(name)
 
     # Should be implemented by all policies
 
@@ -97,7 +97,9 @@ class Policy2:
 
     def get_trainable_vars(self):
         """Get trainable vars."""
-        return self._variable_scope.trainable_variables()
+        with self._variable_scope:
+            scope_name = tf.get_variable_scope().name
+        return tf.global_variables(scope=scope_name)
 
     def get_global_vars(self):
         """Get global vars."""

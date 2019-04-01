@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 
 from garage.misc import tensor_utils
-import garage.misc.logger as logger
+from garage.logger import logger, tabular
 from garage.misc.overrides import overrides
 from garage.misc.prog_bar_counter import ProgBarCounter
 from garage.tf.envs import VecEnvExecutor
@@ -32,7 +32,7 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
     """
 
     def __init__(self, algo, envs, n_envs=2):
-        super().__init__(algo=algo, n_envs=n_envs)
+        super().__init__(algo=algo, n_envs=n_envs, env=envs[0])
         self.envs = envs
         self.vec_envs = []
 
@@ -40,18 +40,12 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
     def start_worker(self):
         """Create a list of vectorized executors."""
         n_envs = self.n_envs
-        if getattr(self.algo.env, 'vectorized', False):
-            for env in self.envs:
-                self.vec_envs.append(
-                    self.algo.env.vec_env_executor(
-                        n_envs=n_envs,
-                        max_path_length=self.algo.max_path_length))
-        else:
-            for env in self.envs:
-                envs = [pickle.loads(pickle.dumps(env)) for _ in range(n_envs)]
-                self.vec_envs.append(
-                    VecEnvExecutor(
-                        envs=envs, max_path_length=self.algo.max_path_length))
+
+        for env in self.envs:
+            envs = [pickle.loads(pickle.dumps(env)) for _ in range(n_envs)]
+            self.vec_envs.append(
+                VecEnvExecutor(
+                    envs=envs, max_path_length=self.algo.max_path_length))
         self.env_spec = self.envs[0].spec
 
     @overrides
@@ -156,9 +150,9 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
 
         pbar.stop()
 
-        logger.record_tabular("PolicyExecTime", policy_time)
-        logger.record_tabular("EnvExecTime", env_time)
-        logger.record_tabular("ProcessExecTime", process_time)
+        tabular.record("PolicyExecTime", policy_time)
+        tabular.record("EnvExecTime", env_time)
+        tabular.record("ProcessExecTime", process_time)
 
         return all_paths
 

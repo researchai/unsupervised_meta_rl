@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from garage.misc import logger
+from garage.logger import logger, tabular
 from garage.misc import special
 from garage.misc.overrides import overrides
 from garage.tf.algos.batch_polopt import BatchPolopt
@@ -17,11 +17,14 @@ from garage.tf.misc.tensor_utils import flatten_inputs
 from garage.tf.misc.tensor_utils import graph_inputs
 from garage.tf.policies import MamlPolicy
 from garage.tf.samplers import MultiEnvVectorizedSampler
+from garage.tf.optimizers import ConjugateGradientOptimizer
+
 
 
 class MAML(BatchPolopt):
 
     def __init__(self,
+                 env_spec,
                  pg_loss=PGLoss.VANILLA,
                  clip_range=0.01,
                  optimizer=None,
@@ -39,12 +42,13 @@ class MAML(BatchPolopt):
         if optimizer is None:
             if optimizer_args is None:
                 optimizer_args = dict()
-            optimizer = LbfgsOptimizer
+            optimizer = ConjugateGradientOptimizer
         with tf.name_scope(self.name):
             self.optimizer = optimizer(**optimizer_args)
             self.clip_range = float(clip_range)
             self.policy_ent_coeff = float(policy_ent_coeff)
         super(MAML, self).__init__(
+            env_spec=env_spec,
             policy=policy,
             sampler_cls=sampler_cls,
             **kwargs)
@@ -396,7 +400,6 @@ class MAML(BatchPolopt):
                     i.flat.action_var,
                     policy_dist_info_flat,
                     name="ent_policy_log_likeli_{}".format(idx))
-
             policy_entropy_flat = self.policy.wrapped_policy.distribution.entropy_sym(
                 policy_dist_info_flat)
 
@@ -413,6 +416,9 @@ class MAML(BatchPolopt):
         for idx, l in enumerate(losses):
             with tf.name_scope("adaptation_gradients_{}".format(idx)):
                 grads = [tf.gradients(l, p)[0] for p in params]
+                if None in grads:
+                    import ipdb
+                    ipdb.set_trace()
                 gradient_vars.append(grads)
 
         return gradient_vars
@@ -590,27 +596,27 @@ class MAML(BatchPolopt):
         policy_opt_input_values = self.policy_opt_input_values(samples_data, adaptation_data)
 
         # Train policy network
-        logger.log("Computing loss before")
+        # logger.log("Computing loss before")
         loss_before = self.optimizer.loss(policy_opt_input_values)
         # logger.log("Computing KL before")
         self.optimizer.optimize(policy_opt_input_values)
-        logger.log("Computing loss after")
+        # logger.log("Computing loss after")
         loss_after = self.optimizer.loss(policy_opt_input_values)
-        logger.record_tabular("{}/LossBefore".format(self.policy.name),
+        tabular.record("{}/LossBefore".format(self.policy.name),
                               loss_before)
-        logger.record_tabular("{}/LossAfter".format(self.policy.name),
+        tabular.record("{}/LossAfter".format(self.policy.name),
                               loss_after)
-        logger.record_tabular("{}/dLoss".format(self.policy.name),
-                              loss_before - loss_after)
+        # logger.record_tabular("{}/dLoss".format(self.policy.name),
+        #                       loss_before - loss_after)
 
         self._fit_baseline(samples_data, adaptation_data)
 
     @overrides
-    def get_itr_snapshot(self, itr, samples_data):
+    def get_itr_snapshot(self, itr):
         return dict(
             itr=itr,
-            policy=self.policy,
-            # baseline=self.baseline,
+            policy=self.policy.wrapped_policy,
+            baseline=self.baseline,
             # env=self.env,
         )
 
@@ -645,11 +651,39 @@ class MAML(BatchPolopt):
             # Calculate explained variance
             ev = special.explained_variance_1d(
                 np.concatenate(baselines), aug_returns)
-            logger.record_tabular("Baseline/ExplainedVariance", ev)
+            # logger.record_tabular("Baseline/ExplainedVariance", ev)
 
             # Fit baseline
-            logger.log("Fitting baseline...")
+            # logger.log("Fitting baseline...")
             if hasattr(self.baseline, "fit_with_samples"):
                 self.baseline.fit_with_samples(paths, samples_data[i])
             else:
                 self.baseline.fit(paths)
+
+    def adapt_policy(self, n_itr=1, sess=None, env=None):
+
+        assert n_itr > 0
+
+        if sess is None:
+            sess = tf.get_default_session()
+            sess = tf.Session() if not sess else sess
+
+        self.start_worker(sess)
+        policy_params = self.policy.get_params_internal()
+        values_before_adapt = sess.run(policy_params)
+
+        for itr in range(n_itr):
+            # with logger.prefix('itr #%d | ' % itr):
+            # logger.log('Obtaining samples...')
+            paths = self.obtain_samples(itr)
+            # logger.log('Processing samples...')
+            samples_data = self.process_samples(itr, paths)
+            values = self._policy_adapt_opt_values(samples_data)
+            # logger.log('Computing adapted policy parameters...')
+            params = self.f_adapt(*values)
+            self.policy.update_params(params)
+
+        # Revert the policy as not adapted
+        self.policy.update_params(values_before_adapt)
+
+        return params

@@ -1,6 +1,6 @@
 import time
 
-from garage.misc import logger
+from garage.logger import logger, tabular
 from garage.experiment.local_tf_runner import LocalRunner
 
 
@@ -89,7 +89,32 @@ class LocalMamlRunner(LocalRunner):
             One batch of samples.
 
         """
-        if self.n_epoch_cycles == 1:
-            logger.log("Obtaining samples...")
-        return self.sampler.obtain_samples(itr, batch_size, adaptation_data)
+        if adaptation_data:
+            return self.sampler.obtain_samples(itr, batch_size, adaptation_data)
+        else:
+            return self.sampler.obtain_samples(itr, batch_size)
 
+    def adapt(self, batch_size=4000, n_itr=1, env=None):
+        if env is not None:
+            from garage.tf.samplers import OnPolicyVectorizedSampler
+            self.sampler = OnPolicyVectorizedSampler(self.algo, env, n_envs=2)
+
+        self.start_worker()
+        policy_params = self.policy.get_params()
+        values_before_adapt = self.sess.run(policy_params)
+
+        for itr in range(n_itr):
+            # with logger.prefix('itr #%d | ' % itr):
+            # logger.log('Obtaining samples...')
+            paths = self.obtain_samples(itr, batch_size)
+            # logger.log('Processing samples...')
+            samples_data = self.sampler.process_samples(itr, paths)
+            values = self.algo.policy_adapt_opt_values(samples_data)
+            # logger.log('Computing adapted policy parameters...')
+            params = self.algo.f_adapt(*values)
+            self.policy.update_params(params)
+
+        # Revert the policy as not adapted
+        self.policy.update_params(values_before_adapt)
+
+        return params

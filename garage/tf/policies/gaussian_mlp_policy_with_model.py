@@ -78,9 +78,11 @@ class GaussianMLPPolicyWithModel(StochasticPolicy2):
         self._initialize()
 
     def _initialize(self):
-        state_input = tf.placeholder(tf.float32, shape=(None, self.obs_dim))
+        if '_variable_scope' not in self.__dict__:
+            self._variable_scope = tf.variable_scope(self._name)
 
-        with tf.variable_scope(self._variable_scope):
+        state_input = tf.placeholder(tf.float32, shape=(None, self.obs_dim))
+        with self._variable_scope:
             self.model.build(state_input)
 
         self._f_dist = tf.get_default_session().make_callable(
@@ -98,11 +100,11 @@ class GaussianMLPPolicyWithModel(StochasticPolicy2):
 
     def dist_info_sym(self, obs_var, state_info_vars=None, name='default'):
         """Symbolic graph of the distribution."""
-        with tf.variable_scope(self._variable_scope):
+        with self._variable_scope:
             _, mean_var, log_std_var, _, _ = self.model.build(
                 obs_var, name=name)
-        mean_var = tf.reshape(mean_var, self.action_space.shape)
-        log_std_var = tf.reshape(log_std_var, self.action_space.shape)
+        # mean_var = tf.reshape(mean_var, self.action_space.shape)
+        # log_std_var = tf.reshape(log_std_var, self.action_space.shape)
         return dict(mean=mean_var, log_std=log_std_var)
 
     def get_action(self, observation):
@@ -136,6 +138,7 @@ class GaussianMLPPolicyWithModel(StochasticPolicy2):
         """Object.__getstate__."""
         new_dict = self.__dict__.copy()
         del new_dict['_f_dist']
+        del new_dict['_variable_scope']
         return new_dict
 
     def __setstate__(self, state):

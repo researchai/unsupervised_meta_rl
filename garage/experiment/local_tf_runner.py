@@ -184,7 +184,7 @@ class LocalRunner:
 
         logger.log("Saving snapshot...")
         params = self.algo.get_itr_snapshot(itr)
-        params['env'] = self.env
+        # params['env'] = self.env
         if paths:
             params['paths'] = paths
         snapshotter.save_itr_params(itr, params)
