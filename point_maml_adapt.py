@@ -88,16 +88,24 @@ def adapt_policy_and_evaluate(pkl_path, envs, eval_epoch=1):
             # Retrieve adapted params
             params = runner.adapt(env=env)
             maml_policy.update_params(params)
+            task_result = []
             for _ in range(eval_epoch):
                 ep_result = evaluate_once(maml_policy, env)
-                results.append(ep_result)
+                ep_result['goal'] = env.env._goal
+                task_result.append(ep_result)
+                results.append(task_result)
 
-        rewards = [re['rewards'] for re in results]
+        rewards = [re['rewards'] for re in task_result]
         returns = [np.sum(re) for re in rewards]
         returns_mean = np.mean(returns)
 
-    return returns_mean
+    return returns_mean, results
 
+def circle(r, n):
+    tasks = list()
+    for t in np.arange(0, 2 * np.pi, 2 * np.pi / n):
+        tasks.append((r * np.sin(t), r * np.cos(t)))
+    return tasks
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -122,23 +130,16 @@ if __name__ == '__main__':
         default=1)
     args = parser.parse_args()
 
-    # variation = VARIATIONS[args.variation]
-
-    # test_envs = [
-    #     TfEnv(DmControlEnv(e, name='{}_{}'.format(variation.__name__, i)))
-    #     for i, e in variation.yield_test_set(args.test_set_size)
-    # ]
-
-    test_tasks = [
-        (3., 3.),
-        (-3, -3.),
-    ]
-
-    test_envs = [TfEnv(PointEnv(goal=np.array(t))) for t in test_tasks]
+    test_tasks = [(0, 3)]
+    test_envs = [TfEnv(PointEnv(goal=np.array(t), never_done=False)) for t in test_tasks]
     
-    results = adapt_policy_and_evaluate(
+    returns_mean, results = adapt_policy_and_evaluate(
         pkl_path=args.pkl_path,
         envs=test_envs,
+        eval_epoch=10,
     )
+
+    np.save('adaptation_data_16.npy', np.array(results))
     import ipdb
     ipdb.set_trace()
+    print('Exiting')

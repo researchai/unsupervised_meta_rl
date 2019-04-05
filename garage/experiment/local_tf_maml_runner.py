@@ -94,7 +94,7 @@ class LocalMamlRunner(LocalRunner):
         else:
             return self.sampler.obtain_samples(itr, batch_size)
 
-    def adapt(self, batch_size=4000, n_itr=1, env=None):
+    def adapt(self, batch_size=10000, n_itr=5, env=None):
         if env is not None:
             from garage.tf.samplers import OnPolicyVectorizedSampler
             self.sampler = OnPolicyVectorizedSampler(self.algo, env, n_envs=2)
@@ -110,6 +110,7 @@ class LocalMamlRunner(LocalRunner):
             # logger.log('Processing samples...')
             samples_data = self.sampler.process_samples(itr, paths)
             values = self.algo.policy_adapt_opt_values(samples_data)
+            self.algo.fit_baseline_once(samples_data)
             # logger.log('Computing adapted policy parameters...')
             params = self.algo.f_adapt(*values)
             self.policy.update_params(params)

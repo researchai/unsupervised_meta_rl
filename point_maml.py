@@ -14,18 +14,26 @@ from garage.tf.optimizers import ConjugateGradientOptimizer
 from tests.fixtures.envs.dummy import DummyBoxEnv, DummyDiscreteEnv
 
 
+def circle(r, n):
+    tasks = list()
+    for t in np.arange(0, 2 * np.pi, 2 * np.pi / n):
+        tasks.append((r * np.sin(t), r * np.cos(t)))
+    return tasks
+
+
 def test_maml(*_):
     with LocalMamlRunner() as runner:
-        tasks = [
-            (-3., 0.),
-            (3., 0.),
-            (0., 3.),
-            (0., -3.),
-            (-1.5, 1.5),
-            (1.5, -1.5),
-            (1.5, 1.5),
-            (-1.5, -1.5),
-        ]
+        # tasks = [
+            # (-3., 0.),
+            # (3., 0.),
+            # (0., 3.),
+            # (0., -3.),
+            # (-1.5, 1.5),
+            # (1.5, -1.5),
+            # (1.5, 1.5),
+            # (-1.5, -1.5),
+        # ]
+        tasks = circle(3., 8)
         envs = [TfEnv(PointEnv(goal=np.array(t))) for t in tasks]
         n_tasks = len(envs)
         policy = GaussianMLPPolicy(
@@ -50,7 +58,7 @@ def test_maml(*_):
 run_experiment(
     test_maml,
     n_parallel=2,
-    exp_prefix='maml',
+    exp_prefix='maml_8goals',
     seed=1,
     plot=False,
 )

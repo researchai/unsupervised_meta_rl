@@ -660,6 +660,43 @@ class MAML(BatchPolopt):
             else:
                 self.baseline.fit(paths)
 
+    def fit_baseline_once(self, samples_data):
+        policy_opt_input_values = self.policy_adapt_opt_values(samples_data)
+        # Augment reward from baselines
+        rewards_tensor = self.f_rewards[0](*policy_opt_input_values)
+        returns_tensor = self.f_returns[0](*policy_opt_input_values)
+        returns_tensor = np.squeeze(returns_tensor)
+
+        paths = samples_data["paths"]
+        valids = samples_data["valids"]
+        baselines = [path["baselines"] for path in paths]
+
+        # Recompute parts of samples_data
+        aug_rewards = []
+        aug_returns = []
+        for rew, ret, val, path in zip(rewards_tensor, returns_tensor, valids,
+                                       paths):
+            path["rewards"] = rew[val.astype(np.bool)]
+            path["returns"] = ret[val.astype(np.bool)]
+            aug_rewards.append(path["rewards"])
+            aug_returns.append(path["returns"])
+        aug_rewards = tensor_utils.concat_tensor_list(aug_rewards)
+        aug_returns = tensor_utils.concat_tensor_list(aug_returns)
+        samples_data["rewards"] = aug_rewards
+        samples_data["returns"] = aug_returns
+
+        # Calculate explained variance
+        ev = special.explained_variance_1d(
+            np.concatenate(baselines), aug_returns)
+        # logger.record_tabular("Baseline/ExplainedVariance", ev)
+
+        # Fit baseline
+        # logger.log("Fitting baseline...")
+        if hasattr(self.baseline, "fit_with_samples"):
+            self.baseline.fit_with_samples(paths, samples_data)
+        else:
+            self.baseline.fit(paths)
+
     def adapt_policy(self, n_itr=1, sess=None, env=None):
 
         assert n_itr > 0
