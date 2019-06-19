@@ -1,4 +1,4 @@
-from akro.tf import Box
+from akro import Box
 import tensorflow as tf
 
 from garage.core import Serializable

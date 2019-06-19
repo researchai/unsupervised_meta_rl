@@ -1,7 +1,7 @@
-from akro.tf import Box
-from akro.tf import Dict
-from akro.tf import Discrete
-from akro.tf import Tuple
+from akro import Box
+from akro import Dict
+from akro import Discrete
+from akro import Tuple
 from cached_property import cached_property
 from gym.spaces import Box as GymBox
 from gym.spaces import Dict as GymDict

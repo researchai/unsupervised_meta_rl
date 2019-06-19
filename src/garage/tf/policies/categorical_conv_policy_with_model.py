@@ -1,9 +1,10 @@
 """CategoricalConvPolicy with model."""
-from akro.tf import Discrete
+from akro import Discrete
 import tensorflow as tf
 
 from garage.misc.overrides import overrides
 from garage.tf.distributions import Categorical
+from garage.tf.misc.tensor_utils import normalize_pixel_observation
 from garage.tf.models import CNNModel
 from garage.tf.models import MLPModel
 from garage.tf.models import Sequential
@@ -17,7 +18,7 @@ class CategoricalConvPolicyWithModel(StochasticPolicy2):
     A policy that contains a CNN and a MLP to make prediction based on
     a categorical distribution.
 
-    It only works with akro.tf.Discrete action space.
+    It only works with akro.Discrete action space.
 
     Args:
         env_spec (garage.envs.env_spec.EnvSpec): Environment specification.
@@ -105,8 +106,8 @@ class CategoricalConvPolicyWithModel(StochasticPolicy2):
         self._initialize()
 
     def _initialize(self):
-        state_input = tf.placeholder(tf.float32, shape=(None, ) + self.obs_dim)
-
+        state_input = tf.placeholder(tf.uint8, shape=(None, ) + self.obs_dim)
+        state_input = normalize_pixel_observation(self.env_spec, state_input)
         with tf.variable_scope(self.name) as vs:
             self._variable_scope = vs
             self.model.build(state_input)
@@ -123,6 +124,7 @@ class CategoricalConvPolicyWithModel(StochasticPolicy2):
     def dist_info_sym(self, obs_var, state_info_vars=None, name=None):
         """Symbolic graph of the distribution."""
         with tf.variable_scope(self._variable_scope):
+            obs_var = normalize_pixel_observation(self.env_spec, obs_var)
             prob = self.model.build(obs_var, name=name)
         return dict(prob=prob)
 

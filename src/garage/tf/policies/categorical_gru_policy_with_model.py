@@ -1,5 +1,5 @@
 """CategoricalGRUPolicy with model."""
-from akro.tf import Discrete
+from akro import Discrete
 import numpy as np
 import tensorflow as tf
 
@@ -15,7 +15,7 @@ class CategoricalGRUPolicyWithModel(StochasticPolicy2):
     A policy that contains a GRU to make prediction based on
     a categorical distribution.
 
-    It only works with akro.tf.Discrete action space.
+    It only works with akro.Discrete action space.
 
     Args:
         env_spec (garage.envs.env_spec.EnvSpec): Environment specification.

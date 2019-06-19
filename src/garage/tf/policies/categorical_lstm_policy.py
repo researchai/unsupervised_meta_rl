@@ -1,4 +1,4 @@
-from akro.tf import Discrete
+from akro import Discrete
 import numpy as np
 import tensorflow as tf
 

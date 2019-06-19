@@ -5,7 +5,7 @@ A continuous MLP network can be used as policy method in different RL
 algorithms. It accepts an observation of the environment and predicts an
 action.
 """
-from akro.tf import Box
+from akro import Box
 import tensorflow as tf
 
 from garage.core import Serializable

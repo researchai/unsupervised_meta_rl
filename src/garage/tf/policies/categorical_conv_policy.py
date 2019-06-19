@@ -1,4 +1,4 @@
-from akro.tf import Discrete
+from akro import Discrete
 import tensorflow as tf
 
 from garage.core import Serializable

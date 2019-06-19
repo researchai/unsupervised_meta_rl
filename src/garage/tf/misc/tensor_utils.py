@@ -1,3 +1,4 @@
+from akro import Box
 from collections import Iterable
 from collections import namedtuple
 
@@ -12,6 +13,21 @@ def compile_function(inputs, outputs, log_name=None):
 
     return run
 
+def normalize_pixel_observation(env_spec, observation):
+    """
+    Normalize the observation (image).
+
+    If the input are images, it normalized into range [0, 1].
+
+    Args:
+        env_spec (garage.envs.EnvSpec): Environment specification.
+        observation (tf.Tensor): Placeholder for observation
+            from environment.
+    """
+    if isinstance(env_spec.observation_space, Box):
+        if len(env_spec.observation_space.shape) == 3:
+            return tf.divide(tf.cast(observation, tf.float32), 255.0)
+    return observation
 
 def get_target_ops(variables, target_variables, tau=None):
     """

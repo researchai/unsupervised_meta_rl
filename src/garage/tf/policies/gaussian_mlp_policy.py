@@ -1,4 +1,4 @@
-from akro.tf import Box
+from akro import Box
 from dowel import tabular
 import numpy as np
 import tensorflow as tf
