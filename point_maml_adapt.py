@@ -19,7 +19,7 @@ from garage.envs.point_env import PointEnv
 
 def evaluate_once(policy,
                   env,
-                  max_path_length=100,):
+                  max_path_length=50,):
     observations = []
     actions = []
     rewards = []
@@ -59,7 +59,7 @@ def adapt_policy_and_evaluate(pkl_path, envs, eval_epoch=1):
         sess = runner.sess
         policy_params_before = sess.run(policy.get_params())
         baseline_params_before = baseline.get_param_values()
-        maml_policy = MamlPolicy(wrapped_policy=policy, n_tasks=8)
+        maml_policy = MamlPolicy(wrapped_policy=policy, meta_batch_size=8)
 
         # This line below will re-init everything...
         # Still waiting for the garage team to resolve this problem.
@@ -76,7 +76,7 @@ def adapt_policy_and_evaluate(pkl_path, envs, eval_epoch=1):
             baseline=baseline,
             env=envs[0],
             sampler_cls=OnPolicyVectorizedSampler,
-            max_path_length=100,
+            max_path_length=50,
         )
         runner.setup(algo, envs)
 
@@ -109,11 +109,6 @@ def circle(r, n):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     'variation',
-    #     help='Variation of a mdp for meta learning.',
-    #     type=str,
-    #     choices=VARIATIONS.keys())
     parser.add_argument(
         'pkl_path',
         help='Path of the saved meta-learned policy',
@@ -130,7 +125,7 @@ if __name__ == '__main__':
         default=1)
     args = parser.parse_args()
 
-    test_tasks = [(0, 3)]
+    test_tasks = np.random.uniform(-3., 3., size=(10, 2, )).tolist() # circle(3, 8) #[(0, 3)]
     test_envs = [TfEnv(PointEnv(goal=np.array(t), never_done=False)) for t in test_tasks]
     
     returns_mean, results = adapt_policy_and_evaluate(

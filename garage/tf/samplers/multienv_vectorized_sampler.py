@@ -35,6 +35,8 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
         super().__init__(algo=algo, n_envs=n_envs, env=envs[0])
         self.envs = envs
         self.vec_envs = []
+        self.meta_batch_size = self.algo.policy.meta_batch_size
+        self._random_indices = None
 
     @overrides
     def start_worker(self):
@@ -67,15 +69,17 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
 
         import time
         pbar = ProgBarCounter(batch_size)
+        if adaptation_data is None:
+            self._random_indices = np.random.randint(low=0, high=len(self.envs), size=self.meta_batch_size)
 
-        for i in range(len(self.envs)):
-            vec_env = self.vec_envs[i]
+        for i in range(self.meta_batch_size):
+            vec_env = self.vec_envs[self._random_indices[i]]
 
             paths = []
             n_samples = 0
             obses = vec_env.reset()
-            dones = np.asarray([True] * self.vec_envs[i].num_envs)
-            running_paths = [None] * self.vec_envs[i].num_envs
+            dones = np.asarray([True] * vec_env.num_envs)
+            running_paths = [None] * vec_env.num_envs
 
             policy_time = 0
             env_time = 0
@@ -94,7 +98,7 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
 
                 policy_time += time.time() - t
                 t = time.time()
-                next_obses, rewards, dones, env_infos = self.vec_envs[i].step(
+                next_obses, rewards, dones, env_infos = vec_env.step(
                     actions)
                 env_time += time.time() - t
                 t = time.time()
@@ -103,11 +107,11 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
                 env_infos = tensor_utils.split_tensor_dict_list(env_infos)
                 if env_infos is None:
                     env_infos = [
-                        dict() for _ in range(self.vec_envs[i].num_envs)
+                        dict() for _ in range(vec_env.num_envs)
                     ]
                 if agent_infos is None:
                     agent_infos = [
-                        dict() for _ in range(self.vec_envs[i].num_envs)
+                        dict() for _ in range(vec_env.num_envs)
                     ]
                 for idx, observation, action, reward, env_info, agent_info, done in zip(  # noqa: E501
                         itertools.count(), obses, actions, rewards, env_infos,
@@ -159,11 +163,19 @@ class MultiEnvVectorizedSampler(OnPolicyVectorizedSampler):
     @overrides
     def process_samples(self, itr, paths):
         """Process samples."""
-        all_samples = []
-        for p in paths:
-            processed = super().process_samples(itr, p)
-            all_samples.append(processed)
-        return all_samples
+        # This is super hacky...
+        processed = super().process_samples(itr, paths)
+        # fit the baseline
+        self.algo.fit_baseline_once(processed)
+        # recalculate baseline value...
+        all_path_baselines = [
+            self.algo.baseline.predict(path) for path in paths
+        ]
+
+        baselines = tensor_utils.pad_tensor_n(all_path_baselines, self.algo.max_path_length)
+        processed['baselines'] = baselines
+        return processed
+
 
     @overrides
     def shutdown_worker(self):

@@ -143,15 +143,15 @@ class BatchSampler(BaseSampler):
             average_return=np.mean(undiscounted_returns),
         )
 
-        tabular.record('Iteration', itr)
-        tabular.record('AverageDiscountedReturn', average_discounted_return)
-        tabular.record('AverageReturn', np.mean(undiscounted_returns))
-        tabular.record('Extras/EpisodeRewardMean', np.mean(self.eprewmean))
-        tabular.record('NumTrajs', len(paths))
-        tabular.record('Entropy', ent)
-        tabular.record('Perplexity', np.exp(ent))
-        tabular.record('StdReturn', np.std(undiscounted_returns))
-        tabular.record('MaxReturn', np.max(undiscounted_returns))
-        tabular.record('MinReturn', np.min(undiscounted_returns))
+        # tabular.record('Iteration', itr)
+        # tabular.record('AverageDiscountedReturn', average_discounted_return)
+        # tabular.record('AverageReturn', np.mean(undiscounted_returns))
+        # tabular.record('Extras/EpisodeRewardMean', np.mean(self.eprewmean))
+        # tabular.record('NumTrajs', len(paths))
+        # tabular.record('Entropy', ent)
+        # tabular.record('Perplexity', np.exp(ent))
+        # tabular.record('StdReturn', np.std(undiscounted_returns))
+        # tabular.record('MaxReturn', np.max(undiscounted_returns))
+        # tabular.record('MinReturn', np.min(undiscounted_returns))
 
         return samples_data

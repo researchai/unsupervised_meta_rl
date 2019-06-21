@@ -1,6 +1,7 @@
 import time
 
 from garage.logger import logger, tabular
+from garage.misc import tensor_utils
 from garage.experiment.local_tf_runner import LocalRunner
 
 
@@ -63,13 +64,21 @@ class LocalMamlRunner(LocalRunner):
             with logger.prefix('epoch #%d | ' % epoch):
                 for cycle in range(n_epoch_cycles):
                     paths = self.obtain_samples(itr, batch_size)
-                    paths = self.sampler.process_samples(itr, paths)
-                    adaptation_data = [self.algo.policy_adapt_opt_values(p) for p in paths]
+                    
+                    # processing samples should be in two phases
+                    # 1. fitting baseline
+                    # 2. computing baseline value after that
+                    processed_paths = []
+                    for task_data in paths:
+                        processed_paths.append(self.sampler.process_samples(itr, task_data))
+                    adaptation_data = [self.algo.policy_adapt_opt_values(p) for p in processed_paths]
 
                     # Run another round of sampling here
                     paths = self.obtain_samples(itr, batch_size, adaptation_data)
-                    paths = self.sampler.process_samples(itr, paths)
-                    last_return = self.algo.train_once(itr, paths, adaptation_data)
+                    processed_paths = []
+                    for task_data in paths:
+                        processed_paths.append(self.sampler.process_samples(itr, task_data))
+                    last_return = self.algo.train_once(itr, processed_paths, adaptation_data)
                     itr += 1
                 self.save_snapshot(epoch, paths if store_paths else None)
                 self.log_diagnostics(pause_for_plot)
@@ -94,7 +103,7 @@ class LocalMamlRunner(LocalRunner):
         else:
             return self.sampler.obtain_samples(itr, batch_size)
 
-    def adapt(self, batch_size=10000, n_itr=5, env=None):
+    def adapt(self, batch_size=4000, n_itr=1, env=None):
         if env is not None:
             from garage.tf.samplers import OnPolicyVectorizedSampler
             self.sampler = OnPolicyVectorizedSampler(self.algo, env, n_envs=2)
@@ -109,8 +118,13 @@ class LocalMamlRunner(LocalRunner):
             paths = self.obtain_samples(itr, batch_size)
             # logger.log('Processing samples...')
             samples_data = self.sampler.process_samples(itr, paths)
-            values = self.algo.policy_adapt_opt_values(samples_data)
             self.algo.fit_baseline_once(samples_data)
+            all_path_baselines = [
+                self.algo.baseline.predict(path) for path in paths
+            ]
+            baselines = tensor_utils.pad_tensor_n(all_path_baselines, self.algo.max_path_length)
+            samples_data['baselines'] = baselines
+            values = self.algo.policy_adapt_opt_values(samples_data)
             # logger.log('Computing adapted policy parameters...')
             params = self.algo.f_adapt(*values)
             self.policy.update_params(params)

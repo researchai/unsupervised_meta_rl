@@ -26,6 +26,9 @@ class TfEnv(GarageEnv):
         self.action_space = self._to_akro_space(self.env.action_space)
         self.observation_space = self._to_akro_space(
             self.env.observation_space)
+        self.spec = EnvSpec(
+            observation_space=self.observation_space,
+            action_space=self.action_space)
 
     @classmethod
     def wrap(cls, env_cls, **extra_kwargs):

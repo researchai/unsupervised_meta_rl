@@ -18,19 +18,19 @@ class MamlPolicy(StochasticPolicy2):
 
     Args:
         wrapped_policy: A garage policy using model.
-        n_tasks: Number of task for meta learning.
+        meta_batch_size: Number of task per iteration for meta learning.
         adaptation_step_size: The step size for one step adaptation.
         name: Name of this policy.
     """
 
     def __init__(self,
                  wrapped_policy,
-                 n_tasks,
+                 meta_batch_size=1,  # matching original implementation
                  adaptation_step_size=0.5,
                  name="MamlPolicy"):
         super().__init__(name, wrapped_policy._env_spec)
         self.wrapped_policy = wrapped_policy
-        self.n_tasks = n_tasks
+        self.meta_batch_size = meta_batch_size
         self._initialized = False
         self._adaptation_step_size = adaptation_step_size
         self._adapted_param_store = dict()
@@ -65,7 +65,7 @@ class MamlPolicy(StochasticPolicy2):
         with tf.name_scope(self.name):
             # One step adaptation
             with tf.name_scope("Adaptation"):
-                for i in range(self.n_tasks):
+                for i in range(self.meta_batch_size):
                     params = self.wrapped_policy.get_params()
                     gradient_i = gradient_var[i]
 
@@ -79,7 +79,7 @@ class MamlPolicy(StochasticPolicy2):
             def maml_get_variable(name, shape=None, **kwargs):
                 scope = tf.get_variable_scope()
                 idx = 0
-                if MAML_TASK_INDEX >= self.n_tasks:
+                if MAML_TASK_INDEX >= self.meta_batch_size:
                     raise ValueError("Invalid TASK_INDEX.")
                 fullname = "maml_policy/{}/{}/{}:{}".format(
                     MAML_TASK_INDEX, scope.name, name, idx)
@@ -99,7 +99,7 @@ class MamlPolicy(StochasticPolicy2):
             original_get_variable = variable_scope.get_variable
             variable_scope.get_variable = maml_get_variable
 
-            for i in range(self.n_tasks):
+            for i in range(self.meta_batch_size):
                 input_for_adapted = inputs[i]
                 model_infos = model.build(
                     input_for_adapted, name="task{}".format(i))
@@ -122,7 +122,7 @@ class MamlPolicy(StochasticPolicy2):
             input_ph, name='get_action_with_adaptation_data')
         MAML_TASK_INDEX += 1
 
-        assert MAML_TASK_INDEX == self.n_tasks
+        assert MAML_TASK_INDEX == self.meta_batch_size
 
         outputs = [model_outputs[0], model_outputs[1], model_outputs[2]]
         self._f_get_actions_with_adaptation = tensor_utils.compile_function(
