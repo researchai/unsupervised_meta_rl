@@ -70,8 +70,8 @@ class MultiEnvironmentVectorizedSampler(OnPolicyVectorizedSampler):
 
         tasks_paths = []
 
-        for i, (env, vec_env, obs_augment) in enumerate(
-                zip(self.envs, self.vec_envs, self.obs_augments)):
+        for i, (env_spec, vec_env, obs_augment) in enumerate(
+                zip(self.env_specs, self.vec_envs, self.obs_augments)):
             paths = []
             n_samples = 0
             obses = vec_env.reset()
@@ -91,7 +91,8 @@ class MultiEnvironmentVectorizedSampler(OnPolicyVectorizedSampler):
                 policy.reset(dones)
 
                 obses_augs = [
-                    np.concat([obs, obs_augment], axis=0) for obs in obses
+                    np.concatenate((obs, obs_augment), axis=-1)
+                    for obs in obses
                 ]
                 actions, agent_infos = policy.get_actions(obses_augs)
 
@@ -126,9 +127,9 @@ class MultiEnvironmentVectorizedSampler(OnPolicyVectorizedSampler):
                     if done:
                         paths.append(
                             dict(
-                                observations=self.env_spec.observation_space.
+                                observations=env_spec.observation_space.
                                 flatten_n(running_paths[idx]['observations']),
-                                actions=self.env_spec.action_space.flatten_n(
+                                actions=env_spec.action_space.flatten_n(
                                     running_paths[idx]['actions']),
                                 rewards=tensor_utils.stack_tensor_list(
                                     running_paths[idx]['rewards']),

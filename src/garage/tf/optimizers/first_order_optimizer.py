@@ -75,6 +75,11 @@ class FirstOrderOptimizer(Serializable):
 
             self._target = target
 
+            gradient_vars = self._tf_optimizer.compute_gradients(
+                loss, var_list=target.get_params(trainable=True))
+            gradients = [gradient for (gradient, var) in gradient_vars]
+            self._var_list = [var for (gradient, var) in gradient_vars]
+
             self._train_op = self._tf_optimizer.minimize(
                 loss, var_list=target.get_params(trainable=True))
 
@@ -86,12 +91,19 @@ class FirstOrderOptimizer(Serializable):
             self._input_vars = inputs + extra_inputs
             self._opt_fun = LazyDict(
                 f_loss=lambda: tensor_utils.compile_function(
-                    inputs + extra_inputs, loss), )
+                    inputs + extra_inputs, loss), 
+                f_gradient=lambda: tensor_utils.compile_function(
+                    inputs + extra_inputs, gradients),)
 
     def loss(self, inputs, extra_inputs=None):
         if extra_inputs is None:
             extra_inputs = tuple()
         return self._opt_fun['f_loss'](*(tuple(inputs) + extra_inputs))
+
+    def gradient(self, inputs, extra_inputs=None):
+        if extra_inputs is None:
+            extra_inputs = tuple()
+        return zip(self._opt_fun['f_gradient'](*(tuple(inputs) + extra_inputs)), self._var_list)
 
     def optimize(self, inputs, extra_inputs=None, callback=None):
 

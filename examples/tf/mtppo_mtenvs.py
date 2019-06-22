@@ -8,6 +8,7 @@ import gym
 import tensorflow as tf
 
 from garage.envs import normalize
+from garage.envs.env_spec import EnvSpec
 from garage.experiment import LocalRunner, run_experiment
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
@@ -22,17 +23,19 @@ def make_envs(env_names):
 
 def run_task(*_):
     with LocalRunner() as runner:
-        env = make_envs(['InvertedDoublePendulum-v2', 'Swimmer-v2'] * 50)
+        envs = make_envs(['InvertedDoublePendulum-v2'] * 3)
 
         policy = GaussianMLPPolicy(
-            env_spec=env.spec,
+            env_spec=envs[0].spec,
+            task_dim=len(envs),
             hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
         )
 
         baseline = GaussianMLPBaseline(
-            env_spec=env.spec,
+            env_spec=envs[0].spec,
+            task_dim=len(envs),
             regressor_args=dict(
                 hidden_sizes=(32, 32),
                 use_trust_region=True,
@@ -43,7 +46,8 @@ def run_task(*_):
         # center_adv to False and turn off policy gradient. See
         # tf.algos.NPO for detailed documentation.
         algo = PPO(
-            env_spec=env.spec,
+            env_spec=envs[0].spec,
+            task_dim=len(envs),
             policy=policy,
             baseline=baseline,
             max_path_length=100,
@@ -60,9 +64,9 @@ def run_task(*_):
             center_adv=False,
         )
 
-        runner.setup(algo, env, sampler_cls=MultiEnvironmentVectorizedSampler)
+        runner.setup(algo, envs, sampler_cls=MultiEnvironmentVectorizedSampler)
 
-        runner.train(n_epochs=120, batch_size=2048, plot=False)
+        runner.train(n_epochs=120, batch_size=2048 * len(envs), plot=False)
 
 
 run_experiment(run_task, snapshot_mode='last', seed=1)

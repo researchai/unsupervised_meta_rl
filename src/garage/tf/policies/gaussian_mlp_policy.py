@@ -16,6 +16,7 @@ from garage.tf.policies.base import StochasticPolicy
 class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
     def __init__(self,
                  env_spec,
+                 task_dim=0,
                  name='GaussianMLPPolicy',
                  hidden_sizes=(32, 32),
                  learn_std=True,
@@ -63,7 +64,7 @@ class GaussianMLPPolicy(StochasticPolicy, LayersPowered, Serializable):
 
         with tf.variable_scope(name, 'GaussianMLPPolicy'):
 
-            obs_dim = env_spec.observation_space.flat_dim
+            obs_dim = env_spec.observation_space.flat_dim + task_dim
             action_dim = env_spec.action_space.flat_dim
 
             # create network

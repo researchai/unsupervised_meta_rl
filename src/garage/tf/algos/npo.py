@@ -1,5 +1,5 @@
 """Natural Policy Gradient Optimization."""
-from dowel import logger, tabular
+from dowel import Histogram, logger, tabular
 import numpy as np
 import tensorflow as tf
 
@@ -82,6 +82,7 @@ class NPO(BatchPolopt):
                  policy,
                  baseline,
                  scope=None,
+                 task_dim=0,
                  max_path_length=500,
                  discount=0.99,
                  gae_lambda=1,
@@ -128,6 +129,7 @@ class NPO(BatchPolopt):
             policy=policy,
             baseline=baseline,
             scope=scope,
+            task_dim=task_dim,
             max_path_length=max_path_length,
             discount=discount,
             gae_lambda=gae_lambda,
@@ -151,12 +153,14 @@ class NPO(BatchPolopt):
         return dict()
 
     @overrides
-    def optimize_policy(self, itr, samples_data):
+    def optimize_policy(self, itr, samples_data, task=None):
         policy_opt_input_values = self._policy_opt_input_values(samples_data)
 
         # Train policy network
         logger.log('Computing loss before')
         loss_before = self.optimizer.loss(policy_opt_input_values)
+        logger.log('Computing gradients')
+        gradient_vars = self.optimizer.gradient(policy_opt_input_values)
         logger.log('Computing KL before')
         policy_kl_before = self.f_policy_kl(*policy_opt_input_values)
         logger.log('Optimizing')
@@ -165,15 +169,22 @@ class NPO(BatchPolopt):
         policy_kl = self.f_policy_kl(*policy_opt_input_values)
         logger.log('Computing loss after')
         loss_after = self.optimizer.loss(policy_opt_input_values)
-        tabular.record('{}/LossBefore'.format(self.policy.name), loss_before)
-        tabular.record('{}/LossAfter'.format(self.policy.name), loss_after)
-        tabular.record('{}/dLoss'.format(self.policy.name),
+        tabular.record('Task{}/{}/LossBefore'.format(task, self.policy.name),
+                       loss_before)
+        for gradient, variable in gradient_vars:
+            tabular.record('Task{}/{}/{}'.format(task, self.policy.name, variable),
+                       Histogram(gradient))
+        tabular.record('Task{}/{}/LossAfter'.format(task, self.policy.name),
+                       loss_after)
+        tabular.record('Task{}/{}/dLoss'.format(task, self.policy.name),
                        loss_before - loss_after)
-        tabular.record('{}/KLBefore'.format(self.policy.name),
+        tabular.record('Task{}/{}/KLBefore'.format(task, self.policy.name),
                        policy_kl_before)
-        tabular.record('{}/KL'.format(self.policy.name), policy_kl)
+        tabular.record('Task{}/{}/KL'.format(task, self.policy.name),
+                       policy_kl)
         pol_ent = self.f_policy_entropy(*policy_opt_input_values)
-        tabular.record('{}/Entropy'.format(self.policy.name), np.mean(pol_ent))
+        tabular.record('Task{}/{}/Entropy'.format(task, self.policy.name),
+                       np.mean(pol_ent))
 
         self._fit_baseline(samples_data)
 
@@ -192,8 +203,19 @@ class NPO(BatchPolopt):
         policy_dist = self.policy.distribution
 
         with tf.name_scope('inputs'):
-            obs_var = observation_space.new_tensor_variable(
-                name='obs', extra_dims=2)
+            if self.task_dim:
+                task_var = tf.placeholder(
+                    name='extra_input',
+                    shape=[None] * 2 + [self.task_dim],
+                    dtype=tf.float32)
+                obs_var = tf.concat([
+                    observation_space.new_tensor_variable(
+                        name='obs', extra_dims=2), task_var
+                ],
+                                    axis=-1)
+            else:
+                obs_var = observation_space.new_tensor_variable(
+                    name='obs', extra_dims=2)
             action_var = action_space.new_tensor_variable(
                 name='action', extra_dims=2)
             reward_var = tensor_utils.new_tensor(
