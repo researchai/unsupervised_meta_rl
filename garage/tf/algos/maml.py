@@ -26,7 +26,7 @@ class MAML(BatchPolopt):
     def __init__(self,
                  env_spec,
                  pg_loss=PGLoss.VANILLA,
-                 clip_range=0.01,
+                 clip_range=0.02,
                  optimizer=None,
                  optimizer_args=dict(),
                  name="MAML",
@@ -73,11 +73,10 @@ class MAML(BatchPolopt):
 
         # Initailize the MAML policy
         obs_flat_vars = [i.flat.obs_var for i in final_loss_inputs]
-        adaptation_inputs = [i.obs_var for i in opt_inputs]
         maml_infos, adapt_opt, adapt_opt_input = self.policy.initialize(
             gradient_vars,
             inputs=obs_flat_vars,
-            adaptation_inputs=adaptation_inputs)
+            adaptation_inputs=opt_inputs)
 
         self.f_adapt = tensor_utils.compile_function(
             flatten_inputs(opt_inputs[0]),
@@ -93,6 +92,12 @@ class MAML(BatchPolopt):
             leq_constraint=(pol_kl, self.clip_range),
             inputs=flatten_inputs([self._final_opt_inputs, self._policy_opt_inputs, self._kl_opt_inputs]),
             constraint_name="mean_kl")
+
+        self._f_adv = tensor_utils.compile_function(
+            flatten_inputs([self._final_opt_inputs, self._policy_opt_inputs, self._kl_opt_inputs]),
+            self._adv_valid,
+            log_name="adv__",
+        )
         print('Done with all initialization.')
 
     def build_inputs(self):
@@ -306,6 +311,13 @@ class MAML(BatchPolopt):
                     adv_valid = filter_valids(
                         adv_flat, i.flat.valid_var, name="adv_valid_{}".format(idx))
 
+                    eps = tf.constant(1e-8, dtype=tf.float32)
+                    # if self.center_adv:
+                    with tf.name_scope("center_adv"):
+                        mean, var = tf.nn.moments(adv_valid, axes=[0])
+                        adv_valid = tf.nn.batch_normalization(
+                            adv_valid, mean, var, 0, 1, eps)
+
                     policy_dist_info_flat = self.policy.wrapped_policy.dist_info_sym(
                         i.flat.obs_var,
                         i.flat.policy_state_info_vars,
@@ -381,6 +393,12 @@ class MAML(BatchPolopt):
                     adv_flat = flatten_batch(advantages, name="adv_flat")
                     adv_valid = filter_valids(
                         adv_flat, i.flat.valid_var, name="adv_valid")
+                    eps = tf.constant(1e-8, dtype=tf.float32)
+                    # if self.center_adv:
+                    with tf.name_scope("center_adv"):
+                        mean, var = tf.nn.moments(adv_valid, axes=[0])
+                        adv_valid = tf.nn.batch_normalization(
+                            adv_valid, mean, var, 0, 1, eps)
                     policy_dist_info_flat = dist_infos_flat[idx]
                     policy_dist_info_valid = filter_valids_dict(
                         policy_dist_info_flat,
@@ -395,9 +413,11 @@ class MAML(BatchPolopt):
                         name="lr")
 
                     surr_vanilla = lr * adv_valid
-                    losses.append(-tf.reduce_mean(surr_vanilla))
 
+                    losses.append(-tf.reduce_mean(surr_vanilla))
         surr_loss_mean = tf.reduce_mean(losses)
+
+        self._adv_valid = adv_valid
 
         with tf.name_scope("kl"):
             policy_dist_info_flat = self.policy.wrapped_policy.dist_info_sym(
@@ -493,7 +513,6 @@ class MAML(BatchPolopt):
     
     def train_once(self, itr, samples_data, adaptation_data):
         policy_opt_input_values = self.policy_opt_input_values(samples_data, adaptation_data)
-
         # Train policy network
         # logger.log("Computing loss before")
         loss_before = self.optimizer.loss(policy_opt_input_values)

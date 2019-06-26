@@ -354,6 +354,7 @@ class ConjugateGradientOptimizer(Serializable):
                 loss, constraint_val = sliced_fun(
                     self._opt_fun["f_loss_constraint"],
                     self._num_slices)(inputs, extra_inputs)
+                print('kl:', constraint_val)
                 if self._debug_nan and np.isnan(constraint_val):
                     break
                 if loss < loss_before and \
@@ -374,7 +375,7 @@ class ConjugateGradientOptimizer(Serializable):
                 if constraint_val >= self._max_constraint_val:
                     logger.log("Violated because constraint %s is violated" %
                                self._constraint_name)
-                self._target.update_params(unflatten_tensors(cur_param, shapes))
+                self._target.update_params(unflatten_tensors(prev_param, shapes))
             logger.log("backtrack iters: %d" % n_iter)
             logger.log("computing loss after")
             logger.log("optimization finished")

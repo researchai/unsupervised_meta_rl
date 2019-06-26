@@ -39,7 +39,7 @@ class MamlPolicy(StochasticPolicy2):
         self._create_update_opts()
 
 
-    def initialize(self, gradient_var, inputs, adaptation_inputs):
+    def initialize(self, gradient_var, inputs, adaptation_inputs, stop_second_order=True):
         """
         Initialize the MAML Policy.
 
@@ -71,23 +71,29 @@ class MamlPolicy(StochasticPolicy2):
 
                     for p, g in zip(params, gradient_i):
                         adapted_param = p - self._adaptation_step_size * g
+                        if stop_second_order:
+                            adapted_param = tf.stop_gradient(adapted_param)
                         name = "maml_policy/{}/{}".format(i, p.name)
                         self._adapted_param_store[name] = adapted_param
                         if i == 0:
                             update_opts.append(adapted_param)
 
-            def maml_get_variable(name, shape=None, **kwargs):
+            def maml_get_variable(name, shape=None, last=False, **kwargs):
                 scope = tf.get_variable_scope()
-                idx = 0
+                # idx = 0
+                # TODO add idx back........
                 if MAML_TASK_INDEX >= self.meta_batch_size:
                     raise ValueError("Invalid TASK_INDEX.")
+                # fullname = "maml_policy/{}/{}/{}:{}".format(
+                #     MAML_TASK_INDEX, scope.name, name, idx)
+                # while fullname in MAML_VARIABLE_STORE:
+                #     idx += 1
+                #     fullname = "maml_policy/{}/{}/{}:{}".format(
+                #         MAML_TASK_INDEX, scope.name, name, idx)
                 fullname = "maml_policy/{}/{}/{}:{}".format(
-                    MAML_TASK_INDEX, scope.name, name, idx)
-                while fullname in MAML_VARIABLE_STORE:
-                    idx += 1
-                    fullname = "maml_policy/{}/{}/{}:{}".format(
-                        MAML_TASK_INDEX, scope.name, name, idx)
+                        MAML_TASK_INDEX, scope.name, name, 0)
                 MAML_VARIABLE_STORE.add(fullname)
+                # print(fullname)
                 return self._adapted_param_store[fullname]
 
             # build the model with these parameters
@@ -108,8 +114,6 @@ class MamlPolicy(StochasticPolicy2):
 
             self._initialized = True
 
-        # Use the original get_variable
-        variable_scope.get_variable = original_get_variable
         update_opts_input = inputs[0]
 
         # Build get_action_with_adaptation_data.
@@ -129,6 +133,9 @@ class MamlPolicy(StochasticPolicy2):
             tensor_utils.flatten_inputs([input_ph, adaptation_inputs[-1]]),
             outputs,
             log_name='get_action_with_adaptation_data',)
+
+        # Use the original get_variable
+        variable_scope.get_variable = original_get_variable
 
         return self._all_model_outputs, update_opts, update_opts_input
 
