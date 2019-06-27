@@ -75,15 +75,15 @@ class BatchPolopt(RLAlgorithm):
 
         return last_return
 
-    def train_once(self, itr, paths):
-        if not self.task_dim:
+    def train_once(self, itr, paths, task_flatten=True):
+        if not self.task_dim or task_flatten:
             paths = self.process_samples(itr, paths)
 
             self.log_diagnostics(paths)
             logger.log('Optimizing policy...')
             self.optimize_policy(itr, paths)
             return paths['average_return']
-
+     
         tasks_avg_return = 0
         for i in range(self.task_dim):
             logger.log('Task {}'.format(i + 1))

@@ -169,22 +169,40 @@ class NPO(BatchPolopt):
         policy_kl = self.f_policy_kl(*policy_opt_input_values)
         logger.log('Computing loss after')
         loss_after = self.optimizer.loss(policy_opt_input_values)
-        tabular.record('Task{}/{}/LossBefore'.format(task, self.policy.name),
+        if task:
+            tabular.record('Task{}/{}/LossBefore'.format(task, self.policy.name),
+                        loss_before)
+            for gradient, variable in gradient_vars:
+                tabular.record('Task{}/{}/{}'.format(task, self.policy.name, variable),
+                        Histogram(gradient))
+            tabular.record('Task{}/{}/LossAfter'.format(task, self.policy.name),
+                        loss_after)
+            tabular.record('Task{}/{}/dLoss'.format(task, self.policy.name),
+                        loss_before - loss_after)
+            tabular.record('Task{}/{}/KLBefore'.format(task, self.policy.name),
+                        policy_kl_before)
+            tabular.record('Task{}/{}/KL'.format(task, self.policy.name),
+                        policy_kl)
+            pol_ent = self.f_policy_entropy(*policy_opt_input_values)
+            tabular.record('Task{}/{}/Entropy'.format(task, self.policy.name),
+                        np.mean(pol_ent))
+        else:
+            tabular.record('{}/LossBefore'.format(self.policy.name),
                        loss_before)
-        for gradient, variable in gradient_vars:
-            tabular.record('Task{}/{}/{}'.format(task, self.policy.name, variable),
-                       Histogram(gradient))
-        tabular.record('Task{}/{}/LossAfter'.format(task, self.policy.name),
-                       loss_after)
-        tabular.record('Task{}/{}/dLoss'.format(task, self.policy.name),
-                       loss_before - loss_after)
-        tabular.record('Task{}/{}/KLBefore'.format(task, self.policy.name),
-                       policy_kl_before)
-        tabular.record('Task{}/{}/KL'.format(task, self.policy.name),
-                       policy_kl)
-        pol_ent = self.f_policy_entropy(*policy_opt_input_values)
-        tabular.record('Task{}/{}/Entropy'.format(task, self.policy.name),
-                       np.mean(pol_ent))
+            for gradient, variable in gradient_vars:
+                tabular.record('{}/{}'.format(self.policy.name, variable),
+                        Histogram(gradient))
+            tabular.record('{}/LossAfter'.format(self.policy.name),
+                        loss_after)
+            tabular.record('{}/dLoss'.format(self.policy.name),
+                        loss_before - loss_after)
+            tabular.record('{}/KLBefore'.format(self.policy.name),
+                        policy_kl_before)
+            tabular.record('{}/KL'.format(self.policy.name),
+                        policy_kl)
+            pol_ent = self.f_policy_entropy(*policy_opt_input_values)
+            tabular.record('{}/Entropy'.format(self.policy.name),
+                        np.mean(pol_ent))
 
         self._fit_baseline(samples_data)
 

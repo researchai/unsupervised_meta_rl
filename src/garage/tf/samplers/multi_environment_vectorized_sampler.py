@@ -157,3 +157,13 @@ class MultiEnvironmentVectorizedSampler(OnPolicyVectorizedSampler):
             return tasks_paths
         else:
             return [truncate_paths(paths, batch_size) for paths in tasks_paths]
+
+
+class MultiEnvironmentVectorizedSampler2(MultiEnvironmentVectorizedSampler):
+    @overrides
+    def obtain_samples(self, itr, batch_size=None, whole_paths=True):
+        task_paths = super().obtain_samples(itr, batch_size, whole_paths=True)
+        flatten_paths = []
+        for paths in task_paths:
+            flatten_paths.extend(paths)
+        return flatten_paths
