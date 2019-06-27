@@ -75,7 +75,7 @@ class BatchPolopt(RLAlgorithm):
 
         return last_return
 
-    def train_once(self, itr, paths, task_flatten=True):
+    def train_once(self, itr, paths, task_flatten=False):
         if not self.task_dim or task_flatten:
             samples_data = self.process_samples(itr, paths)
 
@@ -87,27 +87,20 @@ class BatchPolopt(RLAlgorithm):
         flatten_paths = []
         for path in paths:
             flatten_paths.extend(path)
-        # log info for all tasks
-        flatten_samples_data = self.process_samples(itr, flatten_paths)
-
-        samples_data_list = []
-        for task, path in enumerate(paths, 1):
-            logger.log('Task {}'.format(task))
-            # log info for each task
-            samples_data = self.process_samples(itr, path, task)
-            self.log_diagnostics(samples_data)
-            samples_data_list.append(samples_data)
+        task_num_trajs = np.cumsum([len(path) for path in paths])
+        samples_data, sliced_samples_data = self.process_samples(
+            itr, flatten_paths, task_num_trajs)
+        self.log_diagnostics(samples_data)
         logger.log('Optimizing policy...')
-        self.optimize_policy(itr, samples_data_list, task_flatten=False)
-
-        return flatten_samples_data['average_return']
+        self.optimize_policy(itr, samples_data, sliced_samples_data)
+        return samples_data['average_return']
 
     def log_diagnostics(self, paths):
         logger.log('Logging diagnostics...')
         self.policy.log_diagnostics(paths)
         self.baseline.log_diagnostics(paths)
 
-    def process_samples(self, itr, paths, task=None):
+    def process_samples(self, itr, paths, task_num_trajs=None):
         """Return processed sample data based on the collected paths.
 
         Args:
@@ -130,8 +123,6 @@ class BatchPolopt(RLAlgorithm):
         """
         baselines = []
         returns = []
-
-        max_path_length = self.max_path_length
 
         if hasattr(self.baseline, 'predict_n'):
             all_path_baselines = self.baseline.predict_n(paths)
@@ -157,6 +148,24 @@ class BatchPolopt(RLAlgorithm):
             path['returns'] = special.discount_cumsum(path['rewards'],
                                                       self.discount)
             returns.append(path['returns'])
+
+        samples_data = self._pad_samples(itr, baselines, returns, paths)
+
+        sliced_samples_data = []
+        last_task_num_traj = 0
+        for task_num_traj in task_num_trajs:
+            task_baselines = baselines[last_task_num_traj:task_num_traj]
+            task_baselines = returns[last_task_num_traj:task_num_traj]
+            task_paths = paths[last_task_num_traj:task_num_traj]
+            task_samples_data = self._pad_samples(
+                itr, task_baselines, task_baselines, task_paths, False)
+            sliced_samples_data.append(task_samples_data)
+            last_task_num_traj = task_num_traj
+
+        return (samples_data, sliced_samples_data)
+
+    def _pad_samples(self, itr, baselines, returns, paths, log=True):
+        max_path_length = self.max_path_length
 
         # make all paths the same length
         obs = [path['observations'] for path in paths]
@@ -191,7 +200,8 @@ class BatchPolopt(RLAlgorithm):
             [path['returns'][0] for path in paths]))
 
         undiscounted_returns = [sum(path['rewards']) for path in paths]
-        self.episode_reward_mean.extend(undiscounted_returns)
+        if log:
+            self.episode_reward_mean.extend(undiscounted_returns)
 
         ent = np.sum(self.policy.distribution.entropy(agent_infos) *
                      valids) / np.sum(valids)
@@ -209,25 +219,19 @@ class BatchPolopt(RLAlgorithm):
             average_return=np.mean(undiscounted_returns),
         )
 
-        def _task_tabular_record(task, key, value):
-            if task:
-                tabular.record('Task{}/{}'.format(task, key), value)
-            else:
-                tabular.record(key, value)
-
-        _task_tabular_record(task, 'Iteration', itr)
-        _task_tabular_record(task, 'AverageDiscountedReturn',
-                             average_discounted_return)
-        _task_tabular_record(task, 'AverageReturn',
-                             np.mean(undiscounted_returns))
-        _task_tabular_record(task, 'Extras/EpisodeRewardMean',
-                             np.mean(self.episode_reward_mean))
-        _task_tabular_record(task, 'NumTrajs', len(paths))
-        _task_tabular_record(task, 'Entropy', ent)
-        _task_tabular_record(task, 'Perplexity', np.exp(ent))
-        _task_tabular_record(task, 'StdReturn', np.std(undiscounted_returns))
-        _task_tabular_record(task, 'MaxReturn', np.max(undiscounted_returns))
-        _task_tabular_record(task, 'MinReturn', np.min(undiscounted_returns))
+        if log:
+            tabular.record('Iteration', itr)
+            tabular.record('AverageDiscountedReturn',
+                           average_discounted_return)
+            tabular.record('AverageReturn', np.mean(undiscounted_returns))
+            tabular.record('Extras/EpisodeRewardMean',
+                           np.mean(self.episode_reward_mean))
+            tabular.record('NumTrajs', len(paths))
+            tabular.record('Entropy', ent)
+            tabular.record('Perplexity', np.exp(ent))
+            tabular.record('StdReturn', np.std(undiscounted_returns))
+            tabular.record('MaxReturn', np.max(undiscounted_returns))
+            tabular.record('MinReturn', np.min(undiscounted_returns))
 
         return samples_data
 
