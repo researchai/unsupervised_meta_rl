@@ -75,7 +75,7 @@ class BatchPolopt(RLAlgorithm):
 
         return last_return
 
-    def train_once(self, itr, paths, task_flatten=False):
+    def train_once(self, itr, paths, task_flatten=True):
         if not self.task_dim or task_flatten:
             samples_data = self.process_samples(itr, paths)
 
