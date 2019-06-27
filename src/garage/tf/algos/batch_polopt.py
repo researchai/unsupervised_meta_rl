@@ -83,19 +83,24 @@ class BatchPolopt(RLAlgorithm):
             logger.log('Optimizing policy...')
             self.optimize_policy(itr, samples_data)
             return samples_data['average_return']
-     
-        tasks_avg_return = 0
+
+        flatten_paths = []
+        for path in paths:
+            flatten_paths.extend(path)
+        # log info for all tasks
+        flatten_samples_data = self.process_samples(itr, flatten_paths)
+
         samples_data_list = []
-        for i in range(self.task_dim):
-            logger.log('Task {}'.format(i + 1))
-            samples_data = self.process_samples(itr, paths[i], task=i + 1)
-            samples_data_list.append(samples_data)
+        for task, path in enumerate(paths, 1):
+            logger.log('Task {}'.format(task))
+            # log info for each task
+            samples_data = self.process_samples(itr, path, task)
             self.log_diagnostics(samples_data)
-            tasks_avg_return += samples_data['average_return']
+            samples_data_list.append(samples_data)
         logger.log('Optimizing policy...')
         self.optimize_policy(itr, samples_data_list, task_flatten=False)
 
-        return tasks_avg_return / self.task_dim
+        return flatten_samples_data['average_return']
 
     def log_diagnostics(self, paths):
         logger.log('Logging diagnostics...')

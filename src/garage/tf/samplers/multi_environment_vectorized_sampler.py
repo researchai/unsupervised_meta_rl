@@ -70,6 +70,8 @@ class MultiEnvironmentVectorizedSampler(OnPolicyVectorizedSampler):
 
         tasks_paths = []
 
+        pbar = ProgBarCounter(batch_size)
+
         for i, (env_spec, vec_env, obs_augment) in enumerate(
                 zip(self.env_specs, self.vec_envs, self.obs_augments)):
             paths = []
@@ -78,7 +80,6 @@ class MultiEnvironmentVectorizedSampler(OnPolicyVectorizedSampler):
             dones = np.asarray([True] * vec_env.num_envs)
             running_paths = [None] * vec_env.num_envs
 
-            pbar = ProgBarCounter(batch_size)
             policy_time = 0
             env_time = 0
             process_time = 0
