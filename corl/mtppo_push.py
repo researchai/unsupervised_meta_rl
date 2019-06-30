@@ -11,6 +11,7 @@ import numpy as np
 from garage.envs import normalize
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import LocalRunner, run_experiment
+from garage.sampler.utils import mt_rollout
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
@@ -83,4 +84,6 @@ def run_task(*_):
         runner.train(n_epochs=500, batch_size=2048 * len(envs), plot=False)
 
 
-run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
+# run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
+with tf.Session() as sess:
+    mt_rollout('src/data/local/ppo-push-multi-task/ppo_push_multi_task_2019_06_26_17_56_37_0001', 199, animated=True)

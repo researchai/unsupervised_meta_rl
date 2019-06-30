@@ -18,7 +18,9 @@ from garage.tf.policies import GaussianMLPPolicy
 from garage.tf.samplers import MultiEnvironmentVectorizedSampler2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 
-EXP_PREFIX = 'ppo_reach_multi_task'
+
+EXP_PREFIX = 'ppo_reach_push_multi_task'
+N_TASKS = 4
 def make_envs(env_names):
     return [TfEnv(normalize(gym.make(env_name))) for env_name in env_names]
 
@@ -26,17 +28,32 @@ def make_envs(env_names):
 def run_task(*_):
     with LocalRunner() as runner:
 
-        goal_low = np.array((-0.1, 0.8, 0.05))
-        goal_high = np.array((0.1, 0.9, 0.3))
-        goals = np.random.uniform(low=goal_low, high=goal_high, size=(4, len(goal_low))).tolist()
+        reach_goal_low = np.array((-0.1, 0.8, 0.05))
+        reach_goal_high = np.array((0.1, 0.9, 0.3))
+        reach_goals = np.random.uniform(low=reach_goal_low, high=reach_goal_high, size=(N_TASKS, len(reach_goal_low))).tolist()
+
+        push_goal_low = np.array((-0.1, 0.8, 0.02))
+        push_goal_high = np.array((0.1, 0.9, 0.02))
+        push_goals = np.random.uniform(low=push_goal_low, high=push_goal_high, size=(N_TASKS, len(push_goal_low))).tolist()
+
         print('constructing envs')
-        envs = [
+        reach_envs = [
             TfEnv(SawyerReachPushPickPlace6DOFEnv(
                 tasks=[{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'reach'}],
                 random_init=False,
                 if_render=False,))
-            for g in goals
+            for g in reach_goals
         ]
+
+        push_envs = [
+            TfEnv(SawyerReachPushPickPlace6DOFEnv(
+                tasks=[{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
+                random_init=False,
+                if_render=False,))
+            for g in push_goals
+        ]
+
+        envs = reach_envs + push_envs
 
         policy = GaussianMLPPolicy(
             env_spec=envs[0].spec,

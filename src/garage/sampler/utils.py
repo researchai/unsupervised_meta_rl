@@ -5,6 +5,77 @@ import numpy as np
 
 from garage.misc import tensor_utils
 
+from garage.experiment import snapshotter
+def mt_rollout(snapshot_dir, 
+            load_itr='all',
+            max_path_length=np.inf,
+            animated=False,
+            speedup=1,
+            always_return_paths=False):
+    snapshotter.snapshot_dir = snapshot_dir
+    saved = snapshotter.load(load_itr)
+    # print(saved)
+    envs = saved['env']
+    agent = saved['algo'].policy
+    n_tasks = len(envs)
+    task_one_hots = np.eye(n_tasks)[list(range(n_tasks))]
+
+    samples_data_list = []
+    # print(envs)
+    for i, (env, t) in enumerate(zip(envs, task_one_hots)):
+        observations = []
+        # tasks = []
+        # latents = []
+        # latent_infos = []
+        actions = []
+        rewards = []
+        agent_infos = []
+        env_infos = []
+
+        o = env.reset()
+        if animated:
+            env.render()
+
+        path_length = 0
+        while path_length < max_path_length:
+            a, agent_info = agent.get_action(np.concatenate((o, t)))
+            # a, agent_info = agent.get_action_from_latent(z, o)
+            # latent_info = agent_info["latent_info"]
+            next_o, r, d, env_info = env.step(a)
+            observations.append(agent.observation_space.flatten(o))
+            # tasks.append(t)
+            # z = latent_info["mean"]
+            # latents.append(agent.latent_space.flatten(z))
+            # latent_infos.append(latent_info)
+            rewards.append(r)
+            actions.append(agent.action_space.flatten(a))
+            agent_infos.append(agent_info)
+            env_infos.append(env_info)
+            path_length += 1
+            if d:
+                break
+            o = next_o
+            if animated:
+                env.render()
+                timestep = 0.05
+                time.sleep(timestep / speedup)
+
+        samples_data = dict(
+            observations=tensor_utils.stack_tensor_list(observations),
+            actions=tensor_utils.stack_tensor_list(actions),
+            rewards=tensor_utils.stack_tensor_list(rewards),
+            # tasks=tensor_utils.stack_tensor_list(tasks),
+            # latents=tensor_utils.stack_tensor_list(latents),
+            # latent_infos=tensor_utils.stack_tensor_dict_list(latent_infos),
+            agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+            env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+        )
+        samples_data_list.append(samples_data)
+    
+    if animated and not always_return_paths:
+        return
+    
+    return samples_data_list
 
 def rollout(env,
             agent,
