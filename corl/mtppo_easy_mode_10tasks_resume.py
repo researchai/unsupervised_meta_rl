@@ -99,6 +99,41 @@ def run_task(*_):
 
         runner.train(n_epochs=int(1e7), batch_size=4096 * len(task_envs), plot=False)
 
-run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
+
+def resume_task(*_):
+    folder = '/root/code/garage/src/data/local/corl-easy-mtppo-ten-task/corl_easy_mtppo_ten_task_2019_06_30_20_40_00_0001'
+    from_epoch = 500
+    with LocalRunner() as runner:
+        from corl.env_list import EASY_MODE_DICT, EASY_MODE_ARGS_KWARGS
+
+        task_env_cls_dict = EASY_MODE_DICT
+        task_args_kwargs = EASY_MODE_ARGS_KWARGS
+        assert len(task_env_cls_dict.keys()) == len(task_args_kwargs.keys())
+        for k in task_env_cls_dict.keys():
+            assert k in task_args_kwargs
+
+        task_envs = []
+        task_names = []
+        for task, env_cls in task_env_cls_dict.items():
+            task_args = task_args_kwargs[task]['args']
+            task_kwargs = task_args_kwargs[task]['kwargs']
+            task_envs.append(TfEnv(env_cls(*task_args, **task_kwargs)))
+            task_names.append(task)
+
+        args = runner.restore(folder, env=task_envs, from_epoch=from_epoch)
+
+        batch_size = runner.train_args.batch_size
+        n_epoch_cycles = runner.train_args.n_epoch_cycles
+        n_epochs = runner.train_args.n_epochs
+
+        runner.resume(
+            n_epochs=n_epochs,
+            plot=False,
+            store_paths=True,
+            pause_for_plot=False)
+
+
+# run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
+run_experiment(resume_task, exp_prefix=EXP_PREFIX, seed=1)
 # with tf.Session() as sess:
 #     mt_rollout('src/data/local/ppo-push-multi-task/ppo_push_multi_task_2019_06_26_17_56_37_0001', 199, animated=True)

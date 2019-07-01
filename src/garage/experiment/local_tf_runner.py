@@ -210,7 +210,7 @@ class LocalRunner:
 
         logger.log('Saved')
 
-    def restore(self, snapshot_dir, from_epoch='last'):
+    def restore(self, snapshot_dir, from_epoch='last', env=None):
         """Restore experiment from snapshot.
 
         Args:
@@ -248,7 +248,7 @@ class LocalRunner:
         self.train_args = saved['train_args']
 
         self.setup(
-            env=saved['env'],
+            env=env or saved['env'],
             algo=saved['algo'],
             sampler_cls=self.setup_args.sampler_cls,
             sampler_args=self.setup_args.sampler_args)
