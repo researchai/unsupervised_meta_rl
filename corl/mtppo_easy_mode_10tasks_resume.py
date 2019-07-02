@@ -100,7 +100,7 @@ def run_task(*_):
         runner.train(n_epochs=int(1e7), batch_size=4096 * len(task_envs), plot=False)
 
 
-def resume_task(*_):
+def resume_task(folder, from_epoch):
     folder = '/root/code/garage/src/data/local/corl-easy-mtppo-ten-task/corl_easy_mtppo_ten_task_2019_06_30_20_40_00_0001'
     from_epoch = 500
     with LocalRunner() as runner:
@@ -134,6 +134,34 @@ def resume_task(*_):
 
 
 # run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
-run_experiment(resume_task, exp_prefix=EXP_PREFIX, seed=1)
+# run_experiment(resume_task, exp_prefix=EXP_PREFIX, seed=1)
 # with tf.Session() as sess:
 #     mt_rollout('src/data/local/ppo-push-multi-task/ppo_push_multi_task_2019_06_26_17_56_37_0001', 199, animated=True)
+
+from garage.experiment import to_local_command
+import argparse
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--snapshot_dir',
+        type=str,
+        default=None,
+        help='Directory of the pickle file to resume experiment from.')
+    parser.add_argument(
+        '--resume_epoch',
+        type=str,
+        default=None,
+        help='Index of epoch to restore from. '
+        'Can be "first", "last" or a number. '
+        'Not applicable when snapshot_mode="last"')
+
+    args = parser.parse_args()
+    params = dict()
+    params['resume_from_dir'] = args.snapshot_dir
+    if args.resume_epoch is not None:
+        params['resume_epoch'] = args.resume_epoch
+    command = to_local_command(
+        params, script='garage.experiment.experiment_wrapper')
+    
+    print(command)

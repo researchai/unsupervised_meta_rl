@@ -21,7 +21,8 @@ from garage.tf.samplers import MultiEnvironmentVectorizedSampler2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 
 
-EXP_PREFIX = 'corl_easy_mtppo_ten_task'
+EXP_PREFIX = 'ppo_push_multi_task'
+N_TASKS = 50
 def make_envs(env_names):
     return [TfEnv(normalize(gym.make(env_name))) for env_name in env_names]
 
@@ -29,37 +30,21 @@ def make_envs(env_names):
 def run_task(*_):
     with LocalRunner() as runner:
 
-        # goal_low = np.array((-0.1, 0.8, 0.02))
-        # goal_high = np.array((0.1, 0.9, 0.02))
-        # goals = np.random.uniform(low=goal_low, high=goal_high, size=(4, len(goal_low))).tolist()
-        # print('constructing envs')
-        # envs = [
-        #     TfEnv(SawyerReachPushPickPlace6DOFEnv(
-        #         tasks=[{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
-        #         random_init=False,
-        #         if_render=False,))
-        #     for g in goals
-        # ]
-
-        from corl.env_list import EASY_MODE_DICT, EASY_MODE_ARGS_KWARGS
-
-        task_env_cls_dict = EASY_MODE_DICT
-        task_args_kwargs = EASY_MODE_ARGS_KWARGS
-        assert len(task_env_cls_dict.keys()) == len(task_args_kwargs.keys())
-        for k in task_env_cls_dict.keys():
-            assert k in task_args_kwargs
-
-        task_envs = []
-        task_names = []
-        for task, env_cls in task_env_cls_dict.items():
-            task_args = task_args_kwargs[task]['args']
-            task_kwargs = task_args_kwargs[task]['kwargs']
-            task_envs.append(TfEnv(env_cls(*task_args, **task_kwargs)))
-            task_names.append(task)
+        goal_low = np.array((-0.1, 0.8, 0.2))
+        goal_high = np.array((0.1, 0.9, 0.2))
+        goals = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
+        print('constructing envs')
+        envs = [
+            TfEnv(SawyerReachPushPickPlace6DOFEnv(
+                tasks=[{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'pick_place'}],
+                random_init=False,
+                if_render=False,))
+            for g in goals
+        ]
 
         policy = GaussianMLPPolicy(
-            env_spec=task_envs[0].spec,
-            task_dim=len(task_envs),
+            env_spec=envs[0].spec,
+            task_dim=len(envs),
             hidden_sizes=(200, 100),
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
@@ -76,14 +61,14 @@ def run_task(*_):
         #     ),
         # )
 
-        baseline = LinearFeatureBaseline(env_spec=task_envs[0].spec)
+        baseline = LinearFeatureBaseline(env_spec=envs[0].spec)
 
         # NOTE: make sure when setting entropy_method to 'max', set
         # center_adv to False and turn off policy gradient. See
         # tf.algos.NPO for detailed documentation.
         algo = PPO(
-            env_spec=task_envs[0].spec,
-            task_dim=len(task_envs),
+            env_spec=envs[0].spec,
+            task_dim=len(envs),
             policy=policy,
             baseline=baseline,
             max_path_length=150,
@@ -100,10 +85,11 @@ def run_task(*_):
             center_adv=True,
         )
 
-        runner.setup(algo, task_envs, sampler_cls=MultiEnvironmentVectorizedSampler2)
+        runner.setup(algo, envs, sampler_cls=MultiEnvironmentVectorizedSampler2)
 
-        runner.train(n_epochs=int(1e7), batch_size=4096 * len(task_envs), plot=False)
+        runner.train(n_epochs=int(1e6), batch_size=512 * len(envs), plot=False)
 
-run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1, n_parallel=1)
+
+run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
 # with tf.Session() as sess:
 #     mt_rollout('src/data/local/ppo-push-multi-task/ppo_push_multi_task_2019_06_26_17_56_37_0001', 199, animated=True)

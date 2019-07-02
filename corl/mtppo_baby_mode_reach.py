@@ -11,6 +11,7 @@ import numpy as np
 from garage.envs import normalize
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import LocalRunner, run_experiment
+from garage.np.baselines import LinearFeatureBaseline
 from garage.sampler.utils import mt_rollout
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
@@ -19,22 +20,21 @@ from garage.tf.policies import GaussianMLPPolicy
 from garage.tf.samplers import MultiEnvironmentVectorizedSampler2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 
-
-EXP_PREFIX = 'ppo_push_multi_task'
+EXP_PREFIX = 'ppo_reach_multi_task'
+N_TASKS = 50
 def make_envs(env_names):
     return [TfEnv(normalize(gym.make(env_name))) for env_name in env_names]
-
 
 def run_task(*_):
     with LocalRunner() as runner:
 
-        goal_low = np.array((-0.1, 0.8, 0.02))
-        goal_high = np.array((0.1, 0.9, 0.02))
-        goals = np.random.uniform(low=goal_low, high=goal_high, size=(4, len(goal_low))).tolist()
+        goal_low = np.array((-0.1, 0.8, 0.05))
+        goal_high = np.array((0.1, 0.9, 0.3))
+        goals = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
         print('constructing envs')
         envs = [
             TfEnv(SawyerReachPushPickPlace6DOFEnv(
-                tasks=[{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
+                tasks=[{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'reach'}],
                 random_init=False,
                 if_render=False,))
             for g in goals
@@ -43,19 +43,23 @@ def run_task(*_):
         policy = GaussianMLPPolicy(
             env_spec=envs[0].spec,
             task_dim=len(envs),
-            hidden_sizes=(64, 64),
+            hidden_sizes=(200, 100),
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
+            adaptive_std=True,
+            init_std=2.,
         )
 
-        baseline = GaussianMLPBaseline(
-            env_spec=envs[0].spec,
-            task_dim=len(envs),
-            regressor_args=dict(
-                hidden_sizes=(32, 32),
-                use_trust_region=True,
-            ),
-        )
+        # baseline = GaussianMLPBaseline(
+        #     env_spec=envs[0].spec,
+        #     task_dim=len(envs),
+        #     regressor_args=dict(
+        #         hidden_sizes=(32, 32),
+        #         use_trust_region=True,
+        #     ),
+        # )
+
+        baseline = LinearFeatureBaseline(env_spec=envs[0].spec)
 
         # NOTE: make sure when setting entropy_method to 'max', set
         # center_adv to False and turn off policy gradient. See
@@ -65,7 +69,7 @@ def run_task(*_):
             task_dim=len(envs),
             policy=policy,
             baseline=baseline,
-            max_path_length=100,
+            max_path_length=150,
             discount=0.99,
             gae_lambda=0.95,
             lr_clip_range=0.2,
@@ -73,17 +77,17 @@ def run_task(*_):
                 batch_size=32,
                 max_epochs=10,
             ),
-            stop_entropy_gradient=True,
-            entropy_method='max',
-            policy_ent_coeff=0.02,
-            center_adv=False,
+            stop_entropy_gradient=False,
+            entropy_method='regularized',
+            policy_ent_coeff=1e-3,
+            center_adv=True,
         )
 
         runner.setup(algo, envs, sampler_cls=MultiEnvironmentVectorizedSampler2)
 
-        runner.train(n_epochs=500, batch_size=2048 * len(envs), plot=False)
+        runner.train(n_epochs=int(1e6), batch_size=512 * len(envs), plot=False)
 
 
-# run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
-with tf.Session() as sess:
-    mt_rollout('src/data/local/ppo-push-multi-task/ppo_push_multi_task_2019_06_26_17_56_37_0001', 199, animated=True)
+run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1)
+# with tf.Session() as sess:
+#     mt_rollout('src/data/local/experiment/experiment_2019_06_26_17_27_54_0001', 50, animated=True)
