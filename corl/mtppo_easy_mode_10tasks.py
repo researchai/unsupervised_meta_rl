@@ -67,16 +67,16 @@ def run_task(*_):
             init_std=2.,
         )
 
-        # baseline = GaussianMLPBaseline(
-        #     env_spec=envs[0].spec,
-        #     task_dim=len(envs),
-        #     regressor_args=dict(
-        #         hidden_sizes=(32, 32),
-        #         use_trust_region=True,
-        #     ),
-        # )
+        baseline = GaussianMLPBaseline(
+            env_spec=task_envs[0].spec,
+            task_dim=len(task_envs),
+            regressor_args=dict(
+                hidden_sizes=(200, 100),
+                use_trust_region=True,
+            ),
+        )
 
-        baseline = LinearFeatureBaseline(env_spec=task_envs[0].spec)
+        # baseline = LinearFeatureBaseline(env_spec=task_envs[0].spec)
 
         # NOTE: make sure when setting entropy_method to 'max', set
         # center_adv to False and turn off policy gradient. See
