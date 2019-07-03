@@ -64,7 +64,7 @@ def run_task(*_):
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
             adaptive_std=True,
-            init_std=2.,
+            init_std=4.,
         )
 
         # baseline = GaussianMLPBaseline(
