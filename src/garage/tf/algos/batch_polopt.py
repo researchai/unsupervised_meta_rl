@@ -127,6 +127,15 @@ class BatchPolopt(RLAlgorithm):
 
         max_path_length = self.max_path_length
 
+        for idx, path in enumerate(paths):
+            path["returns"] = special.discount_cumsum(path["rewards"],
+                                                      self.discount)
+        logger.log("Fitting baseline in process_samples...")
+        if hasattr(self.baseline, 'fit_with_samples'):
+            self.baseline.fit_with_samples(paths, samples_data=None)
+        else:
+            self.baseline.fit(paths)
+
         if hasattr(self.baseline, 'predict_n'):
             all_path_baselines = self.baseline.predict_n(paths)
         else:
