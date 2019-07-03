@@ -96,7 +96,7 @@ def run_task(*_):
             ),
             stop_entropy_gradient=False,
             entropy_method='regularized',
-            policy_ent_coeff=2e-3,
+            policy_ent_coeff=5e-4,
             center_adv=True,
         )
 
