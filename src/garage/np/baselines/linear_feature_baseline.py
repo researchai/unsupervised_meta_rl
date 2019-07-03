@@ -23,7 +23,7 @@ class LinearFeatureBaseline(Baseline):
         length = len(path['rewards'])
         al = np.arange(length).reshape(-1, 1) / 100.0
         return np.concatenate(
-            [obs, obs**2, obs**3, al, al**2, al**3,
+            [obs, obs**2, al, al**2, al**3,
              np.ones((length, 1))], axis=1)
 
     @overrides
@@ -31,7 +31,7 @@ class LinearFeatureBaseline(Baseline):
         featmat = np.concatenate([self._features(path) for path in paths])
         returns = np.concatenate([path['returns'] for path in paths])
         reg_coeff = self._reg_coeff
-        for _ in range(20):
+        for _ in range(5):
             self._coeffs = np.linalg.lstsq(
                 featmat.T.dot(featmat) +
                 reg_coeff * np.identity(featmat.shape[1]),
