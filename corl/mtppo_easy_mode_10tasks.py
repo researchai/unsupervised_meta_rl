@@ -60,7 +60,7 @@ def run_task(*_):
         policy = GaussianMLPPolicy(
             env_spec=task_envs[0].spec,
             task_dim=len(task_envs),
-            hidden_sizes=(200, 100),
+            hidden_sizes=(300, 300),
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
             adaptive_std=True,
