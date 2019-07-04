@@ -104,6 +104,6 @@ def run_task(*_):
 
         runner.train(n_epochs=int(1e7), batch_size=4096 * len(task_envs), plot=False)
 
-# run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1, n_parallel=1)
-with tf.Session() as sess:
-    mt_rollout('/Users/chang/mtppo-1209/corl_easy_mtppo_ten_task_2019_07_03_06_09_58_0001', 300, animated=True)
+run_experiment(run_task, exp_prefix=EXP_PREFIX, seed=1, n_parallel=1)
+# with tf.Session() as sess:
+#     mt_rollout('/Users/chang/mtppo-1209/corl_easy_mtppo_ten_task_2019_07_03_06_09_58_0001', 300, animated=True)
