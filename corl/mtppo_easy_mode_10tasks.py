@@ -64,7 +64,7 @@ def run_task(*_):
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
             adaptive_std=True,
-            init_std=6.,
+            init_std=20.,
         )
 
         # baseline = GaussianMLPBaseline(
@@ -89,14 +89,14 @@ def run_task(*_):
             max_path_length=150,
             discount=0.99,
             gae_lambda=1,
-            lr_clip_range=0.3,
+            lr_clip_range=0.4,
             optimizer_args=dict(
                 batch_size=32,
                 max_epochs=10,
             ),
             stop_entropy_gradient=False,
             entropy_method='regularized',
-            policy_ent_coeff=5e-4,
+            policy_ent_coeff=5e-5,
             center_adv=True,
         )
 
