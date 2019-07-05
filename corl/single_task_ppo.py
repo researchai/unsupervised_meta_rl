@@ -25,14 +25,11 @@ from garage.tf.policies import GaussianMLPPolicy
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 from hard_env_list import TRAIN_DICT, TRAIN_ARGS_KWARGS
 
-EXP_PREFIX = 'single_task_{}'
+EXP_PREFIX = 'single_task_{}_idx{}'
 SAWYER_ENV = None
 
 def run_task(*_):
     with LocalRunner() as runner:
-        EXP_PREFIX = EXP_PREFIX.format(type(SAWYER_ENV).__name__)
-        print(EXP_PREFIX)
-
         env = TfEnv(SAWYER_ENV)
 
         policy = GaussianMLPPolicy(
@@ -96,5 +93,7 @@ if __name__ == '__main__':
     env_kwargs = TRAIN_ARGS_KWARGS[env_idx]['kwargs']
     print(env_args, env_kwargs)
     SAWYER_ENV = env_cls(*env_args, **env_kwargs)
+    EXP_PREFIX = EXP_PREFIX.format(type(SAWYER_ENV).__name__, env_idx)
+    print(EXP_PREFIX)
 
     run_experiment(run_task, exp_prefix=EXP_PREFIX, snapshot_mode='all', seed=1)
