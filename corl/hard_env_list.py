@@ -16,9 +16,10 @@ _reach_push_pick_place_wall = 0
 
 def hard_mode_args_kwargs(env_cls):
     global _reach_push_pick_place, _reach_push_pick_place_wall
-    kwargs = dict(random_init=True, obs_type='plain', if_render=False, task_idx=0)
+    kwargs = dict(random_init=True, obs_type='plain', if_render=False)
     if env_cls == SawyerReachPushPickPlace6DOFEnv:
         assert _reach_push_pick_place <= 2
+        kwargs['task_idx'] = 0
         kwargs['fix_task'] = True
         if _reach_push_pick_place == 0:
             kwargs['tasks'] = [{
@@ -41,6 +42,7 @@ def hard_mode_args_kwargs(env_cls):
         _reach_push_pick_place += 1
     elif env_cls == SawyerReachPushPickPlaceWall6DOFEnv:
         kwargs['fix_task'] = True
+        kwargs['task_idx'] = 0
         assert _reach_push_pick_place_wall <= 2
         if _reach_push_pick_place_wall == 0:
             kwargs['tasks'] = [{
