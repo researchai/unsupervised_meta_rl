@@ -16,7 +16,7 @@ _reach_push_pick_place_wall = 0
 
 def hard_mode_args_kwargs(env_cls):
     global _reach_push_pick_place, _reach_push_pick_place_wall
-    kwargs = dict(random_init=True, obs_type='with_goal', if_render=False)
+    kwargs = dict(random_init=True, obs_type='plain', if_render=False, fix_task=True, task_idx=0)
     if env_cls == SawyerReachPushPickPlace6DOFEnv:
         assert _reach_push_pick_place <= 2
         if _reach_push_pick_place == 0:
