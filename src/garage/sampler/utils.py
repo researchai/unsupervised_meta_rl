@@ -4,78 +4,70 @@ import time
 import numpy as np
 
 from garage.misc import tensor_utils
-
 from garage.experiment import snapshotter
-def mt_rollout(snapshot_dir, 
-            load_itr='all',
-            max_path_length=np.inf,
-            animated=False,
-            speedup=1,
-            always_return_paths=False):
+
+
+def mt_rollout(
+        snapshot_dir, 
+        load_itr='all',
+        max_path_length=np.inf,
+        animated=False,
+        speedup=1,
+        n_rollouts=10,
+        always_return_paths=False):
     snapshotter.snapshot_dir = snapshot_dir
     saved = snapshotter.load(load_itr)
-    # print(saved)
     envs = saved['env']
     agent = saved['algo'].policy
+    discount = saved['algo'].discount
     n_tasks = len(envs)
     task_one_hots = np.eye(n_tasks)[list(range(n_tasks))]
 
-    samples_data_list = []
-    # print(envs)
-    for i, (env, t) in enumerate(zip(envs, task_one_hots)):
-        observations = []
-        # tasks = []
-        # latents = []
-        # latent_infos = []
-        actions = []
-        rewards = []
-        agent_infos = []
-        env_infos = []
+    # task_rollout_paths: [n_tasks x n_rollouts]
+    task_rollout_paths = [[None] * n_rollouts for i in range(n_tasks)]
+    
+    for rollout_idx in range(n_rollouts):
+        for i, (env, t) in enumerate(zip(envs, task_one_hots)):
+            observations = []
+            actions = []
+            rewards = []
+            agent_infos = []
+            env_infos = []
 
-        o = env.reset()
-        if animated:
-            env.render()
-
-        path_length = 0
-        while path_length < max_path_length:
-            a, agent_info = agent.get_action(np.concatenate((o, t)))
-            # a, agent_info = agent.get_action_from_latent(z, o)
-            # latent_info = agent_info["latent_info"]
-            next_o, r, d, env_info = env.step(a)
-            observations.append(agent.observation_space.flatten(o))
-            # tasks.append(t)
-            # z = latent_info["mean"]
-            # latents.append(agent.latent_space.flatten(z))
-            # latent_infos.append(latent_info)
-            rewards.append(r)
-            actions.append(agent.action_space.flatten(a))
-            agent_infos.append(agent_info)
-            env_infos.append(env_info)
-            path_length += 1
-            if d:
-                break
-            o = next_o
+            o = env.reset()
             if animated:
                 env.render()
-                timestep = 0.05
-                time.sleep(timestep / speedup)
 
-        samples_data = dict(
-            observations=tensor_utils.stack_tensor_list(observations),
-            actions=tensor_utils.stack_tensor_list(actions),
-            rewards=tensor_utils.stack_tensor_list(rewards),
-            # tasks=tensor_utils.stack_tensor_list(tasks),
-            # latents=tensor_utils.stack_tensor_list(latents),
-            # latent_infos=tensor_utils.stack_tensor_dict_list(latent_infos),
-            agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-            env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
-        )
-        samples_data_list.append(samples_data)
+            path_length = 0
+            while path_length < max_path_length:
+                a, agent_info = agent.get_action(np.concatenate((o, t)))
+                next_o, r, d, env_info = env.step(a)
+                observations.append(agent.observation_space.flatten(o))
+                rewards.append(r)
+                actions.append(agent.action_space.flatten(a))
+                agent_infos.append(agent_info)
+                env_infos.append(env_info)
+                path_length += 1
+                if d:
+                    break
+                o = next_o
+                if animated:
+                    env.render()
+                    timestep = 0.05
+                    time.sleep(timestep / speedup)
+            samples_data = dict(
+                observations=tensor_utils.stack_tensor_list(observations),
+                actions=tensor_utils.stack_tensor_list(actions),
+                rewards=tensor_utils.stack_tensor_list(rewards),
+                agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+                env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+            )
+            task_rollout_paths[i][rollout_idx] = samples_data
     
-    if animated and not always_return_paths:
+    if not always_return_paths:
         return
     
-    return samples_data_list
+    return task_rollout_paths, discount
 
 def rollout(env,
             agent,
