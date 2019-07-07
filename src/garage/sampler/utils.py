@@ -67,7 +67,7 @@ def mt_rollout(
     if not always_return_paths:
         return
     
-    return task_rollout_paths, discount
+    return task_rollout_paths, discount, envs
 
 def rollout(env,
             agent,

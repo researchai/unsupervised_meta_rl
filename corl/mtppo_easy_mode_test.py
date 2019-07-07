@@ -134,7 +134,7 @@ if __name__ == '__main__':
     csv_path = os.path.join(os.getcwd(), args.csv)
     pkl = os.path.join(snapshot_dir, 'itr_{}.pkl'.format(itr))
     with tf.Session() as sess:
-        paths, discount = mt_rollout(
+        paths, discount, envs = mt_rollout(
             snapshot_dir=snapshot_dir,
             load_itr=itr,
             max_path_length=150,
@@ -178,7 +178,14 @@ if __name__ == '__main__':
                     success_rate = np.mean(meta_task_rollout["success"])
                 average_discounted_return = np.mean(meta_task_rollout["returns"])
                 undiscounted_returns = np.mean(meta_task_rollout["rewards"])
-                line = line + '{},{},{},{},'.format(meta_task, average_discounted_return, undiscounted_returns, success_rate)
+
+                task_env = envs[meta_task].env
+                if 'task_type' in dir(task_env):
+                    name = '{}-{}'.format(str(task_env.__class__.__name__), task_env.task_type)
+                else:
+                    name = str(task_env.__class__.__name__)
+
+                line = line + '{},{},{},{},'.format(name, average_discounted_return, undiscounted_returns, success_rate)
             
             line = line[:-1] + '\n'
             print(line)
