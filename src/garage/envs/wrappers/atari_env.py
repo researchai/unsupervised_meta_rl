@@ -8,7 +8,7 @@ class AtariEnv(gym.Wrapper):
     Atari environment wrapper for gym.Env.
 
     This wrapper convert the observations returned from baselines wrapped
-        environment, which is a LazyFrames object into numpy arrays.
+    environment, which is a LazyFrames object into numpy arrays.
 
     Args:
         env (gym.Env): The environment to be wrapped.

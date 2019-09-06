@@ -11,10 +11,11 @@ class CEM(BatchPolopt):
     CEM works by iteratively optimizing a gaussian distribution of policy.
 
     In each epoch, CEM does the following:
-    1. Sample n_samples policies from a gaussian distribution of
-       mean cur_mean and std cur_std.
-    2. Do rollouts for each policy.
-    3. Update cur_mean and cur_std by doing Maximum Likelihood Estimation
+
+    | 1. Sample n_samples policies from a gaussian distribution of
+    | mean cur_mean and std cur_std.
+    | 2. Do rollouts for each policy.
+    | 3. Update cur_mean and cur_std by doing Maximum Likelihood Estimation
        over the n_best top policies in terms of return.
 
     Note:

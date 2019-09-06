@@ -92,9 +92,12 @@ class GaussianCNNRegressorWithModel(StochasticRegressor2):
             of output dense layer(s) in the std network.
         std_parametrization (str): How the std should be parametrized. There
             are two options:
+
             - exp: the logarithm of the std will be stored, and applied a
-               exponential transformation
+              exponential transformation
+
             - softplus: the std will be computed as log(1+exp(x))
+
         layer_normalization (bool): Bool for using layer normalization or not.
         normalize_inputs (bool): Bool for normalizing inputs or not.
         normalize_outputs (bool): Bool for normalizing outputs or not.
@@ -190,17 +193,19 @@ class GaussianCNNRegressorWithModel(StochasticRegressor2):
         self._initialize()
 
     def _initialize(self):
-        input_var = tf.compat.v1.placeholder(
-            tf.float32, shape=(None, ) + self._input_shape)
+        input_var = tf.compat.v1.placeholder(tf.float32,
+                                             shape=(None, ) +
+                                             self._input_shape)
 
         with tf.compat.v1.variable_scope(self._variable_scope):
             self.model.build(input_var)
-            ys_var = tf.compat.v1.placeholder(
-                dtype=tf.float32, name='ys', shape=(None, self._output_dim))
-            old_means_var = tf.compat.v1.placeholder(
-                dtype=tf.float32,
-                name='old_means',
-                shape=(None, self._output_dim))
+            ys_var = tf.compat.v1.placeholder(dtype=tf.float32,
+                                              name='ys',
+                                              shape=(None, self._output_dim))
+            old_means_var = tf.compat.v1.placeholder(dtype=tf.float32,
+                                                     name='old_means',
+                                                     shape=(None,
+                                                            self._output_dim))
             old_log_stds_var = tf.compat.v1.placeholder(
                 dtype=tf.float32,
                 name='old_log_stds',
@@ -218,17 +223,16 @@ class GaussianCNNRegressorWithModel(StochasticRegressor2):
             normalized_ys_var = (ys_var - y_mean_var) / y_std_var
 
             normalized_old_means_var = (old_means_var - y_mean_var) / y_std_var
-            normalized_old_log_stds_var = (
-                old_log_stds_var - tf.math.log(y_std_var))
+            normalized_old_log_stds_var = (old_log_stds_var -
+                                           tf.math.log(y_std_var))
 
-            normalized_dist_info_vars = dict(
-                mean=normalized_means_var, log_std=normalized_log_stds_var)
+            normalized_dist_info_vars = dict(mean=normalized_means_var,
+                                             log_std=normalized_log_stds_var)
 
             mean_kl = tf.reduce_mean(
                 self.model.networks['default'].dist.kl_sym(
-                    dict(
-                        mean=normalized_old_means_var,
-                        log_std=normalized_old_log_stds_var),
+                    dict(mean=normalized_old_means_var,
+                         log_std=normalized_old_log_stds_var),
                     normalized_dist_info_vars,
                 ))
 

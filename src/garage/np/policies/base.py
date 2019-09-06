@@ -2,6 +2,7 @@ from garage.core import Parameterized
 
 
 class Policy(Parameterized):
+
     def __init__(self, env_spec):
         Parameterized.__init__(self)
         self._env_spec = env_spec
@@ -53,16 +54,18 @@ class Policy(Parameterized):
 
 
 class StochasticPolicy(Policy):
+
     @property
     def distribution(self):
         """
-        :rtype Distribution
+        :rtype: Distribution
         """
         raise NotImplementedError
 
     def dist_info_sym(self, obs_var, state_info_vars):
         """
         Return the symbolic distribution information about the actions.
+
         :param obs_var: symbolic variable for observations
         :param state_info_vars: a dictionary whose values should contain
          information about the state of the policy at the time it received the
@@ -74,6 +77,7 @@ class StochasticPolicy(Policy):
     def dist_info(self, obs, state_infos):
         """
         Return the distribution information about the actions.
+
         :param obs_var: observation values
         :param state_info_vars: a dictionary whose values should contain
          information about the state of the policy at the time it received the

@@ -82,9 +82,12 @@ class GaussianCNNRegressorModel(GaussianCNNModel):
             of output dense layer(s) in the std network.
         std_parametrization (str): How the std should be parametrized. There
             are two options:
+
             - exp: the logarithm of the std will be stored, and applied a
-               exponential transformation
+              exponential transformation
+
             - softplus: the std will be computed as log(1+exp(x))
+
         layer_normalization (bool): Bool for using layer normalization or not.
     """
 

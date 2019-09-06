@@ -60,18 +60,18 @@ class FirstOrderOptimizer(Serializable):
         :param loss: Symbolic expression for the loss function.
         :param target: A parameterized object to optimize over. It should
          implement methods of the
-        :class:`garage.core.paramerized.Parameterized` class.
+         :class:`garage.core.paramerized.Parameterized` class.
         :param leq_constraint: A constraint provided as a tuple (f, epsilon),
          of the form f(*inputs) <= epsilon.
         :param inputs: A list of symbolic variables as inputs
         :return: No return value.
         """
-        with tf.name_scope(
-                self._name,
-                values=[
-                    loss,
-                    target.get_params(trainable=True), inputs, extra_inputs
-                ]):
+        with tf.name_scope(self._name,
+                           values=[
+                               loss,
+                               target.get_params(trainable=True), inputs,
+                               extra_inputs
+                           ]):
 
             self._target = target
 
@@ -108,8 +108,9 @@ class FirstOrderOptimizer(Serializable):
 
         start_time = time.time()
 
-        dataset = BatchDataset(
-            inputs, self._batch_size, extra_inputs=extra_inputs)
+        dataset = BatchDataset(inputs,
+                               self._batch_size,
+                               extra_inputs=extra_inputs)
 
         sess = tf.compat.v1.get_default_session()
 

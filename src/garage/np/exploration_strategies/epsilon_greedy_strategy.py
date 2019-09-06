@@ -16,9 +16,9 @@ class EpsilonGreedyStrategy(ExplorationStrategy):
     Select action based on the value of ϵ. ϵ will decrease from
     max_epsilon to min_epsilon within decay_ratio * total_timesteps.
 
-    At state s, with probability
-    1 − ϵ: select action = argmax Q(s, a)
-    ϵ    : select a random action from an uniform distribution.
+    | At state s, with probability
+    | 1 − ϵ: select action = argmax Q(s, a)
+    | ϵ    : select a random action from an uniform distribution.
 
     Args:
         env_spec (garage.envs.env_spec.EnvSpec): Environment specification.
@@ -41,8 +41,8 @@ class EpsilonGreedyStrategy(ExplorationStrategy):
         self._decay_period = int(total_timesteps * decay_ratio)
         self._action_space = env_spec.action_space
         self._epsilon = self._max_epsilon
-        self._decrement = (
-            self._max_epsilon - self._min_epsilon) / self._decay_period
+        self._decrement = (self._max_epsilon -
+                           self._min_epsilon) / self._decay_period
 
     @overrides
     def get_action(self, t, observation, policy, **kwargs):

@@ -25,6 +25,7 @@ class LocalRunner:
         please use LocalTFRunner().
 
     Examples:
+        ::
         # to train
         runner = LocalRunner()
         env = Env(...)
@@ -268,6 +269,7 @@ class LocalRunner:
             int: The next training epoch.
 
         Examples:
+            ::
             for epoch in runner.step_epochs():
                 runner.step_path = runner.obtain_samples(...)
                 self.train_once(...)

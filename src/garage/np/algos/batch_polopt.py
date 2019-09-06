@@ -74,6 +74,7 @@ class BatchPolopt(RLAlgorithm):
 
         Returns:
             dict: Processed sample data, with key
+
                 * average_return: (float)
 
         """

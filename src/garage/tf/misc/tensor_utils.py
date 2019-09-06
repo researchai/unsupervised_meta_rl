@@ -6,6 +6,7 @@ import tensorflow as tf
 
 
 def compile_function(inputs, outputs, log_name=None):
+
     def run(*input_vals):
         sess = tf.compat.v1.get_default_session()
         return sess.run(outputs, feed_dict=dict(list(zip(inputs, input_vals))))
@@ -59,8 +60,10 @@ def flatten_batch_dict(d, name=None):
 def filter_valids(t, valid, name='filter_valids'):
     # 'valid' is either 0 or 1 with dtype of tf.float32
     # Must round before cast to prevent floating-error
-    return tf.dynamic_partition(
-        t, tf.cast(tf.round(valid), tf.int32), 2, name=name)[1]
+    return tf.dynamic_partition(t,
+                                tf.cast(tf.round(valid), tf.int32),
+                                2,
+                                name=name)[1]
 
 
 def filter_valids_dict(d, valid, name=None):
@@ -74,6 +77,7 @@ def graph_inputs(name, **kwargs):
 
 
 def flatten_inputs(deep):
+
     def flatten(deep):
         for d in deep:
             if isinstance(d, Iterable) and not isinstance(
@@ -86,10 +90,9 @@ def flatten_inputs(deep):
 
 
 def flatten_tensor_variables(ts):
-    return tf.concat(
-        axis=0,
-        values=[tf.reshape(x, [-1]) for x in ts],
-        name='flatten_tensor_variables')
+    return tf.concat(axis=0,
+                     values=[tf.reshape(x, [-1]) for x in ts],
+                     name='flatten_tensor_variables')
 
 
 def unflatten_tensor_variables(flatarr, shapes, symb_arrs):
@@ -104,8 +107,9 @@ def unflatten_tensor_variables(flatarr, shapes, symb_arrs):
 
 
 def new_tensor(name, ndim, dtype):
-    return tf.compat.v1.placeholder(
-        dtype=dtype, shape=[None] * ndim, name=name)
+    return tf.compat.v1.placeholder(dtype=dtype,
+                                    shape=[None] * ndim,
+                                    name=name)
 
 
 def new_tensor_like(name, arr_like):
@@ -141,6 +145,7 @@ def stack_tensor_list(tensor_list):
 def stack_tensor_dict_list(tensor_dict_list):
     """
     Stack a list of dictionaries of {tensors or dictionary of tensors}.
+
     :param tensor_dict_list: a list of dictionaries of {tensors or dictionary
      of tensors}.
     :return: a dictionary of {stacked tensors or dictionary of stacked tensors}
@@ -175,8 +180,8 @@ def split_tensor_dict_list(tensor_dict):
 def pad_tensor(x, max_len):
     return np.concatenate([
         x,
-        np.tile(
-            np.zeros_like(x[0]), (max_len - len(x), ) + (1, ) * np.ndim(x[0]))
+        np.tile(np.zeros_like(x[0]),
+                (max_len - len(x), ) + (1, ) * np.ndim(x[0]))
     ])
 
 
@@ -234,10 +239,9 @@ def compute_advantages(discount,
         #    advantages = discount_filter (tf.nn.conv1d) deltas
 
         # Prepare convolutional IIR filter to calculate advantages
-        gamma_lambda = tf.constant(
-            float(discount) * float(gae_lambda),
-            dtype=tf.float32,
-            shape=[max_len, 1, 1])
+        gamma_lambda = tf.constant(float(discount) * float(gae_lambda),
+                                   dtype=tf.float32,
+                                   shape=[max_len, 1, 1])
         advantage_filter = tf.compat.v1.cumprod(gamma_lambda, exclusive=True)
 
         # Calculate deltas
@@ -245,10 +249,13 @@ def compute_advantages(discount,
         baseline_shift = tf.concat([baselines[:, 1:], pad], 1)
         deltas = rewards + discount * baseline_shift - baselines
         # Convolve deltas with the discount filter to get advantages
-        deltas_pad = tf.expand_dims(
-            tf.concat([deltas, tf.zeros_like(deltas[:, :-1])], axis=1), axis=2)
-        adv = tf.nn.conv1d(
-            deltas_pad, advantage_filter, stride=1, padding='VALID')
+        deltas_pad = tf.expand_dims(tf.concat(
+            [deltas, tf.zeros_like(deltas[:, :-1])], axis=1),
+                                    axis=2)
+        adv = tf.nn.conv1d(deltas_pad,
+                           advantage_filter,
+                           stride=1,
+                           padding='VALID')
         advantages = tf.reshape(adv, [-1])
     return advantages
 
@@ -272,12 +279,15 @@ def positive_advs(advs, eps, name=None):
 def discounted_returns(discount, max_len, rewards, name=None):
     with tf.name_scope(name, 'discounted_returns',
                        [discount, max_len, rewards]):
-        gamma = tf.constant(
-            float(discount), dtype=tf.float32, shape=[max_len, 1, 1])
+        gamma = tf.constant(float(discount),
+                            dtype=tf.float32,
+                            shape=[max_len, 1, 1])
         return_filter = tf.math.cumprod(gamma, exclusive=True)
-        rewards_pad = tf.expand_dims(
-            tf.concat([rewards, tf.zeros_like(rewards[:, :-1])], axis=1),
-            axis=2)
-        returns = tf.nn.conv1d(
-            rewards_pad, return_filter, stride=1, padding='VALID')
+        rewards_pad = tf.expand_dims(tf.concat(
+            [rewards, tf.zeros_like(rewards[:, :-1])], axis=1),
+                                     axis=2)
+        returns = tf.nn.conv1d(rewards_pad,
+                               return_filter,
+                               stride=1,
+                               padding='VALID')
     return returns

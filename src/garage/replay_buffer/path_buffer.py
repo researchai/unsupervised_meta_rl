@@ -9,6 +9,7 @@ class PathBuffer:
 
     This buffer only stores valid steps, and doesn't require paths to
     have a maximum length.
+
     Args:
         capacity_in_steps (int): total memory allocated for the buffer
     """

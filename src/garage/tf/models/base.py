@@ -126,29 +126,29 @@ class Model(BaseModel):
     model will load the weights from self._default_parameters.
 
     The design is illustrated as the following:
-
-         input_1                      input_2
-            |                            |
-    ============== Model (TfModel)===================
-    |       |                            |          |
-    |       |            Parameters      |          |
-    |    =============  /           \  ============ |
-    |    |  default  | /             \ | Network2 | |
-    |    | (Network) |/               \|(Network) | |
-    |    =============                 ============ |
-    |       |                            |          |
-    =================================================
-            |                            |
-            |                            |
-    (model.networks['default'].outputs)  |
-                        model.networks['Network2'].outputs
+    ::
+             input_1                      input_2
+                |                            |
+        ============== Model (TfModel)===================
+        |       |                            |          |
+        |       |            Parameters      |          |
+        |    =============  /           \  ============ |
+        |    |  default  | /             \ | Network2 | |
+        |    | (Network) |/               \|(Network) | |
+        |    =============                 ============ |
+        |       |                            |          |
+        =================================================
+                |                            |
+                |                            |
+        (model.networks['default'].outputs)  |
+                            model.networks['Network2'].outputs
 
 
     Examples are also available in tests/garage/tf/models/test_model.
 
     Args:
-      name (str): Name of the model. It will also become the variable scope
-      of the model. Every model should have a unique name.
+        name (str): Name of the model. It will also become the variable scope
+        of the model. Every model should have a unique name.
     """
 
     def __init__(self, name):
@@ -205,9 +205,9 @@ class Model(BaseModel):
             if network_name in self._networks:
                 raise ValueError(
                     'Network {} already exists!'.format(network_name))
-            with tf.compat.v1.variable_scope(
-                    self._variable_scope, reuse=True,
-                    auxiliary_name_scope=False):
+            with tf.compat.v1.variable_scope(self._variable_scope,
+                                             reuse=True,
+                                             auxiliary_name_scope=False):
                 with tf.name_scope(name=network_name):
                     network = Network()
                     network._inputs = inputs

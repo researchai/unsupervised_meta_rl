@@ -2,6 +2,7 @@ from garage.tf.core import Parameterized
 
 
 class Policy(Parameterized):
+
     def __init__(self, env_spec):
         Parameterized.__init__(self)
         self._env_spec = env_spec
@@ -42,6 +43,7 @@ class Policy(Parameterized):
     def recurrent(self):
         """
         Indicates whether the policy is recurrent.
+
         :return:
         """
         return False
@@ -57,6 +59,7 @@ class Policy(Parameterized):
         """
         Return keys for the information related to the policy's state when
         taking an action.
+
         :return:
         """
         return [k for k, _ in self.state_info_specs]
@@ -66,6 +69,7 @@ class Policy(Parameterized):
         """
         Return keys and shapes for the information related to the policy's
         state when taking an action.
+
         :return:
         """
         return list()
@@ -78,6 +82,7 @@ class Policy(Parameterized):
 
 
 class StochasticPolicy(Policy):
+
     @property
     def distribution(self):
         """
@@ -88,10 +93,11 @@ class StochasticPolicy(Policy):
     def dist_info_sym(self, obs_var, state_info_vars, name='dist_info_sym'):
         """
         Return the symbolic distribution information about the actions.
+
         :param obs_var: symbolic variable for observations
         :param state_info_vars: a dictionary whose values should contain
          information about the state of the policy at
-        the time it received the observation
+         the time it received the observation
         :return:
         """
         raise NotImplementedError
@@ -99,6 +105,7 @@ class StochasticPolicy(Policy):
     def dist_info(self, obs, state_infos):
         """
         Return the distribution information about the actions.
+
         :param obs_var: observation values
         :param state_info_vars: a dictionary whose values should contain
          information about the state of the policy at the time it received the

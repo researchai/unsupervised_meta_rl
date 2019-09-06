@@ -76,23 +76,22 @@ class ContinuousMLPPolicyWithModel(Policy2):
         else:
             self.obs_dim = env_spec.observation_space.flat_dim
 
-        self.model = MLPModel(
-            output_dim=action_dim,
-            name='MLPModel',
-            hidden_sizes=hidden_sizes,
-            hidden_nonlinearity=hidden_nonlinearity,
-            hidden_w_init=hidden_w_init,
-            hidden_b_init=hidden_b_init,
-            output_nonlinearity=output_nonlinearity,
-            output_w_init=output_w_init,
-            output_b_init=output_b_init,
-            layer_normalization=layer_normalization)
+        self.model = MLPModel(output_dim=action_dim,
+                              name='MLPModel',
+                              hidden_sizes=hidden_sizes,
+                              hidden_nonlinearity=hidden_nonlinearity,
+                              hidden_w_init=hidden_w_init,
+                              hidden_b_init=hidden_b_init,
+                              output_nonlinearity=output_nonlinearity,
+                              output_w_init=output_w_init,
+                              output_b_init=output_b_init,
+                              layer_normalization=layer_normalization)
 
         self._initialize()
 
     def _initialize(self):
-        state_input = tf.compat.v1.placeholder(
-            tf.float32, shape=(None, self.obs_dim))
+        state_input = tf.compat.v1.placeholder(tf.float32,
+                                               shape=(None, self.obs_dim))
 
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
@@ -125,7 +124,7 @@ class ContinuousMLPPolicyWithModel(Policy2):
         Returns:
             action (numpy.ndarray): Predicted action.
             agent_info (dict): Empty dict since this policy does
-                not model a distribution.
+            not model a distribution.
 
         """
         flat_obs = self.observation_space.flatten(observation)
@@ -144,7 +143,7 @@ class ContinuousMLPPolicyWithModel(Policy2):
         Returns:
             actions (numpy.ndarray): Predicted actions.
             agent_infos (dict): Empty dict since this policy does
-                not model a distribution.
+            not model a distribution.
 
         """
         flat_obs = self.observation_space.flatten_n(observations)
@@ -167,18 +166,17 @@ class ContinuousMLPPolicyWithModel(Policy2):
         Args:
             name (str): Name of the newly created policy.
         """
-        return self.__class__(
-            name=name,
-            env_spec=self._env_spec,
-            hidden_sizes=self._hidden_sizes,
-            hidden_nonlinearity=self._hidden_nonlinearity,
-            hidden_w_init=self._hidden_w_init,
-            hidden_b_init=self._hidden_b_init,
-            output_nonlinearity=self._output_nonlinearity,
-            output_w_init=self._output_w_init,
-            output_b_init=self._output_b_init,
-            input_include_goal=self._input_include_goal,
-            layer_normalization=self._layer_normalization)
+        return self.__class__(name=name,
+                              env_spec=self._env_spec,
+                              hidden_sizes=self._hidden_sizes,
+                              hidden_nonlinearity=self._hidden_nonlinearity,
+                              hidden_w_init=self._hidden_w_init,
+                              hidden_b_init=self._hidden_b_init,
+                              output_nonlinearity=self._output_nonlinearity,
+                              output_w_init=self._output_w_init,
+                              output_b_init=self._output_b_init,
+                              input_include_goal=self._input_include_goal,
+                              layer_normalization=self._layer_normalization)
 
     def __getstate__(self):
         """Object.__getstate__."""

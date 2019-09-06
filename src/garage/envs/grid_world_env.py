@@ -34,11 +34,11 @@ MAPS = {
 
 class GridWorldEnv(gym.Env, Serializable):
     """
-    'S' : starting point
-    'F' or '.': free space
-    'W' or 'x': wall
-    'H' or 'o': hole (terminates episode)
-    'G' : goal
+    | 'S' : starting point
+    | 'F' or '.': free space
+    | 'W' or 'x': wall
+    | 'H' or 'o': hole (terminates episode)
+    | 'G' : goal
 
 
     """
@@ -75,11 +75,11 @@ class GridWorldEnv(gym.Env, Serializable):
 
     def step(self, action):
         """
-        action map:
-        0: left
-        1: down
-        2: right
-        3: up
+        | action map:
+        | 0: left
+        | 1: down
+        | 2: right
+        | 3: up
         :param action: should be a one-hot vector encoding the action
         :return:
         """

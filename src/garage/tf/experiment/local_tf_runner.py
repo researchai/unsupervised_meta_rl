@@ -45,6 +45,7 @@ class LocalTFRunner(LocalRunner):
         specify manually or through run_experiment() interface.
 
     Examples:
+    ::
         # to train
         with LocalTFRunner() as runner:
             env = gym.make('CartPole-v1')

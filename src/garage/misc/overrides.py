@@ -29,27 +29,29 @@ def overrides(method):
     The decorator code is executed while loading class. Using this method
     should have minimal runtime performance implications.
 
-    This is based on my idea about how to do this and fwc:s highly improved
+    This is based on my idea about how to do this and fwc's highly improved
     algorithm for the implementation
-    fwc:s algorithm : http://stackoverflow.com/a/14631397/308189
-    my answer : http://stackoverflow.com/a/8313042/308189
+
+    | fwc's algorithm : http://stackoverflow.com/a/14631397/308189
+    | my answer : http://stackoverflow.com/a/8313042/308189
 
     How to use:
-    from overrides import overrides
+    ::
+        from overrides import overrides
 
-    class SuperClass:
+        class SuperClass:
 
-        def method(self):
-            return 2
+            def method(self):
+                return 2
 
-    class SubClass(SuperClass):
+        class SubClass(SuperClass):
 
-        @overrides
-        def method(self):
-            return 1
+            @overrides
+            def method(self):
+                return 1
 
-    :raises  AssertionError if no match in super classes for the method name
-    :return  method with possibly added (if the method doesn't have one)
+    :raises: AssertionError if no match in super classes for the method name
+    :return: method with possibly added (if the method doesn't have one)
      docstring from super class
     """
     # nop for now due to py3 compatibility

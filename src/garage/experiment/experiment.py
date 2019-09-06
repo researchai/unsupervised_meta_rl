@@ -54,17 +54,17 @@ class VariantDict(AttrDict):
 class VariantGenerator:
     """
     Usage:
+    ::
+        vg = VariantGenerator()
+        vg.add("param1", [1, 2, 3])
+        vg.add("param2", ['x', 'y'])
+        vg.variants() => # all combinations of [1,2,3] x ['x','y']
 
-    vg = VariantGenerator()
-    vg.add("param1", [1, 2, 3])
-    vg.add("param2", ['x', 'y'])
-    vg.variants() => # all combinations of [1,2,3] x ['x','y']
-
-    Supports noncyclic dependency among parameters:
-    vg = VariantGenerator()
-    vg.add("param1", [1, 2, 3])
-    vg.add("param2", lambda param1: [param1+1, param1+2])
-    vg.variants() => # ..
+        Supports noncyclic dependency among parameters:
+        vg = VariantGenerator()
+        vg.add("param1", [1, 2, 3])
+        vg.add("param2", lambda param1: [param1+1, param1+2])
+        vg.variants() => # ..
     """
 
     def __init__(self):

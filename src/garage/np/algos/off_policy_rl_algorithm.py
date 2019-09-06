@@ -107,6 +107,7 @@ class OffPolicyRLAlgorithm(RLAlgorithm):
 
         Returns:
             dict: Processed sample data, with keys
+
                 * undiscounted_returns (list[float])
                 * success_history (list[float])
                 * complete (list[bool])

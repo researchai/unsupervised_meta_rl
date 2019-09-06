@@ -12,10 +12,8 @@ from garage.sampler import RaySampler, SamplerWorker
 class RaySamplerTF(RaySampler):
     """Ray Sampler, for tensorflow algorithms.
 
-    Currently the same as garage.samplers.RaySampler
+    Currently the same as garage.sampler.RaySampler
 
-    Args:
-        - Same as garage.samplers.RaySampler
     """
 
     def __init__(self,
@@ -43,7 +41,7 @@ class RaySamplerTF(RaySampler):
 class SamplerWorkerTF(SamplerWorker):
     """Sampler Worker for tensorflow on policy algorithms.
 
-    - Same as garage.samplers.SamplerWorker, except it
+    Same as garage.sampler.SamplerWorker, except it
     initializes a tensorflow session, because each worker
     is in a separate process.
     """
