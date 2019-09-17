@@ -327,7 +327,7 @@ def plot(b_csvs, g_csvs, g_x, g_y, b_x, b_y, trials, seeds, plt_file, env_id,
         plt.plot(
             df_b[b_x],
             df_b[b_y],
-            label='baselines_trial%d_seed%d' % (trial + 1, seed))
+            label='garage_model_%d_seed%d' % (trial + 1, seed))
 
     plt.legend()
     plt.xlabel(x_label)

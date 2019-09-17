@@ -29,8 +29,9 @@ class VecEnvExecutor:
             if done:
                 obs[i] = self.envs[i].reset()
                 self.ts[i] = 0
-        return obs, rewards, dones, tensor_utils.stack_tensor_dict_list(
-            env_infos)
+        # return obs, rewards, dones, tensor_utils.stack_tensor_dict_list(
+        #   env_infos)
+        return obs, rewards, dones, {}
 
     def reset(self):
         """Reset all environments."""

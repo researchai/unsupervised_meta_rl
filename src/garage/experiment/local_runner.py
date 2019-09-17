@@ -150,7 +150,7 @@ class LocalRunner:
         if paths:
             params['paths'] = paths
         params['last_epoch'] = epoch
-        self._snapshotter.save_itr_params(epoch, params)
+        # self._snapshotter.save_itr_params(epoch, params)
 
         logger.log('Saved')
 
