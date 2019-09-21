@@ -104,7 +104,7 @@ class DDPG(OffPolicyRLAlgorithm):
         self.epoch_ys = []
         self.epoch_qs = []
 
-        self.target_policy = policy.clone('target_policy')
+        self.target_qf = qf.clone('target_qf')
 
         super(DDPG, self).__init__(
             env_spec=env_spec,
@@ -128,21 +128,22 @@ class DDPG(OffPolicyRLAlgorithm):
     def init_opt(self):
         with tf.name_scope(self.name, 'DDPG'):
             # Create target policy and qf network
-            self.target_policy_f_prob_online = tensor_utils.compile_function(
-                inputs=[self.target_policy.model.networks['default'].input],
-                outputs=self.target_policy.model.networks['default'].outputs)
-            self.target_qf_f_prob_online, _, _, _ = self.qf.build_net(
-                trainable=False, name='target_qf')
+            self.target_policy_f_prob_online, _, _ = self.policy.build_net(
+                trainable=False, name='target_policy')
+            self.target_qf_f_prob_online = tensor_utils.compile_function(
+                inputs=self.target_qf.model.networks['default'].inputs,
+                outputs=self.target_qf.model.networks['default'].outputs)
 
             # Set up target init and update function
             with tf.name_scope('setup_target'):
                 ops = tensor_utils.get_target_ops(
                     self.policy.get_global_vars(),
-                    self.target_policy.get_global_vars(), self.tau)
+                    self.policy.get_global_vars('target_policy'), self.tau)
                 policy_init_ops, policy_update_ops = ops
+
                 qf_init_ops, qf_update_ops = tensor_utils.get_target_ops(
                     self.qf.get_global_vars(),
-                    self.qf.get_global_vars('target_qf'), self.tau)
+                    self.target_qf.get_global_vars(), self.tau)
                 target_init_op = policy_init_ops + qf_init_ops
                 target_update_op = policy_update_ops + qf_update_ops
 

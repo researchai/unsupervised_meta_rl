@@ -155,6 +155,7 @@ class ContinuousMLPQFunctionWithModel(QFunction2):
             output_nonlinearity=self._output_nonlinearity,
             output_w_init=self._output_w_init,
             output_b_init=self._output_b_init,
+            input_include_goal=self._input_include_goal,
             layer_normalization=self._layer_normalization)
 
     def __getstate__(self):

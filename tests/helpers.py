@@ -271,11 +271,11 @@ def write_file(result_json, algo):
     result_file.write(json.dumps(res))
 
 
-def create_json(b_csvs, g_csvs, trails, seeds, b_x, b_y, g_x, g_y, factor_g,
+def create_json(b_csvs, g_csvs, trials, seeds, b_x, b_y, g_x, g_y, factor_g,
                 factor_b):
     """Convert garage and benchmark csv outputs to json format."""
     task_result = {}
-    for trail in range(trails):
+    for trail in range(trials):
         g_res, b_res = {}, {}
         trail_seed = 'trail_%d' % (trail + 1)
         task_result['seed'] = seeds[trail]
