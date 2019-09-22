@@ -20,6 +20,10 @@ class CategoricalConvPolicy(StochasticPolicy, LayersPowered, Serializable):
             conv_strides,
             conv_pads,
             hidden_sizes=[],
+            hidden_w_init=L.XavierUniformInitializer(),
+            hidden_b_init=tf.zeros_initializer(),
+            output_w_init=L.XavierUniformInitializer(),
+            output_b_init=tf.zeros_initializer(),
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.softmax,
             prob_network=None,
@@ -53,6 +57,10 @@ class CategoricalConvPolicy(StochasticPolicy, LayersPowered, Serializable):
                     conv_strides=conv_strides,
                     conv_pads=conv_pads,
                     hidden_sizes=hidden_sizes,
+                    hidden_w_init=hidden_w_init,
+                    hidden_b_init=hidden_b_init,
+                    output_w_init=output_w_init,
+                    output_b_init=output_b_init,
                     hidden_nonlinearity=hidden_nonlinearity,
                     output_nonlinearity=output_nonlinearity,
                     name='conv_prob_network',
@@ -64,7 +72,7 @@ class CategoricalConvPolicy(StochasticPolicy, LayersPowered, Serializable):
             self._l_prob = prob_network.output_layer
             self._l_obs = prob_network.input_layer
             self._f_prob = tensor_utils.compile_function(
-                [prob_network.input_layer.input_var], [out_prob])
+                [prob_network.input_layer.input_var], out_prob)
 
             self._dist = Categorical(env_spec.action_space.n)
 
@@ -77,11 +85,11 @@ class CategoricalConvPolicy(StochasticPolicy, LayersPowered, Serializable):
 
     @overrides
     def dist_info_sym(self, obs_var, state_info_vars=None, name=None):
-        with tf.name_scope(name, 'dist_info_sym', [obs_var]):
-            with tf.name_scope(self._prob_network_name, [obs_var]):
+        with tf.name_scope(name, 'dist_info_sym', values=[obs_var]):
+            with tf.name_scope(self._prob_network_name, values=[obs_var]):
                 prob = L.get_output(
                     self._l_prob, {self._l_obs: tf.cast(obs_var, tf.float32)})
-            return dict(prob)
+            return dict(prob=prob)
 
     @overrides
     def dist_info(self, obs, state_infos=None):
@@ -93,14 +101,14 @@ class CategoricalConvPolicy(StochasticPolicy, LayersPowered, Serializable):
     # the current policy
     @overrides
     def get_action(self, observation):
-        flat_obs = self.observation_space.flatten(observation)
-        prob = self._f_prob([flat_obs])[0]
+        # flat_obs = self.observation_space.flatten(observation)
+        prob = self._f_prob([observation])[0]
         action = self.action_space.weighted_sample(prob)
         return action, dict(prob=prob)
 
     def get_actions(self, observations):
-        flat_obs = self.observation_space.flatten_n(observations)
-        probs = self._f_prob(flat_obs)
+        # flat_obs = self.observation_space.flatten_n(observations)
+        probs = self._f_prob(observations)
         actions = list(map(self.action_space.weighted_sample, probs))
         return actions, dict(prob=probs)
 

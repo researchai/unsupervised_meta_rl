@@ -126,14 +126,14 @@ class ConvNetwork(LayersPowered, Serializable):
                 l_hid = l_in
             elif len(input_shape) == 3:
                 l_in = ly.InputLayer(
-                    shape=(None, np.prod(input_shape)),
+                    shape=(None, ) + input_shape,
                     input_var=input_var,
                     name='input')
                 l_hid = ly.reshape(
                     l_in, ([0], ) + input_shape, name='reshape_input')
             elif len(input_shape) == 2:
                 l_in = ly.InputLayer(
-                    shape=(None, np.prod(input_shape)),
+                    shape=(None, ) + input_shape,
                     input_var=input_var,
                     name='input')
                 input_shape = (1, ) + input_shape

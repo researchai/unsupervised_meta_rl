@@ -66,7 +66,7 @@ class CategoricalConvPolicyWithModel(StochasticPolicy2):
                  conv_filter_sizes,
                  conv_strides,
                  conv_pad,
-                 name='CategoricalConvPolicy',
+                 name='CategoricalConvPolicyWithModel',
                  hidden_sizes=[],
                  hidden_nonlinearity=tf.nn.relu,
                  hidden_w_init=tf.glorot_uniform_initializer(),
