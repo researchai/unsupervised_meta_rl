@@ -80,6 +80,10 @@ class CategoricalConvPolicy(StochasticPolicy, LayersPowered, Serializable):
             LayersPowered.__init__(self, [prob_network.output_layer])
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def vectorized(self):
         return True
 

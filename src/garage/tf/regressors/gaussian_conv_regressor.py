@@ -154,18 +154,18 @@ class GaussianConvRegressor(LayersPowered, Serializable, Parameterized):
             ys_var = tf.compat.v1.placeholder(
                 dtype=tf.float32, name='ys', shape=(None, output_dim))
             old_means_var = tf.compat.v1.placeholder(
-                dtype=tf.float32, name='ys', shape=(None, output_dim))
+                dtype=tf.float32, name='old_means_var', shape=(None, output_dim))
             old_log_stds_var = tf.compat.v1.placeholder(
                 dtype=tf.float32,
                 name='old_log_stds',
                 shape=(None, output_dim))
 
             x_mean_var = tf.Variable(
-                np.zeros((1, np.prod(input_shape)), dtype=np.float32),
+                np.zeros((1, ) + input_shape, dtype=np.float32),
                 name='x_mean',
             )
             x_std_var = tf.Variable(
-                np.ones((1, np.prod(input_shape)), dtype=np.float32),
+                np.ones((1, ) + input_shape, dtype=np.float32),
                 name='x_std',
             )
             y_mean_var = tf.Variable(

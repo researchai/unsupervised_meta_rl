@@ -7,7 +7,7 @@ import pytest
 
 from garage.envs import normalize
 from garage.tf.algos import PPO
-from garage.tf.baselines import GaussianMLPBaseline
+from garage.tf.baselines import GaussianConvBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import CategoricalConvPolicy
@@ -22,16 +22,24 @@ class TestPPOWithModel(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(normalize(gym.make('CubeCrash-v0')))
             policy = CategoricalConvPolicy(env_spec=env.spec,
-                                           conv_filters=(32, ),
-                                           conv_filter_sizes=(3, ),
-                                           conv_strides=(1, ),
-                                           conv_pads=('VALID', ),
-                                           hidden_sizes=(4, ))
+                                           conv_filters=(32, 64),
+                                           conv_filter_sizes=(8, 4),
+                                           conv_strides=(4, 2),
+                                           conv_pads=('VALID', 'VALID'),
+                                           hidden_sizes=(32, 32))
 
-            baseline = GaussianMLPBaseline(
+            baseline = GaussianConvBaseline(
                 env_spec=env.spec,
-                regressor_args=dict(hidden_sizes=(32, 32)),
+                regressor_args=dict(
+                    conv_filters=(32, 64),
+                    conv_filter_sizes=(8, 4),
+                    conv_strides=(4, 2),
+                    conv_pads=('VALID', 'VALID'),
+                    hidden_sizes=(32, 32),
+                    use_trust_region=True
+                )
             )
+
             algo = PPO(
                 env_spec=env.spec,
                 policy=policy,
@@ -50,7 +58,7 @@ class TestPPOWithModel(TfGraphTestCase):
                 center_adv=False,
             )
             runner.setup(algo, env)
-            last_avg_ret = runner.train(n_epochs=10, batch_size=2048)
+            last_avg_ret = runner.train(n_epochs=100, batch_size=2048)
             assert last_avg_ret > 80
 
             env.close()

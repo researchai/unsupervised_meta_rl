@@ -378,17 +378,21 @@ class ParamLayer(Layer):
             param, (num_units, ), name='param', trainable=trainable)
 
     def get_output_shape_for(self, input_shape):
-        return input_shape[:-1] + (self.num_units, )
+        return input_shape[0] + (self.num_units, )
 
     def get_output_for(self, input, **kwargs):
         with tf.name_scope(self.name, values=[input]):
-            ndim = input.get_shape().ndims
-            reshaped_param = tf.reshape(
-                self.param, (1, ) * (ndim - 1) + (self.num_units, ))
-            tile_arg = tf.concat(
-                axis=0, values=[tf.shape(input)[:ndim - 1], [1]])
-            tiled = tf.tile(reshaped_param, tile_arg)
-            return tiled
+            # ndim = input.get_shape().ndims
+            # reshaped_param = tf.reshape(
+            #     self.param, (1, ) + (self.num_units, ))
+            # tile_arg = tf.concat(
+            #     axis=0, values=[tf.shape(input)[:ndim - 1], [1]])
+            # tiled = tf.tile(reshaped_param, tile_arg)
+
+            batch_dim = tf.shape(input)[0]
+            broadcast_shape = tf.concat(axis=0, values=[[batch_dim], [self.num_units]])
+            p_broadcast = tf.broadcast_to(self.param, shape=broadcast_shape)
+            return p_broadcast
 
 
 class OpLayer(MergeLayer):
