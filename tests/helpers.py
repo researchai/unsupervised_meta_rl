@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+import seaborn as sns
+sns.set(style="darkgrid")
 
 from tests.quirks import KNOWN_GYM_RENDER_NOT_IMPLEMENTED
 
@@ -295,6 +297,45 @@ def create_json(b_csvs, g_csvs, trials, seeds, b_x, b_y, g_x, g_y, factor_g,
         task_result[trail_seed]['baselines'] = b_res
     return task_result
 
+
+def relplot(b_csvs, g_csvs, g_x, g_y, b_x, b_y, trials, seeds, plt_file, env_id,
+            x_label, y_label):
+    """
+    Plot benchmark from csv files of garage from multiple trials using Seaborn.
+
+    :param b_csvs: A list contains all csv files in the task.
+    :param g_csvs: A list contains all csv files in the task.
+    :param g_x: X column names of garage csv.
+    :param g_y: Y column names of garage csv.
+    :param b_x: X column names of baselines csv.
+    :param b_y: Y column names of baselines csv.
+    :param trials: Number of trials in the task.
+    :param seeds: A list contains all the seeds in the task.
+    :param plt_file: Path of the plot png file.
+    :param env_id: String contains the id of the environment.
+    :return:
+    """
+    assert len(b_csvs) == len(g_csvs)
+    df_g = [pd.read_csv(g) for g in g_csvs]
+    df_b = [pd.read_csv(b) for b in b_csvs]
+
+    df_gs = pd.concat(df_g, axis=0)
+    df_bs = pd.concat(df_b, axis=0)
+
+    plt.legend()
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(env_id)
+
+    sns.relplot(x=g_x, y=g_y, kind="line", data=df_gs)
+
+    plt.savefig(plt_file)
+
+    sns.relplot(x=b_x, y=b_y, kind="line", data=df_bs)
+
+    plt.savefig(plt_file.replace('.png', '_with_model.png'))
+
+    plt.close()
 
 def plot(b_csvs, g_csvs, g_x, g_y, b_x, b_y, trials, seeds, plt_file, env_id,
          x_label, y_label):

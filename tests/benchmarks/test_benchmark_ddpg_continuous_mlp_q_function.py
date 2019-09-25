@@ -42,6 +42,7 @@ from tests.fixtures import snapshot_config
 import tests.helpers as Rh
 from tests.wrappers import AutoStopEnv
 
+
 # Hyperparams for baselines and garage
 params = {
     'policy_lr': 1e-4,
@@ -58,7 +59,7 @@ params = {
     'sigma': 0.2,
 }
 
-num_of_trials = 3
+num_of_trials = 10
 
 class TestBenchmarkDDPG:
     '''Compare benchmarks between garage and baselines.'''
@@ -77,7 +78,7 @@ class TestBenchmarkDDPG:
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'ddpg', timestamp)
         result_json = {}
-        for task in mujoco1m['tasks']:
+        for task in [mujoco1m['tasks'][2], mujoco1m['tasks'][4]]:
             env_id = task['env_id']
             env = gym.make(env_id)
 
@@ -109,31 +110,44 @@ class TestBenchmarkDDPG:
 
             env.close()
 
-            Rh.plot(b_csvs=garage_models_csvs,
-                    g_csvs=garage_csvs,
-                    g_x='Epoch',
-                    g_y='AverageReturn',
-                    b_x='Epoch',
-                    b_y='AverageReturn',
-                    trials=num_of_trials,
-                    seeds=seeds,
-                    plt_file=plt_file,
-                    env_id=env_id,
-                    x_label='Iteration',
-                    y_label='AverageReturn')
+            Rh.relplot(b_csvs=garage_models_csvs,
+                       g_csvs=garage_csvs,
+                       g_x='Epoch',
+                       g_y='AverageReturn',
+                       b_x='Epoch',
+                       b_y='AverageReturn',
+                       trials=num_of_trials,
+                       seeds=seeds,
+                       plt_file=plt_file,
+                       env_id=env_id,
+                       x_label='Iteration',
+                       y_label='AverageReturn')
 
-            result_json[env_id] = Rh.create_json(b_csvs=garage_models_csvs,
-                                                 g_csvs=garage_csvs,
-                                                 seeds=seeds,
-                                                 trials=num_of_trials,
-                                                 g_x='Epoch',
-                                                 g_y='AverageReturn',
-                                                 b_x='Epoch',
-                                                 b_y='AverageReturn',
-                                                 factor_g=2048,
-                                                 factor_b=2048)
+            # Rh.plot(b_csvs=garage_models_csvs,
+            #         g_csvs=garage_csvs,
+            #         g_x='Epoch',
+            #         g_y='AverageReturn',
+            #         b_x='Epoch',
+            #         b_y='AverageReturn',
+            #         trials=num_of_trials,
+            #         seeds=seeds,
+            #         plt_file=plt_file,
+            #         env_id=env_id,
+            #         x_label='Iteration',
+            #         y_label='AverageReturn')
 
-        Rh.write_file(result_json, 'DDPG')
+            # result_json[env_id] = Rh.create_json(b_csvs=garage_models_csvs,
+            #                                      g_csvs=garage_csvs,
+            #                                      seeds=seeds,
+            #                                      trials=num_of_trials,
+            #                                      g_x='Epoch',
+            #                                      g_y='AverageReturn',
+            #                                      b_x='Epoch',
+            #                                      b_y='AverageReturn',
+            #                                      factor_g=2048,
+            #                                      factor_b=2048)
+
+        # Rh.write_file(result_json, 'DDPG')
 
 
 def run_garage(env, seed, log_dir):
