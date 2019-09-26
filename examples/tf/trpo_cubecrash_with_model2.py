@@ -11,7 +11,7 @@ Results:
 import gym
 from garage.envs import normalize
 from garage.experiment import run_experiment
-from garage.tf.baselines import GaussianConvBaseline
+from garage.tf.baselines import GaussianCNNBaselineWithModel
 from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
@@ -29,14 +29,16 @@ def run_task(snapshot_config, *_):
                                        conv_pads=('VALID', 'VALID'),
                                        hidden_sizes=(32, 32))
 
-        baseline = GaussianConvBaseline(env_spec=env.spec,
-                                        regressor_args=dict(
-                                            conv_filters=(32, 64),
-                                            conv_filter_sizes=(8, 4),
-                                            conv_strides=(4, 2),
-                                            conv_pads=('VALID', 'VALID'),
-                                            hidden_sizes=(32, 32),
-                                            use_trust_region=True))
+        baseline = GaussianCNNBaselineWithModel(
+            env_spec=env.spec,
+            regressor_args=dict(
+                num_filters=(32, 64),
+                filter_dims=(8, 4),
+                strides=(4, 2),
+                padding='VALID',
+                hidden_sizes=(32, 32),
+                use_trust_region=True)
+            )
 
         algo = TRPO(env_spec=env.spec,
                     policy=policy,
