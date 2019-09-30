@@ -17,16 +17,14 @@ import tensorflow as tf
 
 from garage.envs import normalize
 from garage.experiment import deterministic
-from garage.tf.algos import PPO
 from garage.np.baselines import LinearFeatureBaseline
+from garage.tf.algos import PPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.optimizers import FirstOrderOptimizer
 from garage.tf.policies import CategoricalGRUPolicy
-from tests.fixtures import snapshot_config
 from garage.tf.policies import CategoricalGRUPolicyWithModel
+from tests.fixtures import snapshot_config
 import tests.helpers as Rh
-from tests.wrappers import AutoStopEnv
 
 
 class TestBenchmarkPPOCategorical:
@@ -40,10 +38,12 @@ class TestBenchmarkPPOCategorical:
         :return:
         '''
         categorical_tasks = [
-            'LunarLander-v2', 'Assault-ramDeterministic-v4',
+            'LunarLander-v2',
+            'Assault-ramDeterministic-v4',
             'Breakout-ramDeterministic-v4',
             'ChopperCommand-ramDeterministic-v4',
-            'Tutankham-ramDeterministic-v4'
+            'Tutankham-ramDeterministic-v4',
+            'CartPole-v1',
         ]
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/ppo_categ/%s/' % timestamp
