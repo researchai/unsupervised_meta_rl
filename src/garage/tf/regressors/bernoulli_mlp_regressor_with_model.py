@@ -207,6 +207,33 @@ class BernoulliMLPRegressorWithModel(StochasticRegressor2):
         """
         return self._f_predict(xs)
 
+    def sample_predict(self, xs):
+        """Do a Bernoulli sampling given input xs.
+
+        Args:
+            xs (numpy.ndarray): Input data of shape (samples, input_dim)
+        Returns:
+            numpy.ndarray The stochastic sampled ys
+            of shape (samples, output_dim)
+
+        """
+        p = self._f_prob(xs)
+        return self._dist.sample(dict(p=p))
+
+    def predict_log_likelihood(self, xs, ys):
+        """Log likelihood of ys given input xs.
+
+        Args:
+            xs (numpy.ndarray): Input data of shape (samples, input_dim)
+            ys (numpy.ndarray): Output data of shape (samples, output_dim)
+        Returns:
+            numpy.ndarray The log likelihood of shape (samples, )
+
+        """
+        p = self._f_prob(xs)
+
+        return self._dist.log_likelihood(ys, dict(p=p))
+
     def log_likelihood_sym(self, x_var, y_var, name=None):
         """Symbolic graph of the log likelihood.
 

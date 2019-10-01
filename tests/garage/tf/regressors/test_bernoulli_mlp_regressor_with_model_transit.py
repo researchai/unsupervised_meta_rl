@@ -54,12 +54,16 @@ class TestBernoulliMLPRegressorWithModelTransit(TfGraphTestCase):
         pred2 = bmr2.predict(xs)
         assert np.allclose(pred1, pred2)
 
+        # Test predict_log_likelihood()
+        likelihood1 = bmr1.predict_log_likelihood(xs, ys)
+        likelihood2 = bmr2.predict_log_likelihood(xs, ys)
+
+        assert np.allclose(likelihood1, likelihood2)
+
         # Test log_likelihood_sym()
         new_xs_var2 = tf.compat.v1.placeholder(tf.float32, (n, ) + input_shape)
         new_ys_var2 = tf.compat.v1.placeholder(tf.float32,
                                                shape=(None, output_dim))
-
-        likelihood1 = bmr1.predict_log_likelihood(xs, ys)
 
         likelihood2_out = bmr2.log_likelihood_sym(new_xs_var2,
                                                   new_ys_var2,

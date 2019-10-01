@@ -75,8 +75,8 @@ class TestBernoulliMLPRegressorWithModel(TfGraphTestCase):
     ])
     # yapf: enable
     def test_fit_normalized(self, input_shape, output_dim):
-        bmr = BernoulliMLPRegressorWithModel(
-            input_shape=input_shape, output_dim=output_dim)
+        bmr = BernoulliMLPRegressorWithModel(input_shape=input_shape,
+                                             output_dim=output_dim)
 
         observations, returns = get_train_data(input_shape, output_dim)
 
@@ -104,10 +104,9 @@ class TestBernoulliMLPRegressorWithModel(TfGraphTestCase):
     ])
     # yapf: enable
     def test_fit_unnormalized(self, input_shape, output_dim):
-        bmr = BernoulliMLPRegressorWithModel(
-            input_shape=input_shape,
-            output_dim=output_dim,
-            normalize_inputs=False)
+        bmr = BernoulliMLPRegressorWithModel(input_shape=input_shape,
+                                             output_dim=output_dim,
+                                             normalize_inputs=False)
 
         observations, returns = get_train_data(input_shape, output_dim)
 
@@ -136,10 +135,9 @@ class TestBernoulliMLPRegressorWithModel(TfGraphTestCase):
     ])
     # yapf: enable
     def test_fit_with_no_trust_region(self, input_shape, output_dim):
-        bmr = BernoulliMLPRegressorWithModel(
-            input_shape=input_shape,
-            output_dim=output_dim,
-            use_trust_region=False)
+        bmr = BernoulliMLPRegressorWithModel(input_shape=input_shape,
+                                             output_dim=output_dim,
+                                             use_trust_region=False)
 
         observations, returns = get_train_data(input_shape, output_dim)
 
@@ -159,6 +157,35 @@ class TestBernoulliMLPRegressorWithModel(TfGraphTestCase):
         assert np.allclose(x_mean, x_mean_expected)
         assert np.allclose(x_std, x_std_expected)
 
+    def test_sample_predict(self):
+        n_sample = 100
+        input_dim = 50
+        output_dim = 1
+        bmr = BernoulliMLPRegressorWithModel(input_shape=(input_dim, ),
+                                             output_dim=output_dim)
+
+        xs = np.random.random((input_dim, ))
+        p = bmr._f_prob([xs])
+        ys = bmr.sample_predict([xs] * n_sample)
+        p_predict = np.count_nonzero(ys == 1) / n_sample
+
+        assert np.real_if_close(p, p_predict)
+
+    def test_predict_log_likelihood(self):
+        n_sample = 50
+        input_dim = 50
+        output_dim = 1
+        bmr = BernoulliMLPRegressorWithModel(input_shape=(input_dim, ),
+                                             output_dim=output_dim)
+
+        xs = np.random.random((n_sample, input_dim))
+        ys = np.random.randint(2, size=(n_sample, output_dim))
+        p = bmr._f_prob(xs)
+        ll = bmr.predict_log_likelihood(xs, ys)
+        ll_true = np.sum(np.log(p * ys + (1 - p) * (1 - ys)), axis=-1)
+
+        assert np.allclose(ll, ll_true)
+
     # yapf: disable
     @pytest.mark.parametrize('output_dim, input_shape', [
         (1, (1, 1)),
@@ -168,12 +195,13 @@ class TestBernoulliMLPRegressorWithModel(TfGraphTestCase):
     ])
     # yapf: enable
     def test_log_likelihood_sym(self, output_dim, input_shape):
-        bmr = BernoulliMLPRegressorWithModel(
-            input_shape=(input_shape[1], ), output_dim=output_dim)
+        bmr = BernoulliMLPRegressorWithModel(input_shape=(input_shape[1], ),
+                                             output_dim=output_dim)
 
         new_xs_var = tf.compat.v1.placeholder(tf.float32, input_shape)
-        new_ys_var = tf.compat.v1.placeholder(
-            dtype=tf.float32, name='ys', shape=(None, output_dim))
+        new_ys_var = tf.compat.v1.placeholder(dtype=tf.float32,
+                                              name='ys',
+                                              shape=(None, output_dim))
 
         data = np.full(input_shape, 0.5)
         one_hot_label = np.zeros((input_shape[0], output_dim))
@@ -184,11 +212,11 @@ class TestBernoulliMLPRegressorWithModel(TfGraphTestCase):
 
         outputs = bmr.log_likelihood_sym(new_xs_var, new_ys_var, name='ll_sym')
 
-        ll_from_sym = self.sess.run(
-            outputs, feed_dict={
-                new_xs_var: data,
-                new_ys_var: one_hot_label
-            })
+        ll_from_sym = self.sess.run(outputs,
+                                    feed_dict={
+                                        new_xs_var: data,
+                                        new_ys_var: one_hot_label
+                                    })
 
         assert np.allclose(ll, ll_from_sym, rtol=0, atol=1e-5)
 
