@@ -18,6 +18,7 @@ from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import FirstOrderOptimizer
 from garage.tf.policies import CategoricalConvPolicy
+from garage.tf.policies import CategoricalConvPolicyWithModel
 from tests.fixtures import snapshot_config
 import tests.helpers as Rh
 from tests.wrappers import AutoStopEnv
@@ -193,23 +194,22 @@ def run_garage_model(env, seed, log_dir):
     with LocalTFRunner(snapshot_config, sess=sess, max_cpus=12) as runner:
         env = TfEnv(normalize(env))
 
-        policy = CategoricalConvPolicy(env_spec=env.spec,
-                                       conv_filters=params['conv_filters'],
-                                       conv_filter_sizes=params['conv_filter_sizes'],
-                                       conv_strides=params['conv_strides'],
-                                       conv_pads=params['conv_pads'],
-                                       hidden_sizes=params['hidden_sizes'])
-
-        baseline = GaussianCNNBaselineWithModel(
+        policy = CategoricalConvPolicyWithModel(
             env_spec=env.spec,
-            regressor_args=dict(
-                num_filters=params['conv_filters'],
-                filter_dims=params['conv_filter_sizes'],
-                strides=params['conv_strides'],
-                padding=params['conv_pad'],
-                hidden_sizes=params['hidden_sizes'],
-                use_trust_region=params['use_trust_region'])
-            )
+            conv_filters=params['conv_filters'],
+            conv_filter_sizes=params['conv_filter_sizes'],
+            conv_strides=params['conv_strides'],
+            conv_pad=params['conv_pad'],
+            hidden_sizes=params['hidden_sizes'])
+
+        baseline = GaussianConvBaseline(env_spec=env.spec,
+                                        regressor_args=dict(
+                                            conv_filters=params['conv_filters'],
+                                            conv_filter_sizes=params['conv_filter_sizes'],
+                                            conv_strides=params['conv_strides'],
+                                            conv_pads=params['conv_pads'],
+                                            hidden_sizes=params['hidden_sizes'],
+                                            use_trust_region=params['use_trust_region']))
 
         algo = PPO(
             env_spec=env.spec,
