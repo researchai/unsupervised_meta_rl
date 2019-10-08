@@ -28,6 +28,8 @@ class OnPolicyVectorizedSampler(BatchSampler):
     def start_worker(self):
         """Start workers."""
         n_envs = self.n_envs
+        # hot fix for running Acrobot-v1
+        self.env.unwrapped.viewer = None
         envs = [pickle.loads(pickle.dumps(self.env)) for _ in range(n_envs)]
 
         # Deterministically set environment seeds based on the global seed.
