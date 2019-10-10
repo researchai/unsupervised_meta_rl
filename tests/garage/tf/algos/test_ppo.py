@@ -41,6 +41,7 @@ class TestPPO(TfGraphTestCase):
 
     # large marker removed to balance test jobs
     # @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ppo_pendulum(self):
         """Test PPO with Pendulum environment."""
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
@@ -57,6 +58,7 @@ class TestPPO(TfGraphTestCase):
 
     # large marker removed to balance test jobs
     # @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ppo_with_maximum_entropy(self):
         """Test PPO with maxium entropy method."""
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
@@ -77,6 +79,7 @@ class TestPPO(TfGraphTestCase):
 
     # large marker removed to balance test jobs
     # @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ppo_with_neg_log_likeli_entropy_estimation_and_max(self):
         """
         Test PPO with negative log likelihood entropy estimation and max
@@ -101,6 +104,7 @@ class TestPPO(TfGraphTestCase):
 
     # large marker removed to balance test jobs
     # @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ppo_with_neg_log_likeli_entropy_estimation_and_regularized(self):
         """
         Test PPO with negative log likelihood entropy estimation and
@@ -125,6 +129,7 @@ class TestPPO(TfGraphTestCase):
 
     # large marker removed to balance test jobs
     # @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ppo_with_regularized_entropy(self):
         """Test PPO with regularized entropy method."""
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:

@@ -20,6 +20,7 @@ class TestDDPG(TfGraphTestCase):
     """Tests for DDPG algorithm."""
 
     @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ddpg_double_pendulum(self):
         """Test DDPG with Pendulum environment."""
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
@@ -56,6 +57,7 @@ class TestDDPG(TfGraphTestCase):
             env.close()
 
     @pytest.mark.large
+    @pytest.mark.mujoco
     def test_ddpg_pendulum(self):
         """Test DDPG with Pendulum environment.
 
