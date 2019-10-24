@@ -4,7 +4,7 @@ import argparse
 import ast
 import base64
 import datetime
-import gc
+import enum
 import json
 import os
 import pathlib
@@ -18,7 +18,7 @@ import dowel
 from dowel import logger
 import psutil
 
-import garage.experiment
+from garage.experiment import deterministic, SnapshotConfig
 import garage.plotter
 import garage.tf.plotter
 
