@@ -1,8 +1,11 @@
+#! /usr/bin/env python
 """
 Example using VPG with ISSampler.
 
 Iterations alternate between live and importance sampled iterations.
 """
+import argparse
+
 import gym
 
 from garage.envs import normalize
@@ -13,6 +16,13 @@ from garage.tf.algos import VPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianMLPPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=40,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -37,7 +47,7 @@ def run_task(snapshot_config, *_):
                      env,
                      sampler_cls=ISSampler,
                      sampler_args=dict(n_backtrack=1))
-        runner.train(n_epochs=40, batch_size=4000)
+        runner.train(n_epochs=args.n_epochs, batch_size=4000)
 
 
 run_experiment(

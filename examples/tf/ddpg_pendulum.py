@@ -9,6 +9,8 @@ Results:
     AverageReturn: 250
     RiseTime: epoch 499
 """
+import argparse
+
 import gym
 import tensorflow as tf
 
@@ -20,6 +22,13 @@ from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import ContinuousMLPPolicy
 from garage.tf.q_functions import ContinuousMLPQFunction
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=500,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -58,7 +67,7 @@ def run_task(snapshot_config, *_):
 
         runner.setup(algo=ddpg, env=env)
 
-        runner.train(n_epochs=500, n_epoch_cycles=20, batch_size=100)
+        runner.train(n_epochs=args.n_epochs, n_epoch_cycles=20, batch_size=100)
 
 
 run_experiment(

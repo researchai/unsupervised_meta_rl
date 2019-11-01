@@ -8,6 +8,8 @@ Results:
     RiseTime: epoch 38 (itr 760),
               but regression is observed in the course of training.
 """
+import argparse
+
 from garage.experiment import run_experiment
 from garage.np.algos import CMAES
 from garage.np.baselines import LinearFeatureBaseline
@@ -15,6 +17,20 @@ from garage.sampler import OnPolicyVectorizedSampler
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import CategoricalMLPPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -38,7 +54,9 @@ def run_task(snapshot_config, *_):
 
         runner.setup(algo, env, sampler_cls=OnPolicyVectorizedSampler)
         # NOTE: make sure that n_epoch_cycles == n_samples !
-        runner.train(n_epochs=100, batch_size=1000, n_epoch_cycles=n_samples)
+        runner.train(n_epochs=args.n_epochs,
+                     batch_size=1000,
+                     n_epoch_cycles=n_samples)
 
 
 run_experiment(

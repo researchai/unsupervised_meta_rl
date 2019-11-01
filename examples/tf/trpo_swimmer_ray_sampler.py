@@ -6,6 +6,8 @@ Uses Ray sampler instead of on_policy vectorized
 sampler.
 Here it runs Swimmer-v2 environment with 40 iterations.
 """
+import argparse
+
 import gym
 
 from garage.experiment import run_experiment
@@ -17,6 +19,13 @@ from garage.tf.policies import GaussianMLPPolicy
 from garage.tf.samplers import RaySamplerTF
 
 seed = 100
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=40,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -39,7 +48,7 @@ def run_task(snapshot_config, *_):
                      env,
                      sampler_cls=RaySamplerTF,
                      sampler_args={'seed': seed})
-        runner.train(n_epochs=40, batch_size=4000)
+        runner.train(n_epochs=args.n_epochs, batch_size=4000)
 
 
 run_experiment(

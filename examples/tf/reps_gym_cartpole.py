@@ -9,6 +9,7 @@ Results:
     RiseTime: itr 10 +/- 5
 
 """
+import argparse
 
 import gym
 
@@ -18,6 +19,13 @@ from garage.tf.algos import REPS
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import CategoricalMLPPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -36,7 +44,7 @@ def run_task(snapshot_config, *_):
                     discount=0.99)
 
         runner.setup(algo, env)
-        runner.train(n_epochs=100, batch_size=4000, plot=False)
+        runner.train(n_epochs=args.n_epochs, batch_size=4000, plot=False)
 
 
 run_experiment(

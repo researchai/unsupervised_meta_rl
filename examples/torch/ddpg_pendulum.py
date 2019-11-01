@@ -6,6 +6,8 @@ Here it creates a gym environment InvertedDoublePendulum. And uses a DDPG with
 1M steps.
 
 """
+import argparse
+
 import gym
 import torch
 from torch.nn import functional as F  # NOQA
@@ -18,6 +20,13 @@ from garage.replay_buffer import SimpleReplayBuffer
 from garage.torch.algos import DDPG
 from garage.torch.policies import DeterministicMLPPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=500,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -55,7 +64,7 @@ def run_task(snapshot_config, *_):
 
     runner.setup(algo=ddpg, env=env)
 
-    runner.train(n_epochs=500, n_epoch_cycles=20, batch_size=100)
+    runner.train(n_epochs=args.n_epochs, n_epoch_cycles=20, batch_size=100)
 
 
 run_experiment(

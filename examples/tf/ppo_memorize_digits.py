@@ -4,6 +4,8 @@ This is an example to train a task with PPO algorithm.
 
 Here it runs MemorizeDigits-v0 environment with 1000 iterations.
 """
+import argparse
+
 import gym
 
 from garage.envs import normalize
@@ -13,6 +15,13 @@ from garage.tf.baselines import GaussianCNNBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import CategoricalCNNPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=1000,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -44,7 +53,7 @@ def run_task(snapshot_config, *_):
                    flatten_input=False)
 
         runner.setup(algo, env)
-        runner.train(n_epochs=1000, batch_size=2048)
+        runner.train(n_epochs=args.n_epochs, batch_size=2048)
 
 
 run_experiment(

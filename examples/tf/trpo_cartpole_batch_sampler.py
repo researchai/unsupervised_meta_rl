@@ -8,6 +8,8 @@ Results:
     AverageReturn: 100
     RiseTime: itr 13
 """
+import argparse
+
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
@@ -19,6 +21,13 @@ from garage.tf.samplers import BatchSampler
 batch_size = 4000
 max_path_length = 500
 n_envs = batch_size // max_path_length
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -45,7 +54,7 @@ def run_task(snapshot_config, *_):
                      sampler_cls=BatchSampler,
                      sampler_args={'n_envs': n_envs})
 
-        runner.train(n_epochs=100, batch_size=4000, plot=False)
+        runner.train(n_epochs=args.n_epochs, batch_size=4000, plot=False)
 
 
 run_experiment(run_task, snapshot_mode='last', seed=1)

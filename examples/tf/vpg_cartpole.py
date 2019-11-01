@@ -8,12 +8,21 @@ Results:
     AverageReturn: 100
     RiseTime: itr 16
 """
+import argparse
+
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import VPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import CategoricalMLPPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -36,7 +45,7 @@ def run_task(snapshot_config, *_):
             optimizer_args=dict(tf_optimizer_args=dict(learning_rate=0.01, )))
 
         runner.setup(algo, env)
-        runner.train(n_epochs=100, batch_size=10000)
+        runner.train(n_epochs=args.n_epochs, batch_size=10000)
 
 
 run_experiment(

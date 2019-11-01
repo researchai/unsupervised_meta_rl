@@ -4,6 +4,8 @@ An example to train a task with DQN algorithm.
 
 Here it creates a gym environment CartPole, and trains a DQN with 50k steps.
 """
+import argparse
+
 import gym
 
 from garage.experiment import run_experiment
@@ -15,11 +17,18 @@ from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import DiscreteQfDerivedPolicy
 from garage.tf.q_functions import DiscreteMLPQFunction
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=10,
+                    help='Number of epochs to run')
+args = parser.parse_args()
+
 
 def run_task(snapshot_config, *_):
     """Run task."""
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        n_epochs = 10
+        n_epochs = args.n_epochs
         n_epoch_cycles = 10
         sampler_batch_size = 500
         num_timesteps = n_epochs * n_epoch_cycles * sampler_batch_size

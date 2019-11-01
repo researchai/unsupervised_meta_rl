@@ -10,6 +10,8 @@ Results:
     RiseTime: itr 40
 
 """
+import argparse
+
 import gym
 import tensorflow as tf
 
@@ -20,6 +22,13 @@ from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianMLPPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=120,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -65,7 +74,7 @@ def run_task(snapshot_config, *_):
 
         runner.setup(algo, env)
 
-        runner.train(n_epochs=120, batch_size=2048, plot=False)
+        runner.train(n_epochs=args.n_epochs, batch_size=2048, plot=False)
 
 
 run_experiment(run_task, snapshot_mode='last', seed=1)

@@ -11,15 +11,23 @@ Results:
     RiseTime: itr 13
 
 """
+import argparse
+
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
-import garage.tf.core.layers as L
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
 from garage.tf.policies import CategoricalLSTMPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -30,8 +38,6 @@ def run_task(snapshot_config, *_):
         policy = CategoricalLSTMPolicy(
             name='policy',
             env_spec=env.spec,
-            lstm_layer_cls=L.TfBasicLSTMLayer,
-            # gru_layer_cls=L.GRULayer,
         )
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -47,7 +53,7 @@ def run_task(snapshot_config, *_):
                         base_eps=1e-5)))
 
         runner.setup(algo, env)
-        runner.train(n_epochs=100, batch_size=4000)
+        runner.train(n_epochs=args.n_epochs, batch_size=4000)
 
 
 run_experiment(

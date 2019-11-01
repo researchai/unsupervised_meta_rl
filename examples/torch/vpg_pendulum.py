@@ -7,6 +7,8 @@ Here it runs InvertedDoublePendulum-v2 environment with 100 iterations.
 Results:
     AverageReturn: 450 - 650
 """
+import argparse
+
 import torch
 
 from garage.experiment import LocalRunner, run_experiment
@@ -14,6 +16,13 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.envs import TfEnv
 from garage.torch.algos import VPG
 from garage.torch.policies import GaussianMLPPolicy
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=100,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -39,7 +48,7 @@ def run_task(snapshot_config, *_):
                policy_lr=1e-2)
 
     runner.setup(algo, env)
-    runner.train(n_epochs=100, batch_size=10000)
+    runner.train(n_epochs=args.n_epochs, batch_size=10000)
 
 
 run_experiment(

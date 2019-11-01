@@ -8,6 +8,8 @@ Results (may vary by seed):
     AverageSuccessRate: 0.9
     RiseTime: epoch 8
 """
+import argparse
+
 import gym
 import tensorflow as tf
 
@@ -19,6 +21,13 @@ from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import ContinuousMLPPolicy
 from garage.tf.q_functions import ContinuousMLPQFunction
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_epochs',
+                    type=int,
+                    default=50,
+                    help='Number of epochs to run')
+args = parser.parse_args()
 
 
 def run_task(snapshot_config, *_):
@@ -72,7 +81,7 @@ def run_task(snapshot_config, *_):
 
         runner.setup(algo=ddpg, env=env)
 
-        runner.train(n_epochs=50, batch_size=100, n_epoch_cycles=20)
+        runner.train(n_epochs=args.n_epochs, batch_size=100, n_epoch_cycles=20)
 
 
 run_experiment(run_task, snapshot_mode='last', seed=1)
