@@ -41,12 +41,13 @@ def test_examples(filepath):
             os.path.join(examples_root_dir, 'step_dm_control_env.py')
     }:
         args.extend(['--n_max_steps', '1'])
-    else:
-        args.extend(['--n_epochs', '1'])
+    env = os.environ.copy()
+    env['GARAGE_EXAMPLE_TEST_N_EPOCHS'] = '1'
     assert subprocess.run(args,
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
-                          check=True).returncode == 0
+                          check=True,
+                          env=env).returncode == 0
 
 
 class TestSimPolicy:
