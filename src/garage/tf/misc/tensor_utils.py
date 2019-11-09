@@ -198,6 +198,25 @@ def flatten_tensor_variables(ts):
                      name='flatten_tensor_variables')
 
 
+def pad_tensor_to_max_len(tensor, max_len):
+    padded_tensor = tf.map_fn(
+        lambda x: tf.pad(tf.ones([x], tf.int32), [[0, max_len - x]], 'CONSTANT'),
+                tensor, name="masks")
+    return tf.reshape(padded_tensor, [-1, max_len])
+
+def new_ragged_dense_tensor(tensor, lengths, max_path_length):
+    tensor_ragged = tf.RaggedTensor.from_row_lengths(tensor, lengths)
+    tensor_ragged_tensor = tensor_ragged.to_tensor()
+    tensor_ragged_tensor_dim = tf.shape(tensor_ragged_tensor)[1]
+    tensor_ragged_padded_tensor = tf.pad(
+      tensor_ragged_tensor,
+      [[0, 0], [0, max_path_length - tensor_ragged_tensor_dim], [0, 0]],
+      'CONSTANT'
+    )
+    output_dim = tensor_ragged_padded_tensor.get_shape().as_list()[2]
+    return tf.reshape(tensor_ragged_padded_tensor,
+                            [-1, max_path_length, output_dim])
+
 def new_tensor(name, ndim, dtype):
     """Create a new tensor.
 
@@ -229,6 +248,66 @@ def new_tensor_like(name, arr_like):
     return new_tensor(name,
                       arr_like.get_shape().ndims, arr_like.dtype.base_dtype)
 
+
+def compute_advantages_ragged(discount,
+                              gae_lambda,
+                              max_len,
+                              baseline_var,
+                              reward_var,
+                              lengths,
+                              masks,
+                              name=None):
+    with tf.name_scope(name, 'compute_advantages'):
+        baselines_rag = tf.RaggedTensor.from_row_lengths(baseline_var, lengths)
+        rewards_rag = tf.RaggedTensor.from_row_lengths(reward_var, lengths)
+        gamma_lambda = tf.constant(float(discount) * float(gae_lambda),
+                                   dtype=tf.float32,
+                                   shape=[max_len, 1, 1])
+        # [T, 1, 1]
+        # [[1], [γλ], [γλ]^2, .... [γλ]^n]
+        advantage_filter = tf.compat.v1.cumprod(gamma_lambda, exclusive=True)
+
+        # baselines: [B, T]
+        # rewards:   [B, T]
+
+        # This part calculates the delta, for calculating advantage
+        # Equation: Δ = r(t) + γ * V(t+1) - V(t)
+        # In code : Δ = r(b, t) + γ * B(b, t+1) - B(t)
+
+        # 1. Prepare B to calculate Δ 
+        # [B, 1]
+        pad = tf.zeros_like(baselines_rag[:, :1])
+        # # [b[0, 1], b[0, 2], ... , b[0, n-1], 0]
+        # # [b[1, 1], b[1, 2], ... , b[1, n-1], 0]
+        # # [b[2, 1], b[2, 2], ... , b[2, n-1], 0]
+        # # ....
+        # # [b[n, 1], b[n, 2], ... , b[n, n-1], 0]
+        # # [B, T]
+        baseline_shift = tf.concat([baselines_rag[:, 1:], pad], 1)
+
+        # # [B, T]
+        deltas = rewards_rag + discount * baseline_shift - baselines_rag
+        # # Convolve deltas with the discount filter to get advantages
+        # # concat it with (T-1) 0s at the end so all the T elements will undergo
+        # # convolution
+
+        deltas_tensor = deltas.to_tensor()
+        # # [B, 2T-1, 1]
+        deltas_pad = tf.expand_dims(
+            tf.pad(deltas.to_tensor(), [[0, 0], [0, max_len * 2 - 1 - tf.shape(deltas_tensor)[1]]], 'CONSTANT'), axis=2)
+        # deltas_pad = tf.expand_dims(tf.concat(
+        #     [deltas, tf.zeros_like(deltas[:, :-1])], axis=1),
+        #                             axis=2)
+
+        # # [B, T, 1]
+        adv = tf.nn.conv1d(deltas_pad,
+                           advantage_filter,
+                           stride=1,
+                           padding='VALID')
+        # # [B * T]
+        advantages = tf.reshape(adv, [-1, max_len])
+        advantages = tf.boolean_mask(advantages, masks)
+    return advantages
 
 def compute_advantages(discount,
                        gae_lambda,
@@ -340,6 +419,26 @@ def positive_advs(advs, eps, name=None):
         m = tf.reduce_min(advs)
         advs = (advs - m) + eps
     return advs
+
+
+def discounted_returns_lengths(discount, max_len, rewards, lengths, masks, name=None):
+    with tf.name_scope(name, 'discounted_returns',
+                       [discount, max_len, rewards]):
+        rewards_rag = tf.RaggedTensor.from_row_lengths(rewards, lengths)
+        gamma = tf.constant(float(discount),
+                            dtype=tf.float32,
+                            shape=[max_len, 1, 1])
+        return_filter = tf.math.cumprod(gamma, exclusive=True)
+        rewards_tensor = rewards_rag.to_tensor()
+        rewards_pad = tf.expand_dims(
+            tf.pad(rewards_tensor, [[0, 0], [0, max_len * 2 - 1 - tf.shape(rewards_tensor)[1]]], 'CONSTANT'), axis=2)
+        adv = tf.nn.conv1d(rewards_pad,
+                           return_filter,
+                           stride=1,
+                           padding='VALID')
+        returns = tf.reshape(adv, [-1, max_len])
+        returns = tf.boolean_mask(returns, masks)
+    return returns
 
 
 def discounted_returns(discount, max_len, rewards, name=None):

@@ -2,13 +2,13 @@
 import akro
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
-from garage.tf.distributions import RecurrentCategorical
 from garage.tf.models import LSTMModel
-from garage.tf.policies import StochasticPolicy
+from garage.tf.policies import StochasticPolicy2
 
 
-class CategoricalLSTMPolicy(StochasticPolicy):
+class CategoricalLSTMPolicy2(StochasticPolicy2):
     """CategoricalLSTMPolicy
 
     A policy that contains a LSTM to make prediction based on
@@ -122,11 +122,9 @@ class CategoricalLSTMPolicy(StochasticPolicy):
         self._prev_actions = None
         self._prev_hiddens = None
         self._prev_cells = None
-        self._initialize()
+        self._dists = {}
 
-    def _initialize(self):
-        obs_ph = tf.compat.v1.placeholder(tf.float32,
-                                          shape=(None, None, self._input_dim))
+    def build(self, state_input):
         step_input_var = tf.compat.v1.placeholder(shape=(None,
                                                          self._input_dim),
                                                   name='step_input',
@@ -142,8 +140,8 @@ class CategoricalLSTMPolicy(StochasticPolicy):
 
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
-            self.model.build(obs_ph, step_input_var, step_hidden_var,
-                             step_cell_var)
+            outputs, _, _, _, _, _ = self.model.build(
+                state_input, step_input_var, step_hidden_var, step_cell_var)
 
         self._f_step_prob = tf.compat.v1.get_default_session().make_callable(
             [
@@ -157,26 +155,6 @@ class CategoricalLSTMPolicy(StochasticPolicy):
     def vectorized(self):
         """Vectorized or not."""
         return True
-
-    def dist_info_sym(self, obs_var, state_info_vars, name=None):
-        """Symbolic graph of the distribution."""
-        if self._state_include_action:
-            prev_action_var = state_info_vars['prev_action']
-            prev_action_var = tf.cast(prev_action_var, tf.float32)
-            all_input_var = tf.concat(axis=2,
-                                      values=[obs_var, prev_action_var])
-        else:
-            all_input_var = obs_var
-
-        with tf.compat.v1.variable_scope(self._variable_scope):
-            outputs, _, _, _, _, _ = self.model.build(
-                all_input_var,
-                self.model.networks['default'].step_input,
-                self.model.networks['default'].step_hidden_input,
-                self.model.networks['default'].step_cell_input,
-                name=name)
-
-        return dict(prob=outputs)
 
     def reset(self, dones=None):
         """Reset the policy."""
@@ -210,6 +188,7 @@ class CategoricalLSTMPolicy(StochasticPolicy):
             all_input = flat_obs
         probs, hidden_vec, cell_vec = self._f_step_prob(
             all_input, self._prev_hiddens, self._prev_cells)
+
         actions = list(map(self.action_space.weighted_sample, probs))
         prev_actions = self._prev_actions
         self._prev_actions = self.action_space.flatten_n(actions)
@@ -226,10 +205,9 @@ class CategoricalLSTMPolicy(StochasticPolicy):
         """Recurrent or not."""
         return True
 
-    @property
-    def distribution(self):
-        """Policy distribution."""
-        return RecurrentCategorical(self._action_dim)
+    def distribution(self, name=None):
+        name = name if name else 'default'
+        return self.model.networks[name].dist
 
     @property
     def state_info_specs(self):
@@ -241,13 +219,32 @@ class CategoricalLSTMPolicy(StochasticPolicy):
         else:
             return []
 
+    def clone(self, name):
+        """Return a clone of the policy.
+
+        It only copies the configuration of the primitive,
+        not the parameters.
+
+        Args:
+            name (str): Name of the newly created policy. It has to be
+                different from source policy if cloned under the same
+                computational graph.
+
+        Returns:
+            garage.tf.policies.Policy: Newly cloned policy.
+
+        """
+        return self.__class__(name=name,
+                              env_spec=self._env_spec,
+                              hidden_dim=self._hidden_dim)
+
     def __getstate__(self):
         """Object.__getstate__."""
         new_dict = super().__getstate__()
         del new_dict['_f_step_prob']
+        del new_dict['_dists']
         return new_dict
 
     def __setstate__(self, state):
         """Object.__setstate__."""
         super().__setstate__(state)
-        self._initialize()

@@ -292,9 +292,14 @@ class Model(BaseModel):
         """Set model parameters."""
         variables = self._get_variables()
         for name, var in variables.items():
-            if name in parameters:
-                var.load(parameters[name])
-            else:
+            found = False
+            param_name = name[name.find(self.name):]
+            for k, v in parameters.items():
+                if param_name in k:
+                    var.load(parameters[k])
+                    found = True
+                    continue
+            if not found:
                 warnings.warn('No value provided for variable {}'.format(name))
 
     @property

@@ -32,12 +32,14 @@ def run_task(snapshot_config, *_):
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-        algo = TRPO2(env_spec=env.spec,
-                     policy=policy,
-                     baseline=baseline,
-                     max_path_length=100,
-                     discount=0.99,
-                     max_kl_step=0.01)
+        algo = TRPO2(
+            env_spec=env.spec,
+            policy=policy,
+            baseline=baseline,
+            max_path_length=100,
+            discount=0.99,
+            max_kl_step=0.01,
+        )
 
         runner.setup(algo, env)
         runner.train(n_epochs=100, batch_size=4000)

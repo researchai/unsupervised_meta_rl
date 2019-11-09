@@ -1,10 +1,8 @@
 """CategoricalMLPPolicy with model."""
 import akro
 import tensorflow as tf
-import tensorflow_probability as tfp
 
-from garage.misc.overrides import overrides
-from garage.tf.models import MLPModel
+from garage.tf.models import CategoricalMLPModel
 from garage.tf.policies.base import StochasticPolicy2
 
 
@@ -71,31 +69,30 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
         self._output_b_init = output_b_init
         self._layer_normalization = layer_normalization
 
-        self.model = MLPModel(output_dim=self.action_dim,
-                              hidden_sizes=hidden_sizes,
-                              hidden_nonlinearity=hidden_nonlinearity,
-                              hidden_w_init=hidden_w_init,
-                              hidden_b_init=hidden_b_init,
-                              output_nonlinearity=output_nonlinearity,
-                              output_w_init=output_w_init,
-                              output_b_init=output_b_init,
-                              layer_normalization=layer_normalization,
-                              name='MLPModel')
+        self.model = CategoricalMLPModel(
+              output_dim=self.action_dim,
+              hidden_sizes=hidden_sizes,
+              hidden_nonlinearity=hidden_nonlinearity,
+              hidden_w_init=hidden_w_init,
+              hidden_b_init=hidden_b_init,
+              output_nonlinearity=output_nonlinearity,
+              output_w_init=output_w_init,
+              output_b_init=output_b_init,
+              layer_normalization=layer_normalization,
+              name='CategoricalMLPModel'
+        )
 
-        self._initialize()
-
-    def _initialize(self):
-        state_input = tf.compat.v1.placeholder(tf.float32,
-                                               shape=(None, self.obs_dim))
-
+    def build(self, state_input, name=None):
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
-            prob = self.model.build(state_input)
+            prob, _ = self.model.build(state_input, name=name)
 
-        self._dist = tfp.distributions.OneHotCategorical(prob)
+            self._f_prob = tf.compat.v1.get_default_session().make_callable(
+                prob, feed_list=[state_input])
 
-        self._f_prob = tf.compat.v1.get_default_session().make_callable(
-            prob, feed_list=self.model.networks['default'].inputs)
+    @property
+    def distribution(self):
+        return self.model.networks['default'].dist
 
     @property
     def vectorized(self):
@@ -107,7 +104,6 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
         """
         return True
 
-    @overrides
     def dist_info(self, obs, state_infos=None):
         """Distribution info.
 
@@ -121,7 +117,6 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
         """
         return self._f_prob(obs)
 
-    @overrides
     def get_action(self, observation):
         """Return a single action.
 
@@ -133,8 +128,7 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
             dict(numpy.ndarray): Distribution parameters.
 
         """
-        flat_obs = self.observation_space.flatten(observation)
-        prob = self._f_prob([flat_obs])[0]
+        prob = self._f_prob([observation])[0]
         action = self.action_space.weighted_sample(prob)
         return action, dict(prob=prob)
 
@@ -149,8 +143,7 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
             dict(numpy.ndarray): Distribution parameters.
 
         """
-        flat_obs = self.observation_space.flatten_n(observations)
-        probs = self._f_prob(flat_obs)
+        probs = self._f_prob(observations)
         actions = list(map(self.action_space.weighted_sample, probs))
         return actions, dict(prob=probs)
 
@@ -166,16 +159,6 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
             var for var in trainable
             if 'hidden' in var.name and 'kernel' in var.name
         ]
-
-    @property
-    def distribution(self):
-        """Policy distribution.
-
-        Returns:
-            tfp.Distribution: Policy distribution.
-
-        """
-        return self._dist
 
     def clone(self, name):
         """Return a clone of the policy.
@@ -212,7 +195,6 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
         """
         new_dict = super().__getstate__()
         del new_dict['_f_prob']
-        del new_dict['_dist']
         return new_dict
 
     def __setstate__(self, state):
@@ -223,4 +205,3 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
 
         """
         super().__setstate__(state)
-        self._initialize()

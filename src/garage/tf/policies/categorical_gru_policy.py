@@ -189,7 +189,6 @@ class CategoricalGRUPolicy(StochasticPolicy):
         prev_actions = self._prev_actions
         self._prev_actions = self.action_space.flatten_n(actions)
         self._prev_hiddens = hidden_vec
-
         agent_info = dict(prob=probs)
         if self._state_include_action:
             agent_info['prev_action'] = np.copy(prev_actions)

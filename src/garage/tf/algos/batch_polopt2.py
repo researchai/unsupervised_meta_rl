@@ -133,21 +133,19 @@ class BatchPolopt2(RLAlgorithm):
 
         Returns:
             dict: Processed sample data, with key
-                * observations: (numpy.ndarray)
-                * actions: (numpy.ndarray)
-                * rewards: (numpy.ndarray)
-                * baselines: (numpy.ndarray)
-                * returns: (numpy.ndarray)
-                * valids: (numpy.ndarray)
-                * agent_infos: (dict)
-                * env_infos: (dict)
-                * paths: (list[dict])
+                * observations  : (numpy.ndarray), shape [B * (T), *obs_dims]
+                * actions       : (numpy.ndarray), shape [B * (T), *act_dims]
+                * rewards       : (numpy.ndarray), shape [B * (T), ]
+                * baselines     : (numpy.ndarray), shape [B * (T), ]
+                * returns       : (numpy.ndarray), shape [B * (T), ]
+                * agent_infos   : (dict), see OnPolicyVectorizedSampler.obtain_samples()
+                * env_infos     : (dict), see OnPolicyVectorizedSampler.obtain_samples()
+                * paths         : (list[dict]) The original path with observation or
+                    action flattened
                 * average_return: (numpy.float64)
+                where B = batch size, (T) = variable-length of each trajectory
 
         """
-        baselines = []
-        returns = []
-
         max_path_length = self.max_path_length
 
         if self.flatten_input:
@@ -159,6 +157,7 @@ class BatchPolopt2(RLAlgorithm):
                         self.env_spec.action_space.flatten_n(  # noqa: E126
                             path['actions'])),
                     rewards=path['rewards'],
+                    agent_infos=path['agent_infos'],
                     env_infos=path['env_infos']) for path in paths
             ]
         else:
@@ -169,6 +168,7 @@ class BatchPolopt2(RLAlgorithm):
                         self.env_spec.action_space.flatten_n(  # noqa: E126
                             path['actions'])),
                     rewards=path['rewards'],
+                    agent_infos=path['agent_infos'],
                     env_infos=path['env_infos']) for path in paths
             ]
 
@@ -179,38 +179,22 @@ class BatchPolopt2(RLAlgorithm):
                 self.baseline.predict(path) for path in paths
             ]
 
+        returns = []
         for idx, path in enumerate(paths):
-            path_baselines = np.append(all_path_baselines[idx], 0)
-            deltas = (path['rewards'] + self.discount * path_baselines[1:] -
-                      path_baselines[:-1])
-            path['advantages'] = special.discount_cumsum(
-                deltas, self.discount * self.gae_lambda)
-            path['deltas'] = deltas
-
-        for idx, path in enumerate(paths):
-            # baselines
-            path['baselines'] = all_path_baselines[idx]
-            baselines.append(path['baselines'])
-
-            # returns
             path['returns'] = special.discount_cumsum(path['rewards'],
                                                       self.discount)
             returns.append(path['returns'])
 
-        # make all paths the same length
-        obs = [path['observations'] for path in paths]
-        obs = tensor_utils.pad_tensor_n(obs, max_path_length)
+        obs = np.concatenate([path['observations'] for path in paths])
+        actions = np.concatenate([path['actions'] for path in paths])
+        rewards = np.concatenate([path['rewards'] for path in paths])
+        returns = np.concatenate(returns)
+        baselines = np.concatenate(all_path_baselines)
 
-        actions = [path['actions'] for path in paths]
-        actions = tensor_utils.pad_tensor_n(actions, max_path_length)
-
-        rewards = [path['rewards'] for path in paths]
-        rewards = tensor_utils.pad_tensor_n(rewards, max_path_length)
-
-        returns = [path['returns'] for path in paths]
-        returns = tensor_utils.pad_tensor_n(returns, max_path_length)
-
-        baselines = tensor_utils.pad_tensor_n(baselines, max_path_length)
+        agent_infos_path = [path['agent_infos'] for path in paths]
+        agent_infos = dict()
+        for key in self.policy.state_info_keys:
+            agent_infos[key] = np.concatenate([infos[key] for infos in agent_infos_path]) 
 
         env_infos = [path['env_infos'] for path in paths]
         env_infos = tensor_utils.stack_tensor_dict_list([
@@ -218,7 +202,7 @@ class BatchPolopt2(RLAlgorithm):
         ])
 
         valids = [np.ones_like(path['returns']) for path in paths]
-        valids = tensor_utils.pad_tensor_n(valids, max_path_length)
+        lengths = [v.sum() for v in valids]
 
         average_discounted_return = (np.mean(
             [path['returns'][0] for path in paths]))
@@ -226,20 +210,14 @@ class BatchPolopt2(RLAlgorithm):
         undiscounted_returns = [sum(path['rewards']) for path in paths]
         self.episode_reward_mean.extend(undiscounted_returns)
 
-        valid_obs = tensor_utils.flatten_batch(obs)
-        valid_obs = tensor_utils.filter_valids(valid_obs, valids)
-
-        ent = np.sum(tf.get_default_session().run(
-            self.policy.distribution.entropy(),
-            feed_dict={self.policy.model.inputs: valid_obs})) / np.sum(valids)
-
         samples_data = dict(
             observations=obs,
             actions=actions,
             rewards=rewards,
             baselines=baselines,
             returns=returns,
-            valids=valids,
+            lengths=lengths,
+            agent_infos=agent_infos,
             env_infos=env_infos,
             paths=paths,
             average_return=np.mean(undiscounted_returns),
@@ -251,8 +229,6 @@ class BatchPolopt2(RLAlgorithm):
         tabular.record('Extras/EpisodeRewardMean',
                        np.mean(self.episode_reward_mean))
         tabular.record('NumTrajs', len(paths))
-        tabular.record('Entropy', ent)
-        tabular.record('Perplexity', np.exp(ent))
         tabular.record('StdReturn', np.std(undiscounted_returns))
         tabular.record('MaxReturn', np.max(undiscounted_returns))
         tabular.record('MinReturn', np.min(undiscounted_returns))

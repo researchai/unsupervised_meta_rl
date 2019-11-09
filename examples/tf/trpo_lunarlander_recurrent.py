@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
-"""
-This is an example to train a task with TRPO algorithm.
+"""An example to train a task with TRPO algorithm."""
+import gym
 
-It uses an LSTM-based recurrent policy. To use a GRU-based recurrent
-policy, swap the commented lines. Here it runs CartPole-v1 environment
-with 100 iterations.
-
-Results:
-    AverageReturn: 100
-    RiseTime: itr 13
-
-"""
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
@@ -18,18 +9,15 @@ from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
-from garage.tf.policies import CategoricalLSTMPolicy
+from garage.tf.policies import GaussianLSTMPolicy
 
 
 def run_task(snapshot_config, *_):
     """Run task."""
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        env = TfEnv(env_name='CartPole-v1')
+        env = TfEnv(gym.make('LunarLanderContinuous-v2'))
 
-        policy = CategoricalLSTMPolicy(
-            name='policy',
-            env_spec=env.spec
-        )
+        policy = GaussianLSTMPolicy(env_spec=env.spec)
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -44,7 +32,7 @@ def run_task(snapshot_config, *_):
                         base_eps=1e-5)))
 
         runner.setup(algo, env)
-        runner.train(n_epochs=100, batch_size=4000)
+        runner.train(n_epochs=40, batch_size=4000)
 
 
 run_experiment(

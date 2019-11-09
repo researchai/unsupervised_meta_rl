@@ -298,6 +298,8 @@ class ConjugateGradientOptimizer(Serializable):
             inputs = tuple(inputs)
             if extra_inputs is None:
                 extra_inputs = tuple()
+            else:
+                extra_inputs = tuple(extra_inputs)
 
             if self._subsample_factor < 1:
                 if subsample_grouped_inputs is None:
@@ -330,6 +332,7 @@ class ConjugateGradientOptimizer(Serializable):
             logger.log('gradient computed')
 
             logger.log('computing descent direction')
+
             hx = self._hvp_approach.build_eval(subsample_inputs + extra_inputs)
             descent_direction = krylov.cg(hx, flat_g, cg_iters=self._cg_iters)
 
