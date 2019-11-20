@@ -11,5 +11,5 @@ from garage.torch.modules.tanh_gaussian_mlp_module_2 import TanhGaussianMLPTwoHe
 __all__ = [
     'MLPModule', 'MultiHeadedMLPModule', 'GaussianMLPModule',
     'GaussianMLPIndependentStdModule', 'GaussianMLPTwoHeadedModule',
-    "TanhGaussianMLPTwoHeadedModule", "TanhGaussianMLPTwoHeadedModule2",
+    'TanhGaussianMLPTwoHeadedModule', 'TanhGaussianMLPTwoHeadedModule2',
 ]

@@ -88,6 +88,110 @@ def rollout(env,
     )
 
 
+def rollout_pearl(env,
+                  agent,
+                  *,
+                  max_path_length=np.inf,
+                  animated=False,
+                  speedup=1,
+                  deterministic=False,
+                  accum_context=True):
+    """Sample a single rollout of the agent in the environment.
+
+    Args:
+        agent(Policy): Agent used to select actions.
+        env(gym.Env): Environment to perform actions in.
+        max_path_length(int): If the rollout reaches this many timesteps, it is
+            terminated.
+        animated(bool): If true, render the environment after each step.
+        speedup(float): Factor by which to decrease the wait time between
+            rendered steps. Only relevant, if animated == true.
+        deterministic (bool): If true, use the mean action returned by the
+            stochastic policy instead of sampling from the returned action
+            distribution.
+
+    Returns:
+        dict[str, np.ndarray or dict]: Dictionary, with keys:
+            * observations(np.array): Non-flattened array of observations.
+                There should be one more of these than actions. Note that
+                observations[i] (for i < len(observations) - 1) was used by the
+                agent to choose actions[i]. Should have shape (T + 1, S^*) (the
+                unflattened state space of the current environment).
+            * actions(np.array): Non-flattened array of actions. Should have
+                shape (T, S^*) (the unflattened action space of the current
+                environment).
+            * rewards(np.array): Array of rewards of shape (T,) (1D array of
+                length timesteps).
+            * agent_infos(Dict[str, np.array]): Dictionary of stacked,
+                non-flattened `agent_info` arrays.
+            * env_infos(Dict[str, np.array]): Dictionary of stacked,
+                non-flattened `env_info` arrays.
+            * dones(np.array): Array of termination signals.
+
+    """
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    dones = []
+    o = env.reset()
+    next_o = None
+    agent.reset()
+    path_length = 0
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        if deterministic and 'mean' in agent_infos:
+            a = agent_info['mean']
+        next_o, r, d, env_info = env.step(a)
+        if accum_context:
+            agent.update_context([o, a, r, next_o, d, env_info])
+
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        dones.append(d)
+        path_length += 1
+        if d:
+            break
+        o = next_o
+        if animated:
+            env.render()
+            timestep = 0.05
+            time.sleep(timestep / speedup)
+
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
+    # LWM
+    return dict(
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+        env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+        dones=np.array(dones),
+    )
+
+
 def truncate_paths(paths, max_samples):
     """Truncate the paths so that the total number of samples is max_samples.
 

@@ -1,7 +1,7 @@
 import gym
 
 
-class TaskIdWrapper(gym.Wrapper):
+class TaskIdWrapper2(gym.Wrapper):
     @property
     def _hidden_env(self):
         env = self.env

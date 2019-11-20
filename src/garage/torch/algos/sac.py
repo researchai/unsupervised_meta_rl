@@ -95,7 +95,7 @@ class SAC(OffPolicyRLAlgorithm):
 
         self.episode_rewards = deque(maxlen=30)
         self.success_history = []
-    
+
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
 
@@ -108,7 +108,6 @@ class SAC(OffPolicyRLAlgorithm):
             float: The average return in last epoch cycle.
 
         """
-        last_return = None
 
         for _ in runner.step_epochs():
             if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
@@ -157,7 +156,7 @@ class SAC(OffPolicyRLAlgorithm):
 
     def actor_objective(self, obs, log_pi, new_actions):
         alpha = self.log_alpha.detach().exp()
-        min_q_new_actions = torch.min(self.qf1(torch.Tensor(obs), torch.Tensor(new_actions)), 
+        min_q_new_actions = torch.min(self.qf1(torch.Tensor(obs), torch.Tensor(new_actions)),
                             self.qf2(torch.Tensor(obs), torch.Tensor(new_actions)))
         policy_objective = ((alpha * log_pi) - min_q_new_actions.flatten()).mean()
         return policy_objective
@@ -186,7 +185,7 @@ class SAC(OffPolicyRLAlgorithm):
             self.target_qf2(torch.Tensor(next_obs), new_next_actions)
         ).flatten() - (alpha * new_log_pi)
         with torch.no_grad():
-            q_target = torch.Tensor(rewards) + (1. - torch.Tensor(terminals)) * self.discount * target_q_values
+            q_target = self.reward_scale * torch.Tensor(rewards) + (1. - torch.Tensor(terminals)) * self.discount * target_q_values
         qf1_loss = F.mse_loss(q1_pred.flatten(), q_target)
         qf2_loss = F.mse_loss(q2_pred.flatten(), q_target)
 
@@ -219,7 +218,7 @@ class SAC(OffPolicyRLAlgorithm):
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
         self.qf1_optimizer.step()
-        
+
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
         self.qf2_optimizer.step()
@@ -251,4 +250,4 @@ class SAC(OffPolicyRLAlgorithm):
         tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
         tabular.record('local/average_return', np.mean(self.episode_rewards))
 
-        
+

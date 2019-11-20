@@ -1,5 +1,6 @@
 """MLP Module."""
 
+import torch
 from torch import nn
 from torch.nn import functional as F
 
@@ -55,6 +56,12 @@ class MLPModule(MultiHeadedMLPModule):
                          hidden_nonlinearity, hidden_w_init, hidden_b_init,
                          output_nonlinearity, output_w_init, output_b_init,
                          layer_normalization)
+
+        self._input_dim = input_dim
+        self._output_dim = output_dim
+        self._hidden_sizes = hidden_sizes
+        self._hidden_nonlinearity = hidden_nonlinearity
+        self._output_nonlinearity = output_nonlinearity
 
     # pylint: disable=arguments-differ
     def forward(self, input_value):

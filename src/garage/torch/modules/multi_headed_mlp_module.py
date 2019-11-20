@@ -59,6 +59,7 @@ class MultiHeadedMLPModule(nn.Module):
         super().__init__()
 
         self._layers = nn.ModuleList()
+        self._hidden_nonlinearity = hidden_nonlinearity
 
         output_dims = self._check_parameter_for_output_layer(
             'output_dims', output_dims, n_heads)
@@ -142,6 +143,7 @@ class MultiHeadedMLPModule(nn.Module):
             List[torch.Tensor]: Output values
 
         """
+
         x = input_val
         for layer in self._layers:
             x = layer(x)

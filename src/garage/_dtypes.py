@@ -6,6 +6,7 @@ import numpy as np
 
 from garage.misc import tensor_utils
 
+
 class TrajectoryBatch(
         collections.namedtuple('TrajectoryBatch', [
             'env_spec',
@@ -462,24 +463,28 @@ class TimeStep(
                 terminal, env_info, agent_info):  # noqa: D102
 
         # observation
-        # if not env_spec.observation_space.contains(observation):
-        #     import ipdb; ipdb.set_trace()
-        #     raise ValueError(
-        #         'observation must conform to observation_space {}, but got '
-        #         'data with shape {} instead.'.format(
-        #             env_spec.observation_space, observation))
+        # ML1 returns observation that is out of bound.
+        # Disable temporarily.
+        _disable_checks = True
 
-        # if not env_spec.observation_space.contains(next_observation):
-        #     raise ValueError(
-        #         'next_observation must conform to observation_space {},'
-        #         ' but got data with shape {} instead.'.format(
-        #             env_spec.observation_space, next_observation))
+        if not _disable_checks:
+            if not env_spec.observation_space.contains(observation):
+                raise ValueError(
+                    'observation must conform to observation_space {}, but got '
+                    'data with shape {} instead.'.format(
+                        env_spec.observation_space, observation))
 
-        # # action
-        # if not env_spec.action_space.contains(action):
-        #     raise ValueError(
-        #         'action must conform to action_space {}, but got data with '
-        #         'shape {} instead.'.format(env_spec.action_space, action))
+            if not env_spec.observation_space.contains(next_observation):
+                raise ValueError(
+                    'next_observation must conform to observation_space {},'
+                    ' but got data with shape {} instead.'.format(
+                        env_spec.observation_space, next_observation))
+
+            # action
+            if not env_spec.action_space.contains(action):
+                raise ValueError(
+                    'action must conform to action_space {}, but got data with '
+                    'shape {} instead.'.format(env_spec.action_space, action))
 
         if not isinstance(agent_info, dict):
             raise ValueError('agent_info must be type {}, but got type {} '
@@ -489,11 +494,11 @@ class TimeStep(
             raise ValueError('env_info must be type {}, but got type {} '
                              'instead.'.format(dict, type(env_info)))
 
-        # # rewards
-        # if not isinstance(reward, float):
-        #     import ipdb; ipdb.set_trace()
-        #     raise ValueError('reward must be type {}, but got type {} '
-        #                      'instead.'.format(float, type(reward)))
+        if not _disable_checks:
+            # rewards
+            if not isinstance(reward, float):
+                raise ValueError('reward must be type {}, but got type {} '
+                                'instead.'.format(float, type(reward)))
 
         if not isinstance(terminal, bool):
             raise ValueError(

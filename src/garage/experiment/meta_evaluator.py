@@ -45,7 +45,7 @@ class MetaEvaluator:
                  task_name_map={}):
         self._test_task_sampler = test_task_sampler
         if n_test_tasks is None:
-            n_test_tasks = test_task_sampler.n_tasks
+            n_test_tasks = 10 * test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
         self._n_exploration_traj = n_exploration_traj
         self._max_path_length = max_path_length

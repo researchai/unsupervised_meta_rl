@@ -3,9 +3,9 @@ import collections
 import errno
 import os
 import pathlib
-import pickle
 import re
 
+import cloudpickle
 import joblib
 
 SnapshotConfig = collections.namedtuple(
@@ -98,7 +98,7 @@ class Snapshotter:
                                          'itr_%d.pkl' % itr)
             file_name_last = os.path.join(self._snapshot_dir, 'params.pkl')
             with open(file_name_last, 'wb') as file:
-                pickle.dump(params, file)
+                cloudpickle.dump(params, file)
         elif self._snapshot_mode == 'none':
             pass
         else:
@@ -107,7 +107,7 @@ class Snapshotter:
 
         if file_name:
             with open(file_name, 'wb') as file:
-                pickle.dump(params, file)
+                cloudpickle.dump(params, file)
 
     def load(self, load_dir, itr='last'):
         # pylint: disable=no-self-use
@@ -142,7 +142,7 @@ class Snapshotter:
                 if not files:
                     raise FileNotFoundError(errno.ENOENT,
                                             os.strerror(errno.ENOENT),
-                                            '*.pkl file in '+ load_dir)
+                                            '*.pkl file in ' + load_dir)
                 files.sort()
                 load_from_file = files[0] if itr == 'first' else files[-1]
                 load_from_file = os.path.join(load_dir, load_from_file)

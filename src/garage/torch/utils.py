@@ -1,7 +1,11 @@
+# pylint: disable=global-statement
 """Utility functions for PyTorch."""
-import os
 import numpy as np
 import torch
+
+device = None
+_gpu_id = 0
+_use_gpu = False
 
 
 def np_to_torch(array_dict):
@@ -79,39 +83,72 @@ def update_module_params(module, new_params):  # noqa: D202
         else:
             update(module, name, new_param)
 
-_use_gpu = False
-device = None
-_gpu_id = 0
 
 def set_gpu_mode(mode, gpu_id=0):
     """Set GPU mode and device ID.
+
     Args:
         mode (bool): Whether or not to use GPU.
         gpu_id (int): GPU ID.
+
     """
-    global _use_gpu
     global device
     global _gpu_id
+    global _use_gpu
     _gpu_id = gpu_id
     _use_gpu = mode
-    device = torch.device(('cuda:'+ str(_gpu_id)) if _use_gpu else 'cpu')
-    # if _use_gpu:
-    #     os.environ['CUDA_VISIBLE_DEVICES'] = str(_gpu_id)
+    device = torch.device(('cuda:' + str(gpu_id)) if _use_gpu else 'cpu')
 
 
 def from_numpy(*args, **kwargs):
+    """Convert NumPy array to Torch tensor on specified device.
+
+    Args:
+        *args (numpy.ndarray): NumPy array.
+
+    Returns:
+        torch.Tensor: Converted Torch tensor.
+
+    """
     return torch.from_numpy(*args, **kwargs).float().to(device)
 
 
 def to_numpy(tensor):
+    """Convert Torch tensor to NumPy array.
+
+    Args:
+        tensor (torch.Tensor): Torch tensor.
+
+    Returns:
+        numpy.ndarray: Converted NumPy array.
+
+    """
     return tensor.to('cpu').detach().numpy()
 
 
 def zeros(*sizes, **kwargs):
+    """Create a Torch tensor of zeros on specified device.
+
+    Args:
+        *sizes: Size of desired tensor.
+
+    Returns:
+        torch.Tensor: Torch tensor of zeros.
+
+    """
     return torch.zeros(*sizes, **kwargs).to(device)
 
 
 def ones(*sizes, **kwargs):
+    """Create a Torch tensor of ones on specified device.
+
+    Args:
+        *sizes: Size of desired tensor.
+
+    Returns:
+        torch.Tensor: Torch tensor of ones.
+
+    """
     return torch.ones(*sizes, **kwargs).to(device)
 
 

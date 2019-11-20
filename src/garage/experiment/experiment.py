@@ -124,6 +124,7 @@ def run_experiment(method_call=None,
         try:
             if env is None:
                 env = dict()
+
             subprocess.run(command,
                            shell=True,
                            env=dict(os.environ, **env),
@@ -131,7 +132,6 @@ def run_experiment(method_call=None,
         except Exception as e:
             print(e)
             raise
-
 
 _find_unsafe = re.compile(r'[a-zA-Z0-9_^@%+=:,./-]').search
 
