@@ -13,5 +13,5 @@ __all__ = [
     'EnvSpec',
     'GridWorldEnv',
     'normalize',
-    'PointEnv',
+    'PointEnv'
 ]
