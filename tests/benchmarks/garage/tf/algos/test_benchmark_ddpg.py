@@ -11,6 +11,8 @@ import os
 import os.path as osp
 import random
 
+from torch.nn import functional as F  # NOQA
+
 from baselines import logger as baselines_logger
 from baselines.bench import benchmarks
 from baselines.common.misc_util import set_global_seeds
@@ -36,6 +38,13 @@ from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import ContinuousMLPPolicy
 from garage.tf.q_functions import ContinuousMLPQFunction
+
+# from garage.envs.base import GarageEnv
+# from garage.torch.algos import DDPG as DDPG_torch
+# from garage.experiment import LocalRunner_torch
+# from garage.torch.policies import DeterministicMLPPolicy_torch
+# from garage.torch.q_functions import ContinuousMLPQFunction_torch
+
 from tests.fixtures import snapshot_config
 import tests.helpers as Rh
 from tests.wrappers import AutoStopEnv
@@ -46,7 +55,7 @@ params = {
     'qf_lr': 1e-3,
     'policy_hidden_sizes': [64, 64],
     'qf_hidden_sizes': [64, 64],
-    'n_epochs': 500,
+    'n_epochs': 200,
     'n_epoch_cycles': 20,
     'n_rollout_steps': 100,
     'n_train_steps': 50,
@@ -76,6 +85,9 @@ class TestBenchmarkDDPG:
         result_json = {}
         for task in mujoco1m['tasks']:
             env_id = task['env_id']
+            env_ids = ["Walker2d-v2", "HalfCheetah-v2"]
+            if (env_id not in env_ids):
+                continue
             env = gym.make(env_id)
             baseline_env = AutoStopEnv(
                 env_name=env_id, max_path_length=params['n_rollout_steps'])
@@ -157,6 +169,68 @@ class TestBenchmarkDDPG:
         Rh.write_file(result_json, 'DDPG')
 
 
+# def run_garage_torch(env, seed, log_dir):
+#     '''
+#     Create garage model and training.
+#     Replace the ddpg with the algorithm you want to run.
+#     :param env: Environment of the task.
+#     :param seed: Random seed for the trial.
+#     :param log_dir: Log dir path.
+#     :return:
+#     '''
+#     deterministic.set_seed(seed)
+
+#     with LocalRunner_torch(snapshot_config) as runner:
+#         env = GarageEnv(normalize(env))
+#         # Set up params for ddpg
+#         action_noise = OUStrategy(env.spec, sigma=params['sigma'])
+
+#         policy = DeterministicMLPPolicy_torch(
+#             env_spec=env.spec,
+#             hidden_sizes=params['policy_hidden_sizes'],
+#             hidden_nonlinearity=F.relu,
+#             output_nonlinearity=torch.tanh)
+
+#         qf = ContinuousMLPQFunction_torch(env_spec=env.spec,
+#                                     hidden_sizes=params['qf_hidden_sizes'],
+#                                     hidden_nonlinearity=F.relu)
+
+#         replay_buffer = SimpleReplayBuffer(
+#             env_spec=env.spec,
+#             size_in_transitions=params['replay_buffer_size'],
+#             time_horizon=params['n_rollout_steps'])
+#         policy_optimizer = (torch.optim.Adagrad, {'lr': 1e-4, 'lr_decay': 0.99})
+
+#         ddpg_torch = DDPG_torch(env_spec=env.spec,
+#                     policy=policy,
+#                     qf=qf,
+#                     replay_buffer=replay_buffer,
+#                     policy_lr=params['policy_lr'],
+#                     qf_lr=params['qf_lr'],
+#                     target_update_tau=params['tau'],
+#                     n_train_steps=params['n_train_steps'],
+#                     discount=params['discount'],
+#                     min_buffer_size=int(1e4),
+#                     exploration_strategy=action_noise,
+#                     policy_optimizer=policy_optimizer,
+#                     qf_optimizer=torch.optim.Adam,)
+
+#         # Set up logger since we are not using run_experiment
+#         tabular_log_file = osp.join(log_dir, 'progress_torch.csv')
+#         tensorboard_log_dir = osp.join(log_dir)
+#         dowel_logger.add_output(dowel.StdOutput())
+#         dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
+#         dowel_logger.add_output(dowel.TensorBoardOutput(tensorboard_log_dir))
+
+#         runner.setup(ddpg_torch, env)
+#         runner.train(n_epochs=params['n_epochs'],
+#                      n_epoch_cycles=params['n_epoch_cycles'],
+#                      batch_size=params['n_rollout_steps'])
+
+#         dowel_logger.remove_all()
+
+#         return tabular_log_file
+
 def run_garage(env, seed, log_dir):
     '''
     Create garage model and training.
@@ -200,7 +274,8 @@ def run_garage(env, seed, log_dir):
                     min_buffer_size=int(1e4),
                     exploration_strategy=action_noise,
                     policy_optimizer=tf.train.AdamOptimizer,
-                    qf_optimizer=tf.train.AdamOptimizer)
+                    qf_optimizer=tf.train.AdamOptimizer,
+                    smooth_return=False)
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
@@ -217,7 +292,6 @@ def run_garage(env, seed, log_dir):
         dowel_logger.remove_all()
 
         return tabular_log_file
-
 
 def run_baselines(env, seed, log_dir):
     '''

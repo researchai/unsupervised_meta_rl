@@ -151,6 +151,7 @@ class DDPG(OffPolicyRLAlgorithm):
         ])
 
         last_average_return = np.mean(self._episode_rewards)
+        tabular.record('replay_buffer_size', self.replay_buffer.n_transitions_stored)
         for _ in range(self.n_train_steps):
             if (self.replay_buffer.n_transitions_stored >=
                     self.min_buffer_size):
@@ -170,6 +171,7 @@ class DDPG(OffPolicyRLAlgorithm):
             if self._evaluate:
                 tabular.record('Epoch', epoch)
                 tabular.record('AverageReturn', np.mean(self._episode_rewards))
+                tabular.record('episode_rewards_size', len(self._episode_rewards))
                 tabular.record('StdReturn', np.std(self._episode_rewards))
                 tabular.record('Policy/AveragePolicyLoss',
                                np.mean(self._episode_policy_losses))
