@@ -53,8 +53,8 @@ from tests.wrappers import AutoStopEnv
 params = {
     'policy_lr': 1e-4,
     'qf_lr': 1e-3,
-    'policy_hidden_sizes': [64, 64],
-    'qf_hidden_sizes': [64, 64],
+    'policy_hidden_sizes': [400, 300],
+    'qf_hidden_sizes': [400, 300],
     'n_epochs': 200,
     'n_epoch_cycles': 20,
     'n_rollout_steps': 100,
