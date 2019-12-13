@@ -7,6 +7,7 @@ import time
 from dowel import logger, tabular
 import psutil
 
+from garage import TimeStep
 from garage.experiment.deterministic import get_seed, set_seed
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
@@ -260,8 +261,10 @@ class LocalRunner:
                 agent_update=self._algo.policy.get_param_values())
             paths = paths.to_trajectory_list()
 
-        self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
-
+        if isinstance(paths[0], TimeStep):
+            self._stats.total_env_steps += len(paths)
+        else:
+            self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
         return paths
 
     def save(self, epoch):
