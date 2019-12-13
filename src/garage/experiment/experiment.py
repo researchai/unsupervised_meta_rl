@@ -328,10 +328,12 @@ class ExperimentTemplate:
             name = self.name
             if name is None:
                 name = self.function.__name__
-            log_dir = ('{data}/local/{prefix}/{name}'.format(
+                self.name = self.function.__name__
+            log_dir = ('{data}/local/{prefix}/{name}/{time}'.format(
                 data=osp.join(os.getcwd(), 'data'),
                 prefix=self.prefix,
-                name=name))
+                name=name,
+                time=timestamp))
         log_dir = _make_sequential_log_dir(log_dir)
 
         tabular_log_file = os.path.join(log_dir, 'progress.csv')
@@ -342,7 +344,7 @@ class ExperimentTemplate:
 
         logger.add_output(dowel.TextOutput(text_log_file))
         logger.add_output(dowel.CsvOutput(tabular_log_file))
-        logger.add_output(dowel.TensorBoardOutput(log_dir))
+        logger.add_output(dowel.TensorBoardOutput(log_dir, x_axis='TotalEnvSteps'))
         logger.add_output(dowel.StdOutput())
 
         logger.push_prefix('[%s] ' % self.name)
