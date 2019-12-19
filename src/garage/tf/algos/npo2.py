@@ -21,8 +21,9 @@ from garage.tf.misc.tensor_utils import positive_advs
 from garage.tf.optimizers import LbfgsOptimizer
 
 
-class NPO(BatchPolopt):
+class NPO2(BatchPolopt):
     """Natural Policy Gradient Optimization.
+
     Args:
         env_spec (garage.envs.EnvSpec): Environment specification.
         policy (garage.tf.policies.base.Policy): Policy.
@@ -68,6 +69,7 @@ class NPO(BatchPolopt):
             dimension. If True, for example, an observation with shape (2, 4)
             will be flattened to 8.
         name (str): The name of the algorithm.
+
     Note:
         sane defaults for entropy configuration:
             - entropy_method='max', center_adv=False, stop_gradient=True
@@ -78,6 +80,7 @@ class NPO(BatchPolopt):
               variance of the distribution.)
             - entropy_method='regularized', stop_gradient=False,
               use_neg_logli_entropy=False
+
     """
 
     def __init__(self,
@@ -160,13 +163,14 @@ class NPO(BatchPolopt):
 
     def optimize_policy(self, itr, samples_data):
         """Optimize policy.
+
         Args:
             itr (int): Iteration number.
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
+
         """
         policy_opt_input_values = self._policy_opt_input_values(samples_data)
-        # Train policy network
         logger.log('Computing loss before')
         loss_before = self._optimizer.loss(policy_opt_input_values)
         logger.log('Computing KL before')
@@ -187,13 +191,15 @@ class NPO(BatchPolopt):
         pol_ent = self._f_policy_entropy(*policy_opt_input_values)
         tabular.record('{}/Entropy'.format(self.policy.name), np.mean(pol_ent))
 
-        self._fit_baseline(samples_data)
+        # self._fit_baseline(samples_data)
 
     def _build_inputs(self):
         """Build input variables.
+
         Returns:
             namedtuple: Collection of variables to compute policy loss.
             namedtuple: Collection of variables to do policy optimization.
+
         """
         observation_space = self.policy.observation_space
         action_space = self.policy.action_space
@@ -218,6 +224,9 @@ class NPO(BatchPolopt):
             baseline_var = new_tensor(name='baseline',
                                       ndim=2,
                                       dtype=tf.float32)
+            adv_var = new_tensor(name='adv',
+                                 ndim=2,
+                                 dtype=tf.float32)
 
             policy_state_info_vars = {
                 k: tf.compat.v1.placeholder(tf.float32,
@@ -289,6 +298,7 @@ class NPO(BatchPolopt):
             action_var=action_var,
             reward_var=reward_var,
             baseline_var=baseline_var,
+            adv_var=adv_var,
             valid_var=valid_var,
             policy_state_info_vars=policy_state_info_vars,
             policy_old_dist_info_vars=policy_old_dist_info_vars,
@@ -301,6 +311,7 @@ class NPO(BatchPolopt):
             action_var=action_var,
             reward_var=reward_var,
             baseline_var=baseline_var,
+            adv_var=adv_var,
             valid_var=valid_var,
             policy_state_info_vars_list=policy_state_info_vars_list,
             policy_old_dist_info_vars_list=policy_old_dist_info_vars_list,
@@ -311,11 +322,14 @@ class NPO(BatchPolopt):
     # pylint: disable=too-many-branches, too-many-statements
     def _build_policy_loss(self, i):
         """Build policy loss and other output tensors.
+
         Args:
             i (namedtuple): Collection of variables to compute policy loss.
+
         Returns:
             tf.Tensor: Policy loss.
             tf.Tensor: Mean policy KL divergence.
+
         """
         pol_dist = self.policy.distribution
         policy_entropy = self._build_entropy_term(i)
@@ -327,34 +341,34 @@ class NPO(BatchPolopt):
                                           policy_entropy)
 
         with tf.name_scope('policy_loss'):
-            adv = compute_advantages(self.discount,
-                                     self.gae_lambda,
-                                     self.max_path_length,
-                                     i.baseline_var,
-                                     rewards,
-                                     name='adv')
+            adv = i.adv_var
+            # adv = compute_advantages(self.discount,
+            #                          self.gae_lambda,
+            #                          self.max_path_length,
+            #                          i.baseline_var,
+            #                          rewards,
+            #                          name='adv')
+            # adv_flat = flatten_batch(adv, name='adv_flat')
+            # adv_valid = filter_valids(adv_flat,
+            #                           i.flat.valid_var,
+            #                           name='adv_valid')
 
-            adv_flat = flatten_batch(adv, name='adv_flat')
-            adv_valid = filter_valids(adv_flat,
-                                      i.flat.valid_var,
-                                      name='adv_valid')
-
-            if self.policy.recurrent:
-                adv = tf.reshape(adv, [-1, self.max_path_length])
+            # if self.policy.recurrent:
+            #     adv = tf.reshape(adv, [-1, self.max_path_length])
 
             # Optionally normalize advantages
-            eps = tf.constant(1e-8, dtype=tf.float32)
-            if self.center_adv:
-                if self.policy.recurrent:
-                    adv = center_advs(adv, axes=[0], eps=eps)
-                else:
-                    adv_valid = center_advs(adv_valid, axes=[0], eps=eps)
+            # eps = tf.constant(1e-8, dtype=tf.float32)
+            # if self.center_adv:
+            #     if self.policy.recurrent:
+            #         adv = center_advs(adv, axes=[0], eps=eps)
+            #     else:
+            #         adv_valid = center_advs(adv_valid, axes=[0], eps=eps)
 
-            if self.positive_adv:
-                if self.policy.recurrent:
-                    adv = positive_advs(adv, eps)
-                else:
-                    adv_valid = positive_advs(adv_valid, eps)
+            # if self.positive_adv:
+            #     if self.policy.recurrent:
+            #         adv = positive_advs(adv, eps)
+            #     else:
+            #         adv_valid = positive_advs(adv_valid, eps)
 
             if self.policy.recurrent:
                 policy_dist_info = self.policy.dist_info_sym(
@@ -459,6 +473,11 @@ class NPO(BatchPolopt):
                                                  pol_mean_kl,
                                                  log_name='f_policy_kl')
 
+            self._f_adv = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                                 adv,
+                                                 log_name='f_policy_adv')
+
             self._f_rewards = compile_function(flatten_inputs(
                 self._policy_opt_inputs),
                                                rewards,
@@ -475,10 +494,13 @@ class NPO(BatchPolopt):
 
     def _build_entropy_term(self, i):
         """Build policy entropy tensor.
+
         Args:
             i (namedtuple): Collection of variables to compute policy loss.
+
         Returns:
             tf.Tensor: Policy entropy.
+
         """
         with tf.name_scope('policy_entropy'):
             if self.policy.recurrent:
@@ -551,9 +573,11 @@ class NPO(BatchPolopt):
 
     def _fit_baseline(self, samples_data):
         """Update baselines from samples.
+
         Args:
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
+
         """
         policy_opt_input_values = self._policy_opt_input_values(samples_data)
 
@@ -594,11 +618,14 @@ class NPO(BatchPolopt):
 
     def _policy_opt_input_values(self, samples_data):
         """Map rollout samples to the policy optimizer inputs.
+
         Args:
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
+
         Returns:
             list(np.ndarray): Flatten policy optimization input values.
+
         """
         policy_state_info_list = [
             samples_data['agent_infos'][k] for k in self.policy.state_info_keys
@@ -614,6 +641,7 @@ class NPO(BatchPolopt):
             reward_var=samples_data['rewards'],
             baseline_var=samples_data['baselines'],
             valid_var=samples_data['valids'],
+            adv_var=samples_data['advantages'],
             policy_state_info_vars_list=policy_state_info_list,
             policy_old_dist_info_vars_list=policy_old_dist_info_list,
         )
@@ -624,6 +652,7 @@ class NPO(BatchPolopt):
                                      stop_entropy_gradient,
                                      use_neg_logli_entropy, policy_ent_coeff):
         """Check entropy configuration.
+
         Args:
             entropy_method (str): A string from: 'max', 'regularized',
                 'no_entropy'. The type of entropy method to use. 'max' adds the
@@ -637,6 +666,7 @@ class NPO(BatchPolopt):
                 the negative log likelihood of the action.
             policy_ent_coeff (float): The coefficient of the policy entropy.
                 Setting it to zero would mean no entropy regularization.
+
         Raises:
             ValueError: If center_adv is True when entropy_method is max.
             ValueError: If stop_gradient is False when entropy_method is max.
@@ -644,6 +674,7 @@ class NPO(BatchPolopt):
                 no entropy method.
             ValueError: If entropy_method is not one of 'max', 'regularized',
                 'no_entropy'.
+
         """
         del use_neg_logli_entropy
 
@@ -670,22 +701,27 @@ class NPO(BatchPolopt):
 
     def __getstate__(self):
         """Parameters to save in snapshot.
+
         Returns:
             dict: Parameters to save.
+
         """
         data = self.__dict__.copy()
         del data['_name_scope']
         del data['_policy_opt_inputs']
         del data['_f_policy_entropy']
         del data['_f_policy_kl']
+        del data['_f_adv']
         del data['_f_rewards']
         del data['_f_returns']
         return data
 
     def __setstate__(self, state):
         """Parameters to restore from snapshot.
+
         Args:
             state (dict): Parameters to restore from.
+
         """
         self.__dict__ = state
         self._name_scope = tf.name_scope(self._name)

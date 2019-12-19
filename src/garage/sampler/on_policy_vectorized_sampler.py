@@ -106,13 +106,14 @@ class OnPolicyVectorizedSampler(BatchSampler):
 
         while n_samples < batch_size:
             t = time.time()
-            policy.reset(dones)
+            agent_infos = policy.reset(dones)
 
             actions, agent_infos = policy.get_actions(obses)
 
             policy_time += time.time() - t
             t = time.time()
             next_obses, rewards, dones, env_infos = self._vec_env.step(actions)
+            # self._vec_env.envs[0].render()
             env_time += time.time() - t
             t = time.time()
 

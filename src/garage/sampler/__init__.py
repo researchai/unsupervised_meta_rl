@@ -19,5 +19,4 @@ __all__ = [
     'BatchSampler', 'Sampler', 'ISSampler', 'singleton_pool', 'RaySampler',
     'RL2Sampler', 'SamplerWorker', 'ParallelVecEnvExecutor', 'VecEnvExecutor',
     'OffPolicyVectorizedSampler', 'OnPolicyVectorizedSampler', 'WorkerFactory',
-    'Worker', 'DefaultWorker'
-]
+    'Worker', 'DefaultWorker', 'RL2Sampler'

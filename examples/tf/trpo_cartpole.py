@@ -35,7 +35,7 @@ def run_task(snapshot_config, *_):
                     max_kl_step=0.01)
 
         runner.setup(algo, env)
-        runner.train(n_epochs=100, batch_size=4000)
+        runner.train(n_epochs=2, batch_size=4000)
 
 
 run_experiment(
