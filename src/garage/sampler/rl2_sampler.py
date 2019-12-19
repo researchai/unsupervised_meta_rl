@@ -2,6 +2,7 @@
 import itertools
 import pickle
 import time
+from collections import OrderedDict
 
 from dowel import logger, tabular
 import numpy as np
@@ -15,8 +16,10 @@ from garage.sampler.utils import truncate_paths
 from garage.sampler.vec_env_executor import VecEnvExecutor
 
 
-class OnPolicyVectorizedSampler(BatchSampler):
+class RL2Sampler(BatchSampler):
     """BatchSampler which uses VecEnvExecutor to run multiple environments.
+
+    This sampler is specific for RL^2. See https://arxiv.org/pdf/1611.02779.pdf.
 
     Args:
         algo (garage.np.algos.RLAlgorithm): An algorithm instance.
@@ -26,28 +29,40 @@ class OnPolicyVectorizedSampler(BatchSampler):
 
     """
 
-    def __init__(self, algo, env, n_envs=None):
+    def __init__(self, algo, env, meta_batch_size, episode_per_task, n_envs=None):
         if n_envs is None:
             n_envs = singleton_pool.n_parallel * 4
         super().__init__(algo, env)
         self._n_envs = n_envs
 
+        self._meta_batch_size = meta_batch_size
+        self._episode_per_task = episode_per_task
         self._vec_env = None
         self._env_spec = self.env.spec
 
     def start_worker(self):
         """Start workers."""
         n_envs = self._n_envs
-        envs = [pickle.loads(pickle.dumps(self.env)) for _ in range(n_envs)]
+        assert n_envs >= self._meta_batch_size, "Number of vectorized environments"
+        " should be at least meta_batch_size."
+        assert n_envs % self._meta_batch_size == 0, "Number of vectorized"
+        " environments should be a multiple of meta_batch_size."
+        envs_per_worker = n_envs // self._meta_batch_size
 
+        tasks = self.env.sample_tasks(self._meta_batch_size)
+        vec_envs = []
+        for task in tasks:
+            vec_env = pickle.loads(pickle.dumps(self.env))
+            vec_env.set_task(task)
+            vec_envs.extend([vec_env] * envs_per_worker)
         # Deterministically set environment seeds based on the global seed.
         seed0 = deterministic.get_seed()
         if seed0 is not None:
-            for (i, e) in enumerate(envs):
+            for (i, e) in enumerate(vec_envs):
                 e.seed(seed0 + i)
 
         self._vec_env = VecEnvExecutor(
-            envs=envs, max_path_length=self.algo.max_path_length)
+            envs=vec_envs, max_path_length=self.algo.max_path_length)
 
     def shutdown_worker(self):
         """Shutdown workers."""
@@ -83,15 +98,17 @@ class OnPolicyVectorizedSampler(BatchSampler):
                   [Batch, ?]. One example is "prev_action", which is used
                   for recurrent policy as previous action input, merged with
                   the observation input as the state input.
-                * dones: numpy.ndarray with shape [Batch, ]
 
         """
         logger.log('Obtaining samples for iteration %d...' % itr)
 
-        if not batch_size:
-            batch_size = self.algo.max_path_length * self._n_envs
+        if batch_size is None:
+            batch_size = self._episode_per_task * self.algo.max_path_length * self._n_envs
 
-        paths = []
+        paths = OrderedDict()
+        for i in range(self._n_envs):
+            paths[i] = []
+
         n_samples = 0
         obses = self._vec_env.reset()
         dones = np.asarray([True] * self._vec_env.num_envs)
@@ -103,10 +120,11 @@ class OnPolicyVectorizedSampler(BatchSampler):
         process_time = 0
 
         policy = self.algo.policy
+        # Only reset policies at the beginning of a meta batch (or a "trial", as mentioned in paper)
+        policy.reset(dones)
 
         while n_samples < batch_size:
             t = time.time()
-            agent_infos = policy.reset(dones)
 
             actions, agent_infos = policy.get_actions(obses)
 
@@ -127,30 +145,32 @@ class OnPolicyVectorizedSampler(BatchSampler):
                     itertools.count(), obses, actions, rewards, env_infos,
                     agent_infos, dones):
                 if running_paths[idx] is None:
-                    running_paths[idx] = dict(observations=[],
-                                              actions=[],
-                                              rewards=[],
-                                              env_infos=[],
-                                              agent_infos=[],
-                                              dones=[])
+                    running_paths[idx] = dict(
+                        observations=[],
+                        actions=[],
+                        rewards=[],
+                        dones=[],
+                        env_infos=[],
+                        agent_infos=[],
+                    )
                 running_paths[idx]['observations'].append(observation)
                 running_paths[idx]['actions'].append(action)
                 running_paths[idx]['rewards'].append(reward)
+                running_paths[idx]['dones'].append(done)
                 running_paths[idx]['env_infos'].append(env_info)
                 running_paths[idx]['agent_infos'].append(agent_info)
-                running_paths[idx]['dones'].append(done)
                 if done:
                     obs = np.asarray(running_paths[idx]['observations'])
                     actions = np.asarray(running_paths[idx]['actions'])
-                    paths.append(
+                    paths[idx].append(
                         dict(observations=obs,
                              actions=actions,
                              rewards=np.asarray(running_paths[idx]['rewards']),
+                             dones=np.asarray(running_paths[idx]['dones']),
                              env_infos=tensor_utils.stack_tensor_dict_list(
                                  running_paths[idx]['env_infos']),
                              agent_infos=tensor_utils.stack_tensor_dict_list(
-                                 running_paths[idx]['agent_infos']),
-                             dones=np.asarray(running_paths[idx]['dones'])))
+                                 running_paths[idx]['agent_infos'])))
                     n_samples += len(running_paths[idx]['rewards'])
                     running_paths[idx] = None
 
