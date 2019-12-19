@@ -8,6 +8,7 @@ from dowel import logger, tabular
 from garage.experiment.deterministic import get_seed, set_seed
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
+from garage.misc import tensor_utils as np_tensor_utils
 
 
 class ExperimentStats:
@@ -204,8 +205,10 @@ class LocalRunner:
         """
         paths = self._sampler.obtain_samples(
             itr, (batch_size or self._train_args.batch_size))
-
-        self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
+        if type(paths) == list:
+            self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
+        else:
+            self._stats.total_env_steps += sum([sum([len(p['rewards']) for p in path]) for _, path in paths.items()])
 
         return paths
 
@@ -259,7 +262,6 @@ class LocalRunner:
         self._stats = saved['stats']
 
         set_seed(self._setup_args.seed)
-
         self.setup(env=saved['env'],
                    algo=saved['algo'],
                    sampler_cls=self._setup_args.sampler_cls,
@@ -279,7 +281,7 @@ class LocalRunner:
         logger.log(fmt.format('-- Train Args --', '-- Value --'))
         logger.log(fmt.format('n_epochs', n_epochs))
         logger.log(fmt.format('last_epoch', last_epoch))
-        logger.log(fmt.format('batch_size', batch_size))
+        # logger.log(fmt.format('batch_size', batch_size))
         logger.log(fmt.format('store_paths', store_paths))
         logger.log(fmt.format('pause_for_plot', pause_for_plot))
         logger.log(fmt.format('-- Stats --', '-- Value --'))

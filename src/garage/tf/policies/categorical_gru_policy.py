@@ -71,7 +71,7 @@ class CategoricalGRUPolicy(StochasticPolicy):
                  state_include_action=True,
                  layer_normalization=False):
         if not isinstance(env_spec.action_space, akro.Discrete):
-            raise ValueError('CategoricalGRUPolicy only works'
+            raise ValueError('CategoricalGRUPolicy only works '
                              'with akro.Discrete action space.')
 
         super().__init__(name, env_spec)
@@ -178,12 +178,12 @@ class CategoricalGRUPolicy(StochasticPolicy):
 
     def get_actions(self, observations):
         """Return multiple actions."""
-        flat_obs = self.observation_space.flatten_n(observations)
+        # flat_obs = self.observation_space.flatten_n(observations)
         if self._state_include_action:
             assert self._prev_actions is not None
             all_input = np.concatenate([flat_obs, self._prev_actions], axis=-1)
         else:
-            all_input = flat_obs
+            all_input = observations
         probs, hidden_vec = self._f_step_prob(all_input, self._prev_hiddens)
         actions = list(map(self.action_space.weighted_sample, probs))
         prev_actions = self._prev_actions
