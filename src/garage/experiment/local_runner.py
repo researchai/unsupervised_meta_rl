@@ -261,7 +261,6 @@ class LocalRunner:
             paths = paths.to_trajectory_list()
 
         self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
-
         return paths
 
     def save(self, epoch):
@@ -314,7 +313,6 @@ class LocalRunner:
         self._stats = saved['stats']
 
         set_seed(self._setup_args.seed)
-
         self.setup(env=saved['env'],
                    algo=saved['algo'],
                    sampler_cls=self._setup_args.sampler_cls,
@@ -334,7 +332,7 @@ class LocalRunner:
         logger.log(fmt.format('-- Train Args --', '-- Value --'))
         logger.log(fmt.format('n_epochs', n_epochs))
         logger.log(fmt.format('last_epoch', last_epoch))
-        logger.log(fmt.format('batch_size', batch_size))
+        # logger.log(fmt.format('batch_size', batch_size))
         logger.log(fmt.format('store_paths', store_paths))
         logger.log(fmt.format('pause_for_plot', pause_for_plot))
         logger.log(fmt.format('-- Stats --', '-- Value --'))

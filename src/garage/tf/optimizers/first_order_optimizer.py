@@ -148,6 +148,7 @@ class FirstOrderOptimizer:
                 progbar = pyprind.ProgBar(len(inputs[0]))
 
             for batch in dataset.iterate(update=True):
+            # for batch in dataset.iterate_meta(update=True):
                 sess.run(self._train_op,
                          dict(list(zip(self._input_vars, batch))))
                 if self._verbose:
@@ -175,8 +176,8 @@ class FirstOrderOptimizer:
                 if callback:
                     callback(**callback_args)
 
-            if abs(last_loss - new_loss) < self._tolerance:
-                break
+            # if abs(last_loss - new_loss) < self._tolerance:
+            #     break
             last_loss = new_loss
 
     def __getstate__(self):

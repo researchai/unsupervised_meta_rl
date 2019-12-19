@@ -233,17 +233,17 @@ class GaussianGRUPolicy(StochasticPolicy):
                         self._state_include_action is True.
 
         """
-        flat_obs = self.observation_space.flatten_n(observations)
+        # flat_obs = self.observation_space.flatten_n(observations)
         if self._state_include_action:
             assert self._prev_actions is not None
-            all_input = np.concatenate([flat_obs, self._prev_actions], axis=-1)
+            all_input = np.concatenate([observations, self._prev_actions], axis=-1)
         else:
-            all_input = flat_obs
+            all_input = observations
         means, log_stds, hidden_vec = self._f_step_mean_std(
             all_input, self._prev_hiddens)
         rnd = np.random.normal(size=means.shape)
         samples = rnd * np.exp(log_stds) + means
-        samples = self.action_space.unflatten_n(samples)
+        # samples = self.action_space.unflatten_n(samples)
         prev_actions = self._prev_actions
         self._prev_actions = samples
         self._prev_hiddens = hidden_vec
