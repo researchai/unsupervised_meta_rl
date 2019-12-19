@@ -138,7 +138,7 @@ def pad_tensor_dict(tensor_dict, max_len, mode='zero'):
     return ret
 
 
-def stack_tensor_dict_list(tensor_dict_list):
+def stack_tensor_dict_list(tensor_dict_list, max_path=None):
     """Stack a list of dictionaries of {tensors or dictionary of tensors}.
 
     Args:
@@ -158,7 +158,10 @@ def stack_tensor_dict_list(tensor_dict_list):
         if isinstance(example, dict):
             v = stack_tensor_dict_list(dict_list)
         else:
-            v = np.array(dict_list)
+            if max_path is not None:
+                v = pad_tensor_n(dict_list, max_path)
+            else:
+                v = np.array(dict_list)
         ret[k] = v
     return ret
 

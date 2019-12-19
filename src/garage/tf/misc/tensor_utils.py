@@ -252,7 +252,6 @@ def compute_advantages(discount,
         advantages = tf.reshape(adv, [-1])
     return advantages
 
-
 def center_advs(advs, axes, eps, offset=0, scale=1, name=None):
     """ Normalize the advs tensor """
     with tf.name_scope(name, 'center_adv', [advs, axes, eps]):

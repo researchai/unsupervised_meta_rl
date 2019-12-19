@@ -15,10 +15,8 @@ from garage.tf.samplers import BatchSampler
 
 class BatchPolopt(RLAlgorithm):
     """Base class for batch sampling-based policy optimization methods.
-
     This includes various policy gradient methods like VPG, NPG, PPO, TRPO,
     etc.
-
     Args:
         env_spec (garage.envs.EnvSpec): Environment specification.
         policy (garage.tf.policies.base.Policy): Policy.
@@ -41,7 +39,6 @@ class BatchPolopt(RLAlgorithm):
         flatten_input (bool): Whether to flatten input along the observation
             dimension. If True, for example, an observation with shape (2, 4)
             will be flattened to 8.
-
     """
 
     def __init__(self,
@@ -78,15 +75,12 @@ class BatchPolopt(RLAlgorithm):
 
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
-
         Args:
             runner (LocalRunner): LocalRunner is passed to give algorithm
                 the access to runner.step_epochs(), which provides services
                 such as snapshotting and sampler control.
-
         Returns:
             float: The average return in last epoch cycle.
-
         """
         last_return = None
 
@@ -100,14 +94,11 @@ class BatchPolopt(RLAlgorithm):
 
     def train_once(self, itr, paths):
         """Perform one step of policy optimization given one batch of samples.
-
         Args:
             itr (int): Iteration number.
             paths (list[dict]): A list of collected paths.
-
         Returns:
             numpy.float64: Average return.
-
         """
         paths = self.process_samples(itr, paths)
         self.log_diagnostics(paths)
@@ -117,10 +108,8 @@ class BatchPolopt(RLAlgorithm):
 
     def log_diagnostics(self, paths):
         """Log diagnostic information.
-
         Args:
             paths (list[dict]): A list of collected paths.
-
         """
         logger.log('Logging diagnostics...')
         self.policy.log_diagnostics(paths)
@@ -129,11 +118,9 @@ class BatchPolopt(RLAlgorithm):
     def process_samples(self, itr, paths):
         # pylint: disable=too-many-statements
         """Return processed sample data based on the collected paths.
-
         Args:
             itr (int): Iteration number.
             paths (list[dict]): A list of collected paths.
-
         Returns:
             dict: Processed sample data, with key
                 * observations: (numpy.ndarray)
@@ -146,7 +133,6 @@ class BatchPolopt(RLAlgorithm):
                 * env_infos: (dict)
                 * paths: (list[dict])
                 * average_return: (numpy.float64)
-
         """
         baselines = []
         returns = []
@@ -270,7 +256,6 @@ class BatchPolopt(RLAlgorithm):
 
     def init_opt(self):
         """Initialize the optimization procedure.
-
         If using tensorflow, this may include declaring all the variables and
         compiling functions.
         """
@@ -279,16 +264,13 @@ class BatchPolopt(RLAlgorithm):
     @abstractmethod
     def optimize_policy(self, itr, samples_data):
         """Optimize the policy using the samples.
-
         Args:
             itr (int): Iteration number.
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
-
         Raises:
             NotImplementedError: Raise when child class
                 does not overwrite this method.
-
         """
         del itr
         del samples_data

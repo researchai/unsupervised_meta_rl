@@ -1,9 +1,9 @@
 """Proximal Policy Optimization."""
-from garage.tf.algos.npo import NPO
+from garage.tf.algos.npo2 import NPO2
 from garage.tf.optimizers import FirstOrderOptimizer
 
 
-class PPO(NPO):
+class PPO(NPO2):
     """Proximal Policy Optimization.
 
     See https://arxiv.org/abs/1707.06347.
