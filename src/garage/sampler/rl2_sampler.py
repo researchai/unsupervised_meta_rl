@@ -1,4 +1,3 @@
-"""RL2 Sampler which uses VecEnvExecutor to run multiple environments."""
 from collections import OrderedDict
 import copy
 import time
@@ -99,6 +98,10 @@ class RL2Sampler:
 
         self._vec_env = VecEnvExecutor(
             envs=vec_envs, max_path_length=self.algo.max_path_length)
+
+    def shutdown_worker(self):
+        """Shutdown workers."""
+        self._vec_env.close()
 
     # pylint: disable=too-many-statements
     def obtain_samples(self, itr, batch_size=None, whole_paths=True):
