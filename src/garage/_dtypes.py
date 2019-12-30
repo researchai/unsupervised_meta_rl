@@ -168,13 +168,10 @@ class TrajectoryBatch(
                                actions, rewards, terminals, env_infos,
                                agent_infos, lengths)
 
+
 class TorchTrajectoryBatch(
         collections.namedtuple('TorchTrajectoryBatch', [
-            'paths',
-            'observations',
-            'actions',
-            'rewards',
-            'valids',
+            'paths', 'observations', 'actions', 'rewards', 'valids',
             'baselines'
         ])):
     pass

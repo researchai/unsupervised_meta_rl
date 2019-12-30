@@ -322,11 +322,12 @@ class VPG(BatchPolopt):
             for path in paths
         ])
         baselines = torch.stack([
-             pad_to_last(self._get_baselines(path),
+            pad_to_last(self._get_baselines(path),
                         total_length=self.max_path_length) for path in paths
         ])
 
-        batch_samples = TorchTrajectoryBatch(paths, obs, actions, rewards, valids, baselines)
+        batch_samples = TorchTrajectoryBatch(paths, obs, actions, rewards,
+                                             valids, baselines)
         return batch_samples
 
     def _log(self, itr, paths, loss_before, loss_after, kl_before, kl,

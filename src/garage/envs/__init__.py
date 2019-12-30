@@ -10,12 +10,6 @@ from garage.envs.normalized_env import normalize
 from garage.envs.point_env import PointEnv
 
 __all__ = [
-    'GarageEnv',
-    'Step',
-    'EnvSpec',
-    'GridWorldEnv',
-    'HalfCheetahDirEnv',
-    'HalfCheetahVelEnv',
-    'normalize',
-    'PointEnv'
+    'GarageEnv', 'Step', 'EnvSpec', 'GridWorldEnv', 'HalfCheetahDirEnv',
+    'HalfCheetahVelEnv', 'normalize', 'PointEnv'
 ]

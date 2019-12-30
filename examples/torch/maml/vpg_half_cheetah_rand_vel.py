@@ -36,13 +36,14 @@ hyper_parameters = {
     'discount': 0.99,
     'max_path_length': 200,
     'fast_batch_size': 20,
-    'meta_batch_size': 40, # num of tasks
+    'meta_batch_size': 40,  # num of tasks
     'n_epochs': 500,
     'n_trials': 2,
     'num_grad_update': 1,
     'n_parallel': 1,
     'inner_loss': 'log_likelihood'
 }
+
 
 def run_garage(snapshot_config, *_):
     env = GarageEnv(normalize(HalfCheetahVelEnv()))
@@ -61,11 +62,11 @@ def run_garage(snapshot_config, *_):
     })
 
     inner_algo = VPG(env_spec=env.spec,
-                policy=policy,
-                baseline=baseline,
-                max_path_length=hyper_parameters['max_path_length'],
-                discount=hyper_parameters['discount'],
-                gae_lambda=hyper_parameters['gae_lambda'])
+                     policy=policy,
+                     baseline=baseline,
+                     max_path_length=hyper_parameters['max_path_length'],
+                     discount=hyper_parameters['discount'],
+                     gae_lambda=hyper_parameters['gae_lambda'])
 
     algo = MAML(env=env,
                 policy=policy,
@@ -82,8 +83,5 @@ def run_garage(snapshot_config, *_):
                  batch_size=(hyper_parameters['fast_batch_size'] *
                              hyper_parameters['max_path_length']))
 
-run_experiment(
-    run_garage,
-    snapshot_mode='last',
-    seed=1
-)
+
+run_experiment(run_garage, snapshot_mode='last', seed=1)

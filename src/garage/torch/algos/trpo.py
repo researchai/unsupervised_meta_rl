@@ -102,5 +102,5 @@ class TRPO(VPG):
     def _optimize(self, itr, batch_samples):
         self._optimizer.step(
             f_loss=lambda: self.compute_loss(itr, batch_samples),
-            f_constraint=lambda: self.compute_kl_constraint(
-                batch_samples.observations))
+            f_constraint=lambda: self.compute_kl_constraint(batch_samples.
+                                                            observations))

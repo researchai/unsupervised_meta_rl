@@ -44,7 +44,7 @@ hyper_parameters = {
     'discount': 0.99,
     'max_path_length': 200,
     'fast_batch_size': 20,
-    'meta_batch_size': 40, # num of tasks
+    'meta_batch_size': 40,  # num of tasks
     'n_epochs': 500,
     'n_trials': 2,
     'num_grad_update': 1,
@@ -66,8 +66,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
 
         seeds = random.sample(range(100), hyper_parameters['n_trials'])
         task_dir = osp.join(benchmark_dir, env_id)
-        plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark.png'.format(env_id))
+        plt_file = osp.join(benchmark_dir, '{}_benchmark.png'.format(env_id))
         promp_csvs = []
         garage_csvs = []
 
@@ -94,7 +93,10 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
 
         benchmark_helper.plot_average_over_trials(
             [promp_csvs, promp_csvs, garage_csvs, garage_csvs],
-            ['Step_0-AverageReturn', 'Step_1-AverageReturn', 'Update_0/AverageReturn', 'Update_1/AverageReturn'],
+            [
+                'Step_0-AverageReturn', 'Step_1-AverageReturn',
+                'Update_0/AverageReturn', 'Update_1/AverageReturn'
+            ],
             plt_file=plt_file,
             env_id=env_id,
             x_label='Iteration',
@@ -102,13 +104,17 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
             names=['ProMP_0', 'ProMP_1', 'garage_0', 'garage_1'],
         )
 
-        batch_size = hyper_parameters['meta_batch_size'] * hyper_parameters['max_path_length']
+        batch_size = hyper_parameters['meta_batch_size'] * hyper_parameters[
+            'max_path_length']
         result_json[env_id] = benchmark_helper.create_json(
             [promp_csvs, promp_csvs, garage_csvs, garage_csvs],
             seeds=seeds,
             trials=hyper_parameters['n_trials'],
             xs=['Itr', 'Itr', 'Iteration', 'Iteration'],
-            ys=['Step_0-AverageReturn', 'Step_1-AverageReturn', 'Update_0/AverageReturn', 'Update_1/AverageReturn'],
+            ys=[
+                'Step_0-AverageReturn', 'Step_1-AverageReturn',
+                'Update_0/AverageReturn', 'Update_1/AverageReturn'
+            ],
             factors=[batch_size] * 4,
             names=['ProMP_0', 'ProMP_1', 'garage_0', 'garage_1'])
 
@@ -136,18 +142,18 @@ def run_garage(env, seed, log_dir):
         output_nonlinearity=None,
     )
 
-    baseline = LinearFeatureBaseline(env_spec=env.spec)    
+    baseline = LinearFeatureBaseline(env_spec=env.spec)
 
     meta_optimizer = (ConjugateGradientOptimizer, {
         'max_constraint_value': hyper_parameters['max_kl']
     })
 
     inner_algo = VPG(env_spec=env.spec,
-                policy=policy,
-                baseline=baseline,
-                max_path_length=hyper_parameters['max_path_length'],
-                discount=hyper_parameters['discount'],
-                gae_lambda=hyper_parameters['gae_lambda'])
+                     policy=policy,
+                     baseline=baseline,
+                     max_path_length=hyper_parameters['max_path_length'],
+                     discount=hyper_parameters['discount'],
+                     gae_lambda=hyper_parameters['gae_lambda'])
 
     algo = MAML(env=env,
                 policy=policy,
@@ -164,7 +170,9 @@ def run_garage(env, seed, log_dir):
     dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
     dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
 
-    snapshot_config = SnapshotConfig(snapshot_dir=log_dir, snapshot_mode='all', snapshot_gap=1)
+    snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
+                                     snapshot_mode='all',
+                                     snapshot_gap=1)
 
     runner = LocalRunner(snapshot_config=snapshot_config)
     runner.setup(algo, env)
@@ -192,18 +200,19 @@ def run_promp(env, seed, log_dir):
     deterministic.set_seed(seed)
 
     # configure logger
-    PM_logger.configure(dir=log_dir, format_strs=['stdout', 'log', 'csv', 'tensorboard'],
-                     snapshot_mode='all')
+    PM_logger.configure(dir=log_dir,
+                        format_strs=['stdout', 'log', 'csv', 'tensorboard'],
+                        snapshot_mode='all')
 
     baseline = PM_LinearFeatureBaseline()
 
     policy = MetaGaussianMLPPolicy(
-            name="meta-policy",
-            obs_dim=np.prod(env.observation_space.shape),
-            action_dim=np.prod(env.action_space.shape),
-            meta_batch_size=hyper_parameters['meta_batch_size'],
-            hidden_sizes=hyper_parameters['hidden_sizes'],
-        )
+        name='meta-policy',
+        obs_dim=np.prod(env.observation_space.shape),
+        action_dim=np.prod(env.action_space.shape),
+        meta_batch_size=hyper_parameters['meta_batch_size'],
+        hidden_sizes=hyper_parameters['hidden_sizes'],
+    )
 
     sampler = MetaSampler(
         env=env,
@@ -246,6 +255,7 @@ def run_promp(env, seed, log_dir):
 
     return tabular_log_file
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     test_cls = TestBenchmarkMAML()
     test_cls.test_benchmark_maml()

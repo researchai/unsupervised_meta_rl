@@ -47,6 +47,7 @@ def flatten_batch(tensor):
 
 
 def update_module_params(module, new_params):
+
     def update(m, name, param):
         del m._parameters[name]  # pylint: disable=protected-access # noqa: E501
         setattr(m, name, param)
