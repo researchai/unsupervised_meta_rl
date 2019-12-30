@@ -297,7 +297,7 @@ class MAML:
 
     def _set_task(self, runner, task):
         for env in runner._sampler._vec_env.envs:
-            env.set_task(task)
+            env.reset_task(task)
 
     @property
     def _old_policy(self):
