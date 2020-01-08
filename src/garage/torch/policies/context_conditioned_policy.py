@@ -7,7 +7,7 @@ Code is adapted from https://github.com/katerakelly/oyster.
 """
 
 import torch
-from torch import nn as nn
+from torch import nn
 import torch.nn.functional as F
 
 from garage.torch.utils import np_to_torch
@@ -169,7 +169,16 @@ class ContextConditionedPolicy(nn.Module):
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
-        policy_outputs = self._policy(in_)
+        """
+        actions, policy_outputs = self._policy.get_actions(in_)
+        actions = torch.Tensor(actions)
+        mean = policy_outputs['mean']
+        log_std = policy_outputs['log_std']
+        log_prob = self._policy.log_likelihood(in_, actions)
+
+        return (actions, mean, log_std, log_prob), task_z
+        """
+        policy_outputs = self._policy(in_, reparameterize=True, return_log_prob=True)
 
         return policy_outputs, task_z
 
@@ -184,9 +193,11 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         z = self.z
+        obs = torch.Tensor(obs)
         obs = torch.unsqueeze(obs, 0)
         in_ = torch.cat([obs, z], dim=1)
-        return self._policy.get_action(in_)
+        out = self._policy.get_action(in_)
+        return out
 
     def compute_kl_div(self):
         """Compute KL( q(z|c) || p(z) ).
@@ -207,6 +218,14 @@ class ContextConditionedPolicy(nn.Module):
         ]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
+
+    def reset(self, dones=None):
+        """Reset the environment.
+
+        Args:
+            dones (numpy.ndarray): Reset values
+
+        """
 
     @property
     def networks(self):

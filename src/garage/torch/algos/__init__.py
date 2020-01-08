@@ -6,7 +6,8 @@ from garage.torch.algos._utils import make_optimizer  # noqa: F401
 from garage.torch.algos._utils import pad_to_last  # noqa: F401
 from garage.torch.algos.ddpg import DDPG
 from garage.torch.algos.vpg import VPG
+from garage.torch.algos.pearl_sac import PEARLSAC
 from garage.torch.algos.ppo import PPO  # noqa: I100
 from garage.torch.algos.trpo import TRPO
 
-__all__ = ['DDPG', 'VPG', 'PPO', 'TRPO']
+__all__ = ['DDPG', 'VPG', 'PPO', 'TRPO', 'PEARLSAC']

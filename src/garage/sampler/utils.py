@@ -13,7 +13,8 @@ def rollout(env,
             max_path_length=np.inf,
             animated=False,
             speedup=1,
-            deterministic=False):
+            deterministic=False,
+            accum_context=True):
     """Sample a single rollout of the agent in the environment.
 
     Args:
@@ -49,20 +50,31 @@ def rollout(env,
     observations = []
     actions = []
     rewards = []
+    terminals = []
     agent_infos = []
     env_infos = []
     o = env.reset()
+    next_o = None
     agent.reset()
     path_length = 0
     if animated:
         env.render()
     while path_length < max_path_length:
+        #print("lw_debug: rollout loop ", path_length)
         a, agent_info = agent.get_action(o)
+        #print("lw_debug: rollout loop after get_action")
+        #print(agent_info)
         if deterministic:
             a = agent_info['mean']
         next_o, r, d, env_info = env.step(a)
+        #print(env_info)
+        if accum_context:
+            agent.update_context([o, a, r, next_o, d, env_info])
+        
+        #print("lw_debug: rollout loop after accum_context")
         observations.append(o)
         rewards.append(r)
+        terminals.append(d)
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
@@ -75,12 +87,30 @@ def rollout(env,
             timestep = 0.05
             time.sleep(timestep / speedup)
 
+    
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
     return dict(
         observations=np.array(observations),
         actions=np.array(actions),
         rewards=np.array(rewards),
-        agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-        env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        #agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+        #env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
     )
 
 

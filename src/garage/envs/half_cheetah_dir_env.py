@@ -30,9 +30,12 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
     """
 
     def __init__(self, task=None):
+        directions = [-1, 1]
+        self.tasks = [{'direction': direction} for direction in directions]
         task = task or {'direction': 1.}
         self._task = task
         self._goal_dir = task['direction']
+        self._goal = self._goal_dir
         super().__init__()
 
     def step(self, action):
@@ -92,7 +95,7 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
         tasks = [{'direction': direction} for direction in directions]
         return tasks
 
-    def reset_task(self, task):
+    def reset_task(self, task_idx):
         """Reset with a task.
 
         Args:
@@ -100,5 +103,7 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
                 key, "direction", mapping to -1 or 1).
 
         """
-        self._task = task
-        self._goal_dir = task['direction']
+        self._task = self.tasks[task_idx]
+        self._goal_dir = self._task['direction']
+        self._goal = self._goal_dir
+        self.reset()

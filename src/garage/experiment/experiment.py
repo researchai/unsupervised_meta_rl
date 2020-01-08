@@ -258,6 +258,7 @@ def run_experiment(method_call=None,
         try:
             if env is None:
                 env = dict()
+            
             subprocess.run(command,
                            shell=True,
                            env=dict(os.environ, **env),
@@ -265,7 +266,14 @@ def run_experiment(method_call=None,
         except Exception as e:
             print(e)
             raise
+        """
+            exitcode, err, out = 0, None, None
+            out = subprocess.check_output(command, shell=True, env=dict(os.environ, **env), universal_newlines=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            exitcode, err = e.returncode, e.output
 
+        print("x{} e{} o{}".format(exitcode, err, out))
+        """
 
 _find_unsafe = re.compile(r'[a-zA-Z0-9_^@%+=:,./-]').search
 
