@@ -74,7 +74,7 @@ class NormalizedEnv(gym.Wrapper):
             # rescale the action when the bounds are not inf
             lb, ub = self.action_space.low, self.action_space.high
             if np.all(lb != -np.inf) and np.all(ub != -np.inf):
-                scaled_action = lb + (action + 1.) * 0.5 * (ub - lb)
+                scaled_action = lb + (action + 10.) * 0.05 * (ub - lb)
                 scaled_action = np.clip(scaled_action, lb, ub)
             else:
                 scaled_action = action

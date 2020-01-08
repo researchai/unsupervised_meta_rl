@@ -43,7 +43,7 @@ def create_json(csvs, trials, seeds, xs, ys, factors, names):
     return task_result
 
 
-def plot_average_over_trials(csvs, ys, plt_file, env_id, x_label, y_label,
+def plot_average_over_trials(csvs, ys, xs, plt_file, env_id, x_label, y_label,
                              names):
     """Plot mean and confidence area of benchmark from csv files of algorithms.
 
@@ -66,14 +66,13 @@ def plot_average_over_trials(csvs, ys, plt_file, env_id, x_label, y_label,
     """
     assert all(len(x) == len(csvs[0]) for x in csvs)
 
-    for trials, y, name in zip(csvs, ys, names):
+    for trials, y, x, name in zip(csvs, ys, xs, names):
         y_vals = np.array([np.array(pd.read_csv(t)[y]) for t in trials])
+        x_vals = np.array(pd.read_csv(trials[0])[x])
         y_mean, y_std = y_vals.mean(axis=0), y_vals.std(axis=0)
 
-        # pylint: disable=unsubscriptable-object
-        plt.plot(list(range(y_vals.shape[-1])), y_mean, label=name)
-        # pylint: disable=unsubscriptable-object
-        plt.fill_between(list(range(y_vals.shape[-1])), (y_mean - y_std),
+        plt.plot(x_vals, y_mean, label=name)
+        plt.fill_between(x_vals, (y_mean - y_std),
                          (y_mean + y_std),
                          alpha=.1)
 

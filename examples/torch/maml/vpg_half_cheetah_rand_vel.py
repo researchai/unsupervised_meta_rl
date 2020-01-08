@@ -34,9 +34,9 @@ hyper_parameters = {
     'inner_lr': 0.1,
     'gae_lambda': 1.0,
     'discount': 0.99,
-    'max_path_length': 200,
+    'max_path_length': 100,
     'fast_batch_size': 20,
-    'meta_batch_size': 40,  # num of tasks
+    'meta_batch_size': 20,  # num of tasks
     'n_epochs': 500,
     'n_trials': 2,
     'num_grad_update': 1,

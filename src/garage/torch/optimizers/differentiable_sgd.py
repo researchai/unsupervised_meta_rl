@@ -1,8 +1,7 @@
 """Differentiable Stochastic Gradient Descent Optimizer.
 
-Useful for algorithms such as MAML where the function of updated policy
-parameters needs to be differentiable with respect to the policy parameters
-before optimization update.
+Useful for algorithms such as MAML that needs the gradient of functions of
+post-updated parameters with respect to pre-updated parameters.
 
 """
 
@@ -11,9 +10,9 @@ class DiffSGD:
     """Differentiable Stochastic Gradient Descent.
 
     DiffSGD performs the same optimization step as SGD, but instead of updating
-    parameters in-place, it creates new parameters such that the gradients
-    computed on the function of new parameters can flow back to the original
-    parameters.
+    parameters in-place, it saves updated parameters in new tensors, so that
+    the gradient of functions of new parameters can flow back to the
+    pre-updated parameters.
 
     Args:
         module (torch.nn.module): A torch module whose parameters needs to be
@@ -43,9 +42,12 @@ class DiffSGD:
                     if param.grad is None:
                         continue
 
+                    # Original SGD uses param.grad.data
                     new_param = param.add(-self.lr, param.grad)
 
+                    # Q: Why del given that _parameters[name] is overwritten?
                     del module._parameters[name]  # pylint: disable=protected-access # noqa: E501
+                    # Q: Any usage of module.[param_name]?
                     setattr(module, name, new_param)
                     module._parameters[name] = new_param  # pylint: disable=protected-access # noqa: E501
 

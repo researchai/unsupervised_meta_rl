@@ -1,5 +1,6 @@
 """Model-Agnostic Meta-Learning (MAML) algorithm implementation for RL."""
 import collections
+import copy
 
 from dowel import tabular
 import numpy as np
@@ -50,9 +51,11 @@ class MAML:
             self.sampler_cls = BatchSampler
 
         self.policy = policy
-        self.baseline = baseline
         self.max_path_length = inner_algo.max_path_length
         self._env = env
+        self._baselines = [copy.deepcopy(baseline)
+                           for _ in range(meta_batch_size)]
+        self._cur_baseline = self._baselines[0]
         self._num_grad_updates = num_grad_updates
         self._meta_batch_size = meta_batch_size
         self._inner_algo = inner_algo
@@ -81,6 +84,7 @@ class MAML:
 
         for _ in runner.step_epochs():
             all_samples, all_params = self._obtain_samples(runner)
+            tabular.record('TotalEnvSteps', runner.total_env_steps)
             last_return = self.train_once(runner, all_samples, all_params)
             runner.step_itr += 1
 
@@ -141,10 +145,11 @@ class MAML:
             runner (LocalRunner): A local runner instance to obtain samples.
 
         Returns:
-            tuple: Tuple of all_samples and all_params. all_samples is a
-                dimentional list of TorchTrajectoryBatch of size
-                [meta_batch_size * (num_grad_updates + 1)], and all_params is
-                a list of named parameter dictionaries.
+            tuple: Tuple of (all_samples, all_params).
+                all_samples (list[TorchTrajectoryBatch]): A list of size
+                    [meta_batch_size * (num_grad_updates + 1)]
+                all_params (list[dict]): A list of named parameter
+                    dictionaries.
 
         """
         tasks = self._env.sample_tasks(self._meta_batch_size)
@@ -154,22 +159,32 @@ class MAML:
 
         for i, task in enumerate(tasks):
             self._set_task(runner, task)
+            self._set_baseline(i)
 
             for j in range(self._num_grad_updates + 1):
                 paths = runner.obtain_samples(runner.step_itr)
                 batch_samples = self._process_samples(runner.step_itr, paths)
                 all_samples[i].append(batch_samples)
 
-                # Skip last iteration
+                # The last iteration does only sampling but no adapting
                 if j != self._num_grad_updates:
                     self._adapt(runner.step_itr, batch_samples, set_grad=False)
 
             all_params.append(dict(self.policy.named_parameters()))
+            # Restore to pre-updated policy
             update_module_params(self.policy, theta)
 
         return all_samples, all_params
 
     def _adapt(self, itr, batch_samples, set_grad=True):
+        """
+
+        Args:
+            set_grad: if False, update policy parameters in-place.
+                Else, allow taking gradient of functions of updated parameters
+                with respect to pre-updated parameters.
+
+        """
         loss = self._compute_loss(itr, batch_samples)
 
         # Update policy parameters with one SGD step
@@ -299,6 +314,10 @@ class MAML:
         for env in runner._sampler._vec_env.envs:
             env.reset_task(task)
 
+    def _set_baseline(self, task_id):
+        self._cur_baseline = self._baselines[task_id]
+        self._inner_algo.baseline = self._cur_baseline
+
     @property
     def _old_policy(self):
         """Old policy of inner algorithm.
@@ -323,8 +342,11 @@ class MAML:
         for path in paths:
             path['returns'] = tensor_utils.discount_cumsum(
                 path['rewards'], self._inner_algo.discount)
-        self.baseline.fit(paths)
-        return self._inner_algo.process_samples(itr, paths)
+
+        # Fit after predict
+        processed_batch = self._inner_algo.process_samples(itr, paths)
+        self._cur_baseline.fit(paths)
+        return processed_batch
 
     def _log(self, itr, all_samples, loss_before, loss_after, kl_before, kl,
              policy_entropy):
