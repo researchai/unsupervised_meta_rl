@@ -297,8 +297,8 @@ def create_json(b_csvs, g_csvs, trails, seeds, b_x, b_y, g_x, g_y, factor_g,
     return task_result
 
 
-def relplot(g_csvs, g_csvs2, b_csvs, g_x, g_y, g_z, b_x, b_y, b_z, trials, seeds,
-            plt_file, env_id, x_label, y_label):
+def relplot(g_csvs, b_csvs, g_x, g_y, g_z, b_x, b_y, b_z, trials, seeds,
+            plt_file, env_id, x_label, y_label, g_csvs2=None, g_z2=None):
     """
     Plot benchmark from csv files of garage from multiple trials using Seaborn.
 
@@ -328,9 +328,10 @@ def relplot(g_csvs, g_csvs2, b_csvs, g_x, g_y, g_z, b_x, b_y, b_z, trials, seeds
         df_bs = df_bs.rename(columns={b_x: g_x, b_y: g_y})
         data = pd.concat([df_gs, df_bs])
 
-    df_gs2 = pd.read_csv(g_csvs2)
-    df_gs2['Type'] = 'Garage-ST'
-    data = pd.concat([df_gs, df_bs, df_gs2])
+    if g_csvs2:
+        df_gs2 = pd.read_csv(g_csvs2)
+        df_gs2['Type'] = g_z2
+        data = pd.concat([df_gs, df_bs, df_gs2])
     ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=data)
     ax.axes.flatten()[0].set_title(env_id)
 

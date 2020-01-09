@@ -1,7 +1,6 @@
-# from garage.envs import HalfCheetahVelEnv
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_vel import HalfCheetahRandVelEnv
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_direc import HalfCheetahRandDirecEnv
 from garage.envs import RL2Env
+from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
+from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import PPO
@@ -12,6 +11,7 @@ from garage.tf.optimizers import FiniteDifferenceHvp
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler.rl2_sampler import RL2Sampler
 
+from metaworld.benchmarks import ML1
 import os
 
 
@@ -28,31 +28,35 @@ def run_task(snapshot_config, *_):
 
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        env = RL2Env(env=HalfCheetahRandDirecEnv())
-
+        env = RL2Env(env=HalfCheetahVelEnv())
+        # env2 = RL2Env(env=HalfCheetahRandVelEnv())
+        # env = RL2Env(env=HalfCheetahRandDirecEnv())
+        env = RL2Env(ML1.get_train_tasks('push-v1'))
         policy = GaussianGRUPolicy(name='policy', hidden_dim=64, env_spec=env.spec, state_include_action=False)
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
         max_path_length = 100
-        n_epochs = 500
         meta_batch_size = 200
-        num_of_workers = 200
+        n_epochs = 500
         episode_per_task = 10
 
         inner_algo = PPO(env_spec=env.spec,
-                     policy=policy,
-                     baseline=baseline,
-                     max_path_length=max_path_length * episode_per_task,
-                     discount=0.99,
-                     lr_clip_range=0.2,
-                     optimizer_args=dict(max_epochs=5))
+                         policy=policy,
+                         baseline=baseline,
+                         max_path_length=max_path_length * episode_per_task,
+                         discount=0.99,
+                         lr_clip_range=0.2,
+                         meta_learn=True,
+                         num_of_env=meta_batch_size,
+                         episode_per_task=episode_per_task,
+                         optimizer_args=dict(max_epochs=5))
 
-        algo = RL2(policy=policy, inner_algo=inner_algo, max_path_length=max_path_length, normalize_adv=True, positive_adv=False)
+        algo = RL2(policy=policy, inner_algo=inner_algo, max_path_length=max_path_length, episode_per_task=episode_per_task, normalize_adv=True, positive_adv=False)
 
         runner.setup(algo, env, sampler_cls=RL2Sampler, sampler_args=dict(
-            meta_batch_size=meta_batch_size, episode_per_task=episode_per_task, n_envs=num_of_workers))
-        runner.train(n_epochs=n_epochs, batch_size=None)
+            meta_batch_size=meta_batch_size, episode_per_task=episode_per_task, n_envs=meta_batch_size))
+        runner.train(n_epochs=n_epochs, batch_size=episode_per_task * max_path_length * meta_batch_size)
 
 
 run_experiment(

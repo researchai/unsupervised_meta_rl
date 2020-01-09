@@ -53,7 +53,7 @@ class RL2Sampler(BatchSampler):
         vec_envs = []
         for task in tasks:
             vec_env = pickle.loads(pickle.dumps(self.env))
-            vec_env.set_task(task)
+            vec_env.reset_task(task)
             vec_envs.extend([vec_env] * envs_per_worker)
         # Deterministically set environment seeds based on the global seed.
         seed0 = deterministic.get_seed()
@@ -173,7 +173,6 @@ class RL2Sampler(BatchSampler):
                                  running_paths[idx]['agent_infos'])))
                     n_samples += len(running_paths[idx]['rewards'])
                     running_paths[idx] = None
-
             process_time += time.time() - t
             pbar.inc(len(obses))
             obses = next_obses

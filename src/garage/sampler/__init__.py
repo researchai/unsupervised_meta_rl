@@ -20,3 +20,4 @@ __all__ = [
     'SamplerWorker', 'ParallelVecEnvExecutor', 'VecEnvExecutor',
     'OffPolicyVectorizedSampler', 'OnPolicyVectorizedSampler', 'WorkerFactory',
     'Worker', 'DefaultWorker', 'RL2Sampler'
+]
