@@ -1,6 +1,7 @@
 """Base class for batch sampling-based policy optimization methods."""
 from abc import abstractmethod
 import collections
+import pickle
 
 from dowel import logger, tabular
 import numpy as np
@@ -52,7 +53,8 @@ class BatchPolopt(RLAlgorithm):
                  center_adv=True,
                  positive_adv=False,
                  fixed_horizon=False,
-                 flatten_input=True):
+                 flatten_input=True,
+                 num_of_env=1):
         self.env_spec = env_spec
         self.policy = policy
         self.baseline = baseline
@@ -64,6 +66,10 @@ class BatchPolopt(RLAlgorithm):
         self.positive_adv = positive_adv
         self.fixed_horizon = fixed_horizon
         self.flatten_input = flatten_input
+        self.num_of_env = num_of_env
+
+        # used for meta learning, when number of environment > 1
+        self.baselines = [pickle.loads(pickle.dumps(self.baseline)) for i in range(self.num_of_env)]
 
         self.episode_reward_mean = collections.deque(maxlen=100)
         if policy.vectorized:
