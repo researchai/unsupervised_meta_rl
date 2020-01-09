@@ -101,3 +101,7 @@ class HalfCheetahVelEnv(HalfCheetahEnvMetaBase):
         """
         self._task = task
         self._goal_vel = task['velocity']
+
+    def log_diagnostics(self, *args, **kwargs):
+        """Method that ProMP requires."""
+        pass

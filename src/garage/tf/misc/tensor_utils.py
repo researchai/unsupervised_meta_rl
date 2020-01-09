@@ -252,12 +252,82 @@ def compute_advantages(discount,
         advantages = tf.reshape(adv, [-1])
     return advantages
 
+
+def compute_advantages_meta_learn(discount,
+                                  gae_lambda,
+                                  max_len,
+                                  episode_per_task,
+                                  baselines,
+                                  rewards,
+                                  name=None):
+    with tf.name_scope(name, 'compute_advantages',
+                       [discount, gae_lambda, max_len, episode_per_task, baselines, rewards]):
+        # Calculate advantages
+        #
+        # Advantages are a discounted cumulative sum.
+        #
+        # The discount cumulative sum can be represented as an IIR
+        # filter ob the reversed input vectors, i.e.
+        #    y[t] - discount*y[t+1] = x[t]
+        #        or
+        #    rev(y)[t] - discount*rev(y)[t-1] = rev(x)[t]
+        #
+        # Given the time-domain IIR filter step response, we can
+        # calculate the filter response to our signal by convolving the
+        # signal with the filter response function. The time-domain IIR
+        # step response is calculated below as discount_filter:
+        #     discount_filter =
+        #         [1, discount, discount^2, ..., discount^N-1]
+        #         where the epsiode length is N.
+        #
+        # We convolve discount_filter with the reversed time-domain
+        # signal deltas to calculate the reversed advantages:
+        #     rev(advantages) = discount_filter (X) rev(deltas)
+        #
+        # TensorFlow's tf.nn.conv1d op is not a true convolution, but
+        # actually a cross-correlation, so its input and output are
+        # already implicitly reversed for us.
+        #    advantages = discount_filter (tf.nn.conv1d) deltas
+
+        # Prepare convolutional IIR filter to calculate advantages
+
+        individual_path_length = max_len // episode_per_task
+        gamma_lambda = tf.constant(
+            float(discount) * float(gae_lambda),
+            dtype=tf.float32,
+            shape=[individual_path_length, 1, 1])
+        advantage_filter = tf.compat.v1.cumprod(gamma_lambda, exclusive=True)
+        # pad baselines
+        reshaped_baseline = tf.reshape(baselines, [-1, individual_path_length])
+        baselines_pad = tf.concat([reshaped_baseline[:, 1:], tf.zeros_like(reshaped_baseline[:, :1])], axis=1)
+        baseline_shift = tf.reshape(baselines_pad, [-1, max_len])
+        
+        deltas = rewards + discount * baseline_shift - baselines
+        
+        reshaped_deltas = tf.reshape(deltas, [-1, individual_path_length])
+        deltas_shift = tf.concat([reshaped_deltas, tf.zeros_like(reshaped_deltas[:, :-1])], axis=1)
+        # Convolve deltas with the discount filter to get advantages
+        deltas_pad = tf.expand_dims(deltas_shift, axis=2)
+        adv = tf.nn.conv1d(
+            deltas_pad, advantage_filter, stride=1, padding='VALID')
+    return adv, deltas_shift, advantage_filter
+
 def center_advs(advs, axes, eps, offset=0, scale=1, name=None):
     """ Normalize the advs tensor """
     with tf.name_scope(name, 'center_adv', [advs, axes, eps]):
         mean, var = tf.nn.moments(advs, axes=axes)
         advs = tf.nn.batch_normalization(advs, mean, var, offset, scale, eps)
-    return advs
+    return advs, mean
+
+
+def center_advs_local(advs, axes, eps, max_len, name=None):
+    """ Normalize the advs tensor locally in a sample."""
+    with tf.name_scope(name, 'center_adv_local', [advs, axes, eps, max_len]):
+        mean, variance = tf.nn.moments(advs, axes=axes)
+        mean = tf.tile(tf.expand_dims(mean, axis=axes), [1, max_len])
+        variance = tf.tile(tf.expand_dims(variance, axis=axes), [1, max_len])
+        advs = (advs - mean) / (tf.sqrt(variance) + eps) # epsilon to avoid dividing by zero
+    return advs, mean
 
 
 def positive_advs(advs, eps, name=None):
@@ -280,3 +350,45 @@ def discounted_returns(discount, max_len, rewards, name=None):
         returns = tf.nn.conv1d(
             rewards_pad, return_filter, stride=1, padding='VALID')
     return returns
+
+
+def discounted_returns_meta_learn(discount, max_len, episode_per_task, rewards):
+    individual_path_length = max_len // episode_per_task
+    gamma = tf.constant(
+        float(discount), dtype=tf.float32, shape=[individual_path_length, 1, 1])
+    return_filter = tf.math.cumprod(gamma, exclusive=True)
+
+    reshaped_rewards = tf.reshape(rewards, [-1, individual_path_length])
+    rewards_pad = tf.expand_dims(
+        tf.concat([reshaped_rewards, tf.zeros_like(reshaped_rewards[:, :-1])], axis=1),
+        axis=2)
+    returns = tf.nn.conv1d(
+        rewards_pad, return_filter, stride=1, padding='VALID')
+    returns = tf.reshape(returns, [-1, max_len])
+    return returns
+
+def split_paths(path, lengths):
+    observations = np.split(path['observations'], lengths)
+    actions = np.split(path['actions'], lengths)
+    rewards = np.split(path['rewards'], lengths)
+    dones = np.split(path['dones'], lengths)
+    returns = np.split(path['returns'], lengths)
+    advantages = np.split(path['advantages'], lengths)
+    baselines = np.split(path['baselines'], lengths)
+    # lengths = np.split(path['lengths'], lengths)
+    # valids = np.split(path['valids'], lengths)
+    # env_infos = np.split(path['env_infos'], lengths)
+    # agent_infos = np.split(path['agent_infos'], lengths)
+
+    return [dict(
+        observations=observations[i],
+        actions=actions[i],
+        rewards=rewards[i],
+        baselines=baselines[i],
+        returns=returns[i],
+        advantages=advantages[i],
+        # valids=valids[i],
+        # lengths=lengths[i],
+        # agent_infos=agent_infos[i],
+        # env_infos=env_infos[i],
+    ) for i in range(len(lengths))]
