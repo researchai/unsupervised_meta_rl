@@ -282,7 +282,7 @@ class LocalRunner:
         logger.log(fmt.format('-- Train Args --', '-- Value --'))
         logger.log(fmt.format('n_epochs', n_epochs))
         logger.log(fmt.format('last_epoch', last_epoch))
-        # logger.log(fmt.format('batch_size', batch_size))
+        logger.log(fmt.format('batch_size', batch_size))
         logger.log(fmt.format('store_paths', store_paths))
         logger.log(fmt.format('pause_for_plot', pause_for_plot))
         logger.log(fmt.format('-- Stats --', '-- Value --'))
