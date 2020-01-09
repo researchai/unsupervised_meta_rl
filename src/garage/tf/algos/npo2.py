@@ -1,20 +1,25 @@
 """Natural Policy Gradient Optimization."""
 from dowel import logger, tabular
+import itertools
 import numpy as np
 import tensorflow as tf
 
 from garage.misc import tensor_utils as np_tensor_utils
 from garage.tf.algos.batch_polopt import BatchPolopt
 from garage.tf.misc.tensor_utils import center_advs
+from garage.tf.misc.tensor_utils import center_advs_local
 from garage.tf.misc.tensor_utils import compile_function
 from garage.tf.misc.tensor_utils import compute_advantages
+from garage.tf.misc.tensor_utils import compute_advantages_meta_learn
 from garage.tf.misc.tensor_utils import concat_tensor_list
 from garage.tf.misc.tensor_utils import discounted_returns
+from garage.tf.misc.tensor_utils import discounted_returns_meta_learn
 from garage.tf.misc.tensor_utils import filter_valids
 from garage.tf.misc.tensor_utils import filter_valids_dict
 from garage.tf.misc.tensor_utils import flatten_batch
 from garage.tf.misc.tensor_utils import flatten_batch_dict
 from garage.tf.misc.tensor_utils import flatten_inputs
+from garage.tf.misc.tensor_utils import split_paths
 from garage.tf.misc.tensor_utils import graph_inputs
 from garage.tf.misc.tensor_utils import new_tensor
 from garage.tf.misc.tensor_utils import positive_advs
@@ -105,6 +110,9 @@ class NPO2(BatchPolopt):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
+                 meta_learn=False,
+                 num_of_env=1,
+                 episode_per_task=1,
                  name='NPO'):
         self._name = name
         self._name_scope = tf.name_scope(self._name)
@@ -112,6 +120,9 @@ class NPO2(BatchPolopt):
         self._use_neg_logli_entropy = use_neg_logli_entropy
         self._stop_entropy_gradient = stop_entropy_gradient
         self._pg_loss = pg_loss
+        self._meta_learn = meta_learn
+        self._episode_per_task = episode_per_task
+
         if optimizer is None:
             if optimizer_args is None:
                 optimizer_args = dict()
@@ -146,7 +157,8 @@ class NPO2(BatchPolopt):
                          center_adv=center_adv,
                          positive_adv=positive_adv,
                          fixed_horizon=fixed_horizon,
-                         flatten_input=flatten_input)
+                         flatten_input=flatten_input,
+                         num_of_env=num_of_env)
 
     def init_opt(self):
         """Initialize optimizater."""
@@ -170,7 +182,18 @@ class NPO2(BatchPolopt):
                 See process_samples() for details.
 
         """
+        if self._meta_learn:          
+            self._fit_baseline(samples_data)
+            samples_data['baselines'] = self._get_baselines_prediction(samples_data)
         policy_opt_input_values = self._policy_opt_input_values(samples_data)
+        # adv = self._f_adv(*policy_opt_input_values)
+        # rewards = self._f_rewards(*policy_opt_input_values)
+        # returns = self._f_returns(*policy_opt_input_values)
+        # mean = self._f_mean(*policy_opt_input_values)
+        # deltas = self._f_deltas(*policy_opt_input_values)
+        # adv_filter = self._f_adv_filter(*policy_opt_input_values)
+        # import pdb
+        # pdb.set_trace()
         logger.log('Computing loss before')
         loss_before = self._optimizer.loss(policy_opt_input_values)
         logger.log('Computing KL before')
@@ -190,8 +213,82 @@ class NPO2(BatchPolopt):
         tabular.record('{}/KL'.format(self.policy.name), policy_kl)
         pol_ent = self._f_policy_entropy(*policy_opt_input_values)
         tabular.record('{}/Entropy'.format(self.policy.name), np.mean(pol_ent))
+        
+        if not self._meta_learn:
+          self._fit_baseline(samples_data)
 
-        # self._fit_baseline(samples_data)
+    def _fit_baseline(self, samples_data):
+        """Update baselines from samples.
+
+        Args:
+            samples_data (dict): Processed sample data.
+                See process_samples() for details.
+
+        """
+        policy_opt_input_values = self._policy_opt_input_values(samples_data)
+
+        # Augment reward from baselines
+        rewards_tensor = self._f_rewards(*policy_opt_input_values)
+        returns_tensor = self._f_returns(*policy_opt_input_values)
+
+        paths = samples_data['paths']
+        valids = samples_data['valids']
+        lengths = samples_data['lengths']
+
+        # Fit baseline
+        if self._meta_learn:
+            logger.log('Fitting baseline...')
+            for ind, path in enumerate(paths):
+                path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
+                path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
+                split_path = split_paths(path, lengths[ind])
+                self.baselines[ind].fit(split_path)
+        else:
+            baselines = [path['baselines'] for path in paths]
+
+            # Recompute parts of samples_data
+            aug_rewards = []
+            aug_returns = []
+            for rew, ret, val, path in zip(rewards_tensor, returns_tensor, valids,
+                                           paths):
+                path['rewards'] = rew[val.astype(np.bool)]
+                path['returns'] = ret[val.astype(np.bool)]
+                aug_rewards.append(path['rewards'])
+                aug_returns.append(path['returns'])
+            aug_rewards = concat_tensor_list(aug_rewards)
+            aug_returns = concat_tensor_list(aug_returns)
+            samples_data['rewards'] = aug_rewards
+            samples_data['returns'] = aug_returns
+
+            # Calculate explained variance
+            ev = np_tensor_utils.explained_variance_1d(np.concatenate(baselines),
+                                                       aug_returns)
+            tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
+
+            logger.log('Fitting baseline...')
+            if hasattr(self.baseline, 'fit_with_samples'):
+                self.baseline.fit_with_samples(paths, samples_data)
+            else:
+                self.baseline.fit(paths)
+
+    def _get_baselines_prediction(self, samples_data):
+        """Get baselines predictions on samples.
+
+        Args:
+            samples_data (dict): Processed sample data.
+                See process_samples() for details.
+
+        Returns:
+            np.ndarray: Baseline predictions, shape :math:`[N, S^*]`.
+
+        """
+        all_paths = samples_data['paths']
+        lengths = samples_data['lengths']
+        baselines = np.zeros((self.num_of_env, self.max_path_length))
+        for ind, paths in enumerate(all_paths):
+            split_path = split_paths(paths, lengths[ind])
+            baselines[ind] = np.concatenate([self.baselines[ind].predict(path) for path in split_path])
+        return baselines
 
     def _build_inputs(self):
         """Build input variables.
@@ -224,10 +321,9 @@ class NPO2(BatchPolopt):
             baseline_var = new_tensor(name='baseline',
                                       ndim=2,
                                       dtype=tf.float32)
-            adv_var = new_tensor(name='adv',
-                                 ndim=2,
-                                 dtype=tf.float32)
-
+            length_var = new_tensor(name='length',
+                                    ndim=2,
+                                    dtype=tf.int32)
             policy_state_info_vars = {
                 k: tf.compat.v1.placeholder(tf.float32,
                                             shape=[None] * 2 + list(shape),
@@ -298,8 +394,8 @@ class NPO2(BatchPolopt):
             action_var=action_var,
             reward_var=reward_var,
             baseline_var=baseline_var,
-            adv_var=adv_var,
             valid_var=valid_var,
+            length_var=length_var,
             policy_state_info_vars=policy_state_info_vars,
             policy_old_dist_info_vars=policy_old_dist_info_vars,
             flat=pol_flat,
@@ -311,8 +407,8 @@ class NPO2(BatchPolopt):
             action_var=action_var,
             reward_var=reward_var,
             baseline_var=baseline_var,
-            adv_var=adv_var,
             valid_var=valid_var,
+            length_var=length_var,
             policy_state_info_vars_list=policy_state_info_vars_list,
             policy_old_dist_info_vars_list=policy_old_dist_info_vars_list,
         )
@@ -341,34 +437,45 @@ class NPO2(BatchPolopt):
                                           policy_entropy)
 
         with tf.name_scope('policy_loss'):
-            adv = i.adv_var
-            # adv = compute_advantages(self.discount,
-            #                          self.gae_lambda,
-            #                          self.max_path_length,
-            #                          i.baseline_var,
-            #                          rewards,
-            #                          name='adv')
-            # adv_flat = flatten_batch(adv, name='adv_flat')
-            # adv_valid = filter_valids(adv_flat,
-            #                           i.flat.valid_var,
-            #                           name='adv_valid')
+            if self._meta_learn:
+                adv, deltas, adv_filter = compute_advantages_meta_learn(self.discount,
+                                         self.gae_lambda,
+                                         self.max_path_length,
+                                         self._episode_per_task,
+                                         i.baseline_var,
+                                         rewards,
+                                         name='adv')
+            else:
+                adv = compute_advantages(self.discount,
+                                         self.gae_lambda,
+                                         self.max_path_length,
+                                         i.baseline_var,
+                                         rewards,
+                                         name='adv')
+            adv_flat = flatten_batch(adv, name='adv_flat')
+            adv_valid = filter_valids(adv_flat,
+                                      i.flat.valid_var,
+                                      name='adv_valid')
 
-            # if self.policy.recurrent:
-            #     adv = tf.reshape(adv, [-1, self.max_path_length])
+            if self.policy.recurrent:
+                adv = tf.reshape(adv, [-1, self.max_path_length])
 
             # Optionally normalize advantages
-            # eps = tf.constant(1e-8, dtype=tf.float32)
-            # if self.center_adv:
-            #     if self.policy.recurrent:
-            #         adv = center_advs(adv, axes=[0], eps=eps)
-            #     else:
-            #         adv_valid = center_advs(adv_valid, axes=[0], eps=eps)
+            eps = tf.constant(1e-8, dtype=tf.float32)
+            if self.center_adv:
+                if self.policy.recurrent:
+                    if self._meta_learn:
+                        adv, mean = center_advs_local(adv, axes=[1], eps=eps, max_len=self.max_path_length)
+                    else:
+                        adv, mean = center_advs(adv, axes=[1], eps=eps)
+                else:
+                    adv_valid, mean = center_advs(adv_valid, axes=[0], eps=eps)
 
-            # if self.positive_adv:
-            #     if self.policy.recurrent:
-            #         adv = positive_advs(adv, eps)
-            #     else:
-            #         adv_valid = positive_advs(adv_valid, eps)
+            if self.positive_adv:
+                if self.policy.recurrent:
+                    adv = positive_advs(adv, eps)
+                else:
+                    adv_valid = positive_advs(adv_valid, eps)
 
             if self.policy.recurrent:
                 policy_dist_info = self.policy.dist_info_sym(
@@ -483,12 +590,33 @@ class NPO2(BatchPolopt):
                                                rewards,
                                                log_name='f_rewards')
 
-            returns = discounted_returns(self.discount, self.max_path_length,
-                                         rewards)
+
+            self._f_deltas = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                               deltas,
+                                               log_name='f_deltas')
+
+            self._f_adv_filter = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                               adv_filter,
+                                               log_name='f_adv_filter')
+
+            if self._meta_learn:
+                returns = discounted_returns_meta_learn(
+                    self.discount, self.max_path_length, self._episode_per_task, rewards)
+            else:
+                returns = discounted_returns(self.discount, self.max_path_length,
+                                             rewards)
+
             self._f_returns = compile_function(flatten_inputs(
                 self._policy_opt_inputs),
                                                returns,
                                                log_name='f_returns')
+            self._f_mean = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                               mean,
+                                               log_name='f_mean')
+
 
             return loss, pol_mean_kl
 
@@ -571,51 +699,6 @@ class NPO2(BatchPolopt):
 
         return policy_entropy
 
-    def _fit_baseline(self, samples_data):
-        """Update baselines from samples.
-
-        Args:
-            samples_data (dict): Processed sample data.
-                See process_samples() for details.
-
-        """
-        policy_opt_input_values = self._policy_opt_input_values(samples_data)
-
-        # Augment reward from baselines
-        rewards_tensor = self._f_rewards(*policy_opt_input_values)
-        returns_tensor = self._f_returns(*policy_opt_input_values)
-        returns_tensor = np.squeeze(returns_tensor, -1)
-
-        paths = samples_data['paths']
-        valids = samples_data['valids']
-        baselines = [path['baselines'] for path in paths]
-
-        # Recompute parts of samples_data
-        aug_rewards = []
-        aug_returns = []
-        for rew, ret, val, path in zip(rewards_tensor, returns_tensor, valids,
-                                       paths):
-            path['rewards'] = rew[val.astype(np.bool)]
-            path['returns'] = ret[val.astype(np.bool)]
-            aug_rewards.append(path['rewards'])
-            aug_returns.append(path['returns'])
-        aug_rewards = concat_tensor_list(aug_rewards)
-        aug_returns = concat_tensor_list(aug_returns)
-        samples_data['rewards'] = aug_rewards
-        samples_data['returns'] = aug_returns
-
-        # Calculate explained variance
-        ev = np_tensor_utils.explained_variance_1d(np.concatenate(baselines),
-                                                   aug_returns)
-        tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
-
-        # Fit baseline
-        logger.log('Fitting baseline...')
-        if hasattr(self.baseline, 'fit_with_samples'):
-            self.baseline.fit_with_samples(paths, samples_data)
-        else:
-            self.baseline.fit(paths)
-
     def _policy_opt_input_values(self, samples_data):
         """Map rollout samples to the policy optimizer inputs.
 
@@ -641,7 +724,7 @@ class NPO2(BatchPolopt):
             reward_var=samples_data['rewards'],
             baseline_var=samples_data['baselines'],
             valid_var=samples_data['valids'],
-            adv_var=samples_data['advantages'],
+            length_var=samples_data['lengths'],
             policy_state_info_vars_list=policy_state_info_list,
             policy_old_dist_info_vars_list=policy_old_dist_info_list,
         )
@@ -713,7 +796,10 @@ class NPO2(BatchPolopt):
         del data['_f_policy_kl']
         del data['_f_adv']
         del data['_f_rewards']
+        del data['_f_deltas']
         del data['_f_returns']
+        del data['_f_mean']
+        del data['_f_adv_filter']
         return data
 
     def __setstate__(self, state):
