@@ -1,6 +1,7 @@
-"""This module implements a replay buffer memory for meta RL."""
+"""A replay buffer memory for meta RL."""
 
 import numpy as np
+
 
 class MetaReplayBuffer:
     """This class implements MetaReplayBuffer.
@@ -14,26 +15,16 @@ class MetaReplayBuffer:
 
     """
 
-    def __init__(self,
-                 max_replay_buffer_size,
-                 observation_dim,
-                 action_dim
-                 ):
+    def __init__(self, max_replay_buffer_size, observation_dim, action_dim):
 
         self._observation_dim = observation_dim
         self._action_dim = action_dim
         self._max_replay_buffer_size = max_replay_buffer_size
-        self._observations = np.zeros((max_replay_buffer_size, observation_dim))
-        # It's a bit memory inefficient to save the observations twice,
-        # but it makes the code *much* easier since you no longer have to
-        # worry about termination conditions.
+        self._observations = np.zeros(
+            (max_replay_buffer_size, observation_dim))
         self._next_obs = np.zeros((max_replay_buffer_size, observation_dim))
         self._actions = np.zeros((max_replay_buffer_size, action_dim))
-        # Make everything a 2D np array to make it easier for other code to
-        # reason about the shape of the data
         self._rewards = np.zeros((max_replay_buffer_size, 1))
-        #self._sparse_rewards = np.zeros((max_replay_buffer_size, 1))
-        # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
         self._top = 0
         self._size = 0
@@ -41,15 +32,15 @@ class MetaReplayBuffer:
         self._cur_episode_start = 0
 
     def add_sample(self, observation, action, reward, terminal,
-                   next_observation, **kwargs):
+                   next_observation):
         """Add a sample to the buffer.
 
         Args:
-            observation (numpy array): Observation.
-            action (numpy array): Action.
-            reward (float) Reward.
-            terminal ()
-            next_observation
+            observation (numpy.ndarray): Observation.
+            action (numpy.ndarray): Action.
+            reward (float): Reward.
+            terminal (bool): Terminal state.
+            next_observation (numpy.ndarray): Next obseravation.
 
         """
         self._observations[self._top] = observation
@@ -57,99 +48,98 @@ class MetaReplayBuffer:
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._next_obs[self._top] = next_observation
-        #self._sparse_rewards[self._top] = kwargs['env_info'].get('sparse_reward', 0)
         self._advance()
 
+    def add_path(self, path):
+        """Add a path to buffer.
+
+        Args:
+            path (dict): Dictionary containing path information.
+
+        """
+        for _, (obs, action, reward, next_obs, terminal) in enumerate(
+                zip(path['observations'], path['actions'], path['rewards'],
+                    path['next_observations'], path['terminals'])):
+            self.add_sample(obs, action, reward, terminal, next_obs)
+        self.terminate_episode()
+
+    def size(self):
+        """Get size of buffer.
+
+        Returns:
+            int: Current size of buffer.
+
+        """
+        return self._size
+
+    def _advance(self):
+        """Increment size of buffer."""
+        self._top = (self._top + 1) % self._max_replay_buffer_size
+        if self._size < self._max_replay_buffer_size:
+            self._size += 1
+
     def terminate_episode(self):
-        # store the episode beginning once the episode is over
-        # n.b. allows last episode to loop but whatever
+        """Terminate current episode."""
+        # store buffer position of the start of current episode
         self._episode_starts.append(self._cur_episode_start)
         self._cur_episode_start = self._top
 
-    def size(self):
-        return self._size
-
     def clear(self):
+        """Clear buffer."""
         self._top = 0
         self._size = 0
         self._episode_starts = []
         self._cur_episode_start = 0
 
-    def _advance(self):
-        self._top = (self._top + 1) % self._max_replay_buffer_size
-        if self._size < self._max_replay_buffer_size:
-            self._size += 1
-
     def sample_data(self, indices):
+        """Sample data from buffer given indices.
+
+        Args:
+            indices (list): List of indices indicating which samples to take
+                from buffer.
+
+        Returns:
+            dict: Dictionary containing samples.
+
+        """
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
-            #sparse_rewards=self._sparse_rewards[indices],
         )
 
     def random_batch(self, batch_size):
-        ''' batch of unordered transitions '''
+        """Sample a batch of random unordered transitions from buffer.
+
+        Args:
+            batch_size (int): Size of random batch.
+
+        Returns:
+            dict: Dictionary containing random batch.
+
+        """
         indices = np.random.randint(0, self._size, batch_size)
         return self.sample_data(indices)
 
     def random_sequence(self, batch_size):
-        ''' batch of trajectories '''
-        # take random trajectories until we have enough
+        """Sample a batch of random ordered transitions from buffer.
+
+        Args:
+            batch_size (int): Size of random batch.
+
+        Returns:
+            dict: Dictionary containing random batch.
+
+        """
         i = 0
         indices = []
         while len(indices) < batch_size:
-            # TODO hack to not deal with wrapping episodes, just don't take the last one
             start = np.random.choice(self._episode_starts[:-1])
             pos_idx = self._episode_starts.index(start)
             indices += list(range(start, self._episode_starts[pos_idx + 1]))
             i += 1
-        # cut off the last traj if needed to respect batch size
         indices = indices[:batch_size]
+
         return self.sample_data(indices)
-
-    def num_steps_can_sample(self):
-        return self._size
-
-    def add_path(self, path):
-        """
-        Add a path to the replay buffer.
-
-        This default implementation naively goes through every step, but you
-        may want to optimize this.
-
-        NOTE: You should NOT call "terminate_episode" after calling add_path.
-        It's assumed that this function handles the episode termination.
-
-        :param path: Dict like one outputted by rlkit.samplers.util.rollout
-        """
-        for i, (
-                obs,
-                action,
-                reward,
-                next_obs,
-                terminal,
-                agent_info,
-                env_info
-        ) in enumerate(zip(
-            path["observations"],
-            path["actions"],
-            path["rewards"],
-            path["next_observations"],
-            path["terminals"],
-            path["agent_infos"],
-            path["env_infos"],
-        )):
-            
-            self.add_sample(
-                obs,
-                action,
-                reward,
-                terminal,
-                next_obs,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-        self.terminate_episode()

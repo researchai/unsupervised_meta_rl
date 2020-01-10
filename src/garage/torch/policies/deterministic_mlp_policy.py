@@ -35,6 +35,7 @@ class DeterministicMLPPolicy(MLPModule, Policy):
                            output_dim=self._action_dim,
                            **kwargs)
 
+    # pylint: disable=arguments-differ
     def forward(self, input_val):
         """Forward method.
 
@@ -63,6 +64,7 @@ class DeterministicMLPPolicy(MLPModule, Policy):
                         distribution
 
         """
+        observation = torch.Tensor(observation)
         with torch.no_grad():
             x = self.forward(observation.unsqueeze(0))
             return x.squeeze(0).numpy(), dict()
@@ -82,6 +84,7 @@ class DeterministicMLPPolicy(MLPModule, Policy):
                         distribution
 
         """
+        observations = torch.Tensor(observations)
         with torch.no_grad():
             x = self.forward(observations)
             return x.numpy(), dict()
