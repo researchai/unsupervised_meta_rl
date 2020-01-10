@@ -114,7 +114,6 @@ class TestRL2Sampler(TfGraphTestCase):
                 0, self.meta_batch_size * 10 * self.max_path_length)
             assert len(paths) == self.meta_batch_size * 10
             assert len(paths[0]['observations']) == self.max_path_length
-
     def test_rl2_sampler_invalid_num_of_env(self):
         with pytest.raises(
                 ValueError,
