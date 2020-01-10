@@ -9,8 +9,10 @@ class PathBuffer:
 
     This buffer only stores valid steps, and doesn't require paths to
     have a maximum length.
+
     Args:
-        capacity_in_steps (int): total memory allocated for the buffer
+        capacity_in_transitions (int): total memory allocated for the buffer
+
     """
 
     def __init__(self, capacity_in_transitions):
@@ -29,43 +31,29 @@ class PathBuffer:
 
         Args:
             path(dict): A dict of array of shape (path_len, flat_dim)
+
         """
-        for key, buf_arr in self._buffer.items():
-            path_array = path.get(key, None)
-            if path_array is None:
-                raise ValueError('Key {} missing from path.'.format(key))
-            elif (len(path_array.shape) != 2
-                  or path_array.shape[1] != buf_arr.shape[1]):
-                raise ValueError('Array {} has wrong shape.'.format(key))
-        path_len = self._get_path_length(path)
-        first_seg, second_seg = self._next_path_segments(path_len)
-        # Remove paths which will overlap with this one.
-        while (self._path_segments and self._segments_overlap(
-                first_seg, self._path_segments[0][0])):
-            self._path_segments.popleft()
-        while (self._path_segments and self._segments_overlap(
-                second_seg, self._path_segments[0][0])):
-            self._path_segments.popleft()
-        self._path_segments.append((first_seg, second_seg))
-        for key, array in path.items():
-            buf_arr = self._get_or_allocate_key(key, array)
-            # numpy doesn't special case range indexing, so it's very slow.
-            # Slice manually instead, which is faster than any other method.
-            # pylint: disable=invalid-slice-index
-            buf_arr[first_seg.start:first_seg.stop] = array[:len(first_seg)]
-            buf_arr[second_seg.start:second_seg.stop] = array[len(first_seg):]
-        if second_seg.stop:
-            self._first_idx_of_next_path = second_seg.stop
-        else:
-            self._first_idx_of_next_path = first_seg.stop
-        self._transitions_stored = min(self._capacity,
-                                       self._transitions_stored + path_len)
+        segments = self._add_batch(path)
+        self._path_segments.append(segments)
+
+    def add_samples(self, samples):
+        """Adds new samples outside of any path.
+
+        Samples added with this method share space with paths stored in the
+        buffer, but will never be sampled by sample_path.
+
+        Args:
+            samples (dict[str, np.ndarray]): Sample to insert.
+
+        """
+        self._add_batch(samples)
 
     def sample_path(self):
         """Sample a single path from the buffer.
 
         Returns:
-            A dict of arrays of shape (path_len, flat_dim)
+            dict[str, np.ndarray]: Dictionary of array of shape (path_len,
+                flat_dim).
 
         """
         path_idx = np.random.randint(len(self._path_segments))
@@ -79,15 +67,91 @@ class PathBuffer:
     def sample_transitions(self, batch_size):
         """Sample a batch of transitions from the buffer.
 
+        Args:
+            batch_size (int): Number of time steps to sample.
+
         Returns:
-            A dict of arrays of shape (batch_size, flat_dim)
+            dict[str, np.ndarray]: Dictionary of array of shape (path_len,
+                flat_dim).
 
         """
         idx = np.random.randint(self._transitions_stored, size=batch_size)
         return {key: buf_arr[idx] for key, buf_arr in self._buffer.items()}
 
+    def _add_batch(self, samples):
+        """Adds batch of samples, returning the segments where they are stored.
+
+        Samples added with this method share space with paths stored in the
+        buffer, but will never be sampled by sample_path.
+
+        Args:
+            samples (dict[str, np.ndarray]): Sample to insert.
+
+        Returns:
+            tuple[range, range]: segments in the buffer where the batch has
+                been stored.
+
+        """
+        self._check_array_sizes(samples)
+        path_len = self._get_sample_count(samples)
+        first_seg, second_seg = self._next_path_segments(path_len)
+        # Remove paths which will overlap with this one.
+        while (self._path_segments and self._segments_overlap(
+                first_seg, self._path_segments[0][0])):
+            self._path_segments.popleft()
+        while (self._path_segments and self._segments_overlap(
+                second_seg, self._path_segments[0][0])):
+            self._path_segments.popleft()
+        for key, array in samples.items():
+            buf_arr = self._get_or_allocate_key(key, array)
+            # numpy doesn't special case range indexing, so it's very slow.
+            # Slice manually instead, which is faster than any other method.
+            # pylint: disable=invalid-slice-index
+            buf_arr[first_seg.start:first_seg.stop] = array[:len(first_seg)]
+            buf_arr[second_seg.start:second_seg.stop] = array[len(first_seg):]
+        # I have no idea why pylint is confused like this.
+        # pylint: disable=using-constant-test
+        if second_seg.stop:
+            self._first_idx_of_next_path = second_seg.stop
+        else:
+            self._first_idx_of_next_path = first_seg.stop
+        self._transitions_stored = min(self._capacity,
+                                       self._transitions_stored + path_len)
+        return (first_seg, second_seg)
+
+    def _check_array_sizes(self, samples):
+        """Ensures existing array shapes match the to-insert array shapes.
+
+        Args:
+            samples (dict[str, np.ndarray]): Dictionary of samples.
+
+        Raises:
+            ValueError: If a key is missing from the samples, or the shape of
+                an array being inserted is different from an already present
+                array. Does not raise if there are new keys in samples.
+
+        """
+        for key, buf_arr in self._buffer.items():
+            path_array = samples.get(key, None)
+            if path_array is None:
+                raise ValueError('Key {} missing from path.'.format(key))
+            if path_array.shape[1:] != buf_arr.shape[1:]:
+                raise ValueError('Array {} has wrong shape.'.format(key))
+
     def _next_path_segments(self, n_indices):
-        """Compute where the next path should be stored."""
+        """Compute where the next path should be stored.
+
+        Args:
+            n_indices (int): Length of the path to allocate segments for.
+
+        Raises:
+            ValueError: If the path is longer than the entire buffer.
+
+        Returns:
+            tuple[range, range]: segments in the buffer where the batch has
+                been stored.
+
+        """
         if n_indices > self._capacity:
             raise ValueError('Path is too long to store in buffer.')
         start = self._first_idx_of_next_path
@@ -99,33 +163,62 @@ class PathBuffer:
             return (range(start, end), range(0, 0))
 
     def _get_or_allocate_key(self, key, array):
+        """Retrieves a specific array from the buffer.
+
+        Args:
+            key (str): Key to look up the buffer for.
+            array (np.ndarray): Array of the same shape and dtype as the array
+                being looked up. The shape and dtype are used to when
+                allocating the array, but the contents are always ignored.
+
+        Returns:
+            np.ndarray: Array corresponding to the given key.
+
+        """
         buf_arr = self._buffer.get(key, None)
         if buf_arr is None:
-            buf_arr = np.zeros((self._capacity, array.shape[1]), array.dtype)
+            buf_arr = np.zeros((self._capacity, ) + array.shape[1:],
+                               array.dtype)
             self._buffer[key] = buf_arr
         return buf_arr
 
     @staticmethod
-    def _get_path_length(path):
+    def _get_sample_count(samples):
+        """Get the number of time-steps given a dictionary of arrays.
+
+        Args:
+            samples (dict[str, np.ndarray]): Dictionary of samples.
+
+        Raises:
+            ValueError: If any of the arrays in samples have different lengths.
+
+        Returns:
+            int: Length of the arrays in samples.
+
+        """
         length_key = None
         length = None
-        for key, value in path.items():
+        for key, value in samples.items():
             if length is None:
                 length = len(value)
                 length_key = key
             elif len(value) != length:
-                raise ValueError('path has inconsistent lengths between '
+                raise ValueError('samples has inconsistent lengths between '
                                  '{!r} and {!r}.'.format(length_key, key))
         if not length:
-            raise ValueError('Nothing in path')
+            raise ValueError('Nothing in samples')
         return length
 
     @staticmethod
     def _segments_overlap(seg_a, seg_b):
         """Compute if two segments overlap.
 
+        Args:
+            seg_a (range): First segment.
+            seg_b (range): Second segment.
+
         Returns:
-            True iff the input ranges overlap at at least one index.
+            bool: True iff the input ranges overlap at at least one index.
 
         """
         # Empty segments never overlap.
