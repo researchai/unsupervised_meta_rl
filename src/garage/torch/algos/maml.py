@@ -18,17 +18,19 @@ class MAML:
     """Model-Agnostic Meta-Learning (MAML).
 
     Args:
-        env (garage.envs.base): A gym environment.
-        policy (garage.torch.policies.base.Policy): Policy.
+        env (garage.envs.GarageEnv): A gym environment.
+        policy (garage.torch.policies.Policy): Policy.
         baseline (garage.np.baselines.Baseline): The baseline.
-        meta_optimizer (Union[type, tuple[type, dict]]): Type of optimizer.
+        meta_optimizer
+            (Union[torch.optim.Optimizer,
+             tuple[torch.optim.Optimizer, dict]]): Type of optimizer.
             This can be an optimizer type such as `torch.optim.Adam` or a
             tuple of type and dictionary, where dictionary contains arguments
             to initialize the optimizer e.g. `(torch.optim.Adam, {'lr' = 1e-3})`  # noqa: E501
-        meta_batch_size (int): Number of tasks.
+        meta_batch_size (int): Number of tasks sampled per batch.
         inner_lr (double): Adaptation learning rate.
         num_grad_updates (int): Number of adaptation gradient steps.
-        inner_algo (garage.torch.algos.vpg): The inner algorithm used for
+        inner_algo (garage.torch.algos.VPG): The inner algorithm used for
             computing loss.
 
     """
@@ -46,12 +48,12 @@ class MAML:
             inner_algo = VPG(env.spec, policy, baseline)
 
         if policy.vectorized:
-            self.sampler_cls = OnPolicyVectorizedSampler
+            self._sampler_cls = OnPolicyVectorizedSampler
         else:
-            self.sampler_cls = BatchSampler
+            self._sampler_cls = BatchSampler
 
-        self.policy = policy
-        self.max_path_length = inner_algo.max_path_length
+        self._policy = policy
+        self._max_path_length = inner_algo.max_path_length
         self._env = env
         self._baselines = [copy.deepcopy(baseline)
                            for _ in range(meta_batch_size)]
@@ -59,7 +61,7 @@ class MAML:
         self._num_grad_updates = num_grad_updates
         self._meta_batch_size = meta_batch_size
         self._inner_algo = inner_algo
-        self._inner_optimizer = DiffSGD(self.policy, lr=inner_lr)
+        self._inner_optimizer = DiffSGD(self._policy, lr=inner_lr)
         self._meta_optimizer = make_optimizer(meta_optimizer,
                                               policy,
                                               lr=_Default(1e-3),
@@ -106,6 +108,8 @@ class MAML:
             float: Average return.
 
         """
+        old_theta = dict(self._policy.named_parameters())
+
         kl_before = self._compute_kl_constraint(itr,
                                                 all_samples,
                                                 all_params,
@@ -136,6 +140,8 @@ class MAML:
                                        kl_after.item(),
                                        policy_entropy.mean().item())
 
+        update_module_params(self._old_policy, old_theta)
+
         return average_return
 
     def _obtain_samples(self, runner):
@@ -155,7 +161,7 @@ class MAML:
         tasks = self._env.sample_tasks(self._meta_batch_size)
         all_samples = [[] for _ in range(len(tasks))]
         all_params = []
-        theta = dict(self.policy.named_parameters())
+        theta = dict(self._policy.named_parameters())
 
         for i, task in enumerate(tasks):
             self._set_task(runner, task)
@@ -170,9 +176,9 @@ class MAML:
                 if j != self._num_grad_updates:
                     self._adapt(runner.step_itr, batch_samples, set_grad=False)
 
-            all_params.append(dict(self.policy.named_parameters()))
+            all_params.append(dict(self._policy.named_parameters()))
             # Restore to pre-updated policy
-            update_module_params(self.policy, theta)
+            update_module_params(self._policy, theta)
 
         return all_samples, all_params
 
@@ -218,7 +224,7 @@ class MAML:
             torch.Tensor: Calculated mean value of loss.
 
         """
-        theta = dict(self.policy.named_parameters())
+        theta = dict(self._policy.named_parameters())
         old_theta = dict(self._old_policy.named_parameters())
 
         losses = []
@@ -231,7 +237,7 @@ class MAML:
                 loss = self._compute_loss(itr, task_samples[-1])
             losses.append(loss)
 
-            update_module_params(self.policy, theta)
+            update_module_params(self._policy, theta)
             update_module_params(self._old_policy, old_theta)
 
         return torch.stack(losses).mean()
@@ -260,7 +266,7 @@ class MAML:
             torch.Tensor: Calculated mean value of KL divergence.
 
         """
-        theta = dict(self.policy.named_parameters())
+        theta = dict(self._policy.named_parameters())
         old_theta = dict(self._old_policy.named_parameters())
 
         kls = []
@@ -274,7 +280,7 @@ class MAML:
                     task_samples[-1].observations)
             kls.append(kl)
 
-            update_module_params(self.policy, theta)
+            update_module_params(self._policy, theta)
             update_module_params(self._old_policy, old_theta)
 
         return torch.stack(kls).mean()
@@ -394,7 +400,7 @@ class MAML:
                 tabular.record('MinReturn', np.min(undiscounted_returns))
                 tabular.record('NumTrajs', len(paths))
 
-        with tabular.prefix(self.policy.name + '/'):
+        with tabular.prefix(self._policy.name + '/'):
             tabular.record('LossBefore', loss_before)
             tabular.record('LossAfter', loss_after)
             tabular.record('dLoss', loss_before - loss_after)

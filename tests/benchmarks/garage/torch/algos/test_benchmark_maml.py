@@ -93,7 +93,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
                 promp_env = PM_normalize(GarageHalfCheetahDirEnv())
                 promp_csv = run_promp(promp_env, seed, promp_dir)
 
-            garage_csvs.append(garage_csv)
+            # garage_csvs.append(garage_csv)
             promp_csvs.append(promp_csv)
 
         env.close()
@@ -235,6 +235,7 @@ def run_promp(env, seed, log_dir):
     )
 
     sample_processor = MetaSampleProcessor(
+        num_tasks=hyper_parameters['meta_batch_size'],
         baseline=baseline,
         discount=hyper_parameters['discount'],
         gae_lambda=hyper_parameters['gae_lambda'],

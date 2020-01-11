@@ -168,7 +168,8 @@ class VPG(BatchPolopt):
             torch.Tensor: Calculated mean value of loss
 
         """
-        # pylint: disable=unused-argument
+        del itr
+
         obs = batch_samples.observations
         rewards = batch_samples.rewards
         actions = batch_samples.actions
@@ -287,7 +288,10 @@ class VPG(BatchPolopt):
             return torch.Tensor(self.baseline.predict_n(path))
         return torch.Tensor(self.baseline.predict(path))
 
-    def _optimize(self, itr, batch_samples):  # pylint: disable=unused-argument  # noqa: E501
+    def _optimize(self, itr, batch_samples):
+        del itr
+        del batch_samples
+
         self._optimizer.step()
 
     def process_samples(self, itr, paths):
