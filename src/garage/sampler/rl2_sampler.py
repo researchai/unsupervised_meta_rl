@@ -29,7 +29,12 @@ class RL2Sampler(BatchSampler):
 
     """
 
-    def __init__(self, algo, env, meta_batch_size, episode_per_task, n_envs=None):
+    def __init__(self,
+                 algo,
+                 env,
+                 meta_batch_size,
+                 episode_per_task,
+                 n_envs=None):
         if n_envs is None:
             n_envs = singleton_pool.n_parallel * 4
         super().__init__(algo, env)
@@ -43,18 +48,18 @@ class RL2Sampler(BatchSampler):
     def start_worker(self):
         """Start workers."""
         n_envs = self._n_envs
-        assert n_envs >= self._meta_batch_size, "Number of vectorized environments"
-        " should be at least meta_batch_size."
-        assert n_envs % self._meta_batch_size == 0, "Number of vectorized"
-        " environments should be a multiple of meta_batch_size."
+        assert n_envs >= self._meta_batch_size, 'Number of vectorized environments'
+        ' should be at least meta_batch_size.'
+        assert n_envs % self._meta_batch_size == 0, 'Number of vectorized'
+        ' environments should be a multiple of meta_batch_size.'
         envs_per_worker = n_envs // self._meta_batch_size
 
         tasks = self.env.sample_tasks(self._meta_batch_size)
         vec_envs = []
         for task in tasks:
             vec_env = pickle.loads(pickle.dumps(self.env))
-            vec_env.reset_task(task)
-            vec_envs.extend([vec_env] * envs_per_worker)
+            vec_env.set_task(task)
+            vec_envs.extend([vec_env for _ in range(envs_per_worker)])
         # Deterministically set environment seeds based on the global seed.
         seed0 = deterministic.get_seed()
         if seed0 is not None:

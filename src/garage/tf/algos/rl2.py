@@ -8,7 +8,14 @@ from garage.tf.misc import tensor_utils
 
 
 class RL2(RLAlgorithm):
-    def __init__(self, policy, inner_algo, max_path_length, episode_per_task, normalize_adv=True, positive_adv=False):
+
+    def __init__(self,
+                 policy,
+                 inner_algo,
+                 max_path_length,
+                 episode_per_task,
+                 normalize_adv=True,
+                 positive_adv=False):
         self._inner_algo = inner_algo
         self.max_path_length = max_path_length
         self.env_spec = inner_algo.env_spec
@@ -123,6 +130,12 @@ class RL2(RLAlgorithm):
 
         self._inner_algo.episode_reward_mean.extend(undiscounted_returns)
 
+        if 'success' in all_paths[0]['env_infos']:
+            success_rate = sum(
+                [path['env_infos']['success'][-1]
+                 for path in all_paths]) * 100.0 / len(all_paths)
+            tabular.record('SuccessRate', success_rate)
+
         tabular.record('Entropy', ent)
         tabular.record('Perplexity', np.exp(ent))
         tabular.record('Extras/EpisodeRewardMean',
@@ -144,28 +157,35 @@ class RL2(RLAlgorithm):
             returns=returns,
             advantages=advantages,
             mean_adv=mean_adv,
-            deltas=deltas
-        )
+            deltas=deltas)
 
         return samples_data
 
     def _concatenate_paths(self, paths):
         if self.flatten_input:
-            observations = np.concatenate([self.env_spec.observation_space.flatten_n(
-                path["observations"]) for path in paths])
+            observations = np.concatenate([
+                self.env_spec.observation_space.flatten_n(path['observations'])
+                for path in paths
+            ])
         else:
-            observations = np.concatenate([path["observations"] for path in paths])
-        actions = np.concatenate([self.env_spec.action_space.flatten_n(path["actions"])
-            for path in paths])
-        rewards = np.concatenate([path["rewards"] for path in paths])
-        dones = np.concatenate([path["dones"] for path in paths])
-        returns = np.concatenate([path["returns"] for path in paths])
-        advantages = np.concatenate([path["advantages"] for path in paths])
-        baselines = np.concatenate([path["baselines"] for path in paths])
-        deltas = np.concatenate([path["deltas"] for path in paths])
-        valids = np.concatenate([np.ones_like(path['returns']) for path in paths])
-        env_infos = np_tensor_utils.concat_tensor_dict_list([path["env_infos"] for path in paths])
-        agent_infos = np_tensor_utils.concat_tensor_dict_list([path["agent_infos"] for path in paths])
+            observations = np.concatenate(
+                [path['observations'] for path in paths])
+        actions = np.concatenate([
+            self.env_spec.action_space.flatten_n(path['actions'])
+            for path in paths
+        ])
+        rewards = np.concatenate([path['rewards'] for path in paths])
+        dones = np.concatenate([path['dones'] for path in paths])
+        returns = np.concatenate([path['returns'] for path in paths])
+        advantages = np.concatenate([path['advantages'] for path in paths])
+        baselines = np.concatenate([path['baselines'] for path in paths])
+        deltas = np.concatenate([path['deltas'] for path in paths])
+        valids = np.concatenate(
+            [np.ones_like(path['returns']) for path in paths])
+        env_infos = np_tensor_utils.concat_tensor_dict_list(
+            [path['env_infos'] for path in paths])
+        agent_infos = np_tensor_utils.concat_tensor_dict_list(
+            [path['agent_infos'] for path in paths])
         lengths = np.cumsum([len(path['rewards']) for path in paths])
 
         return observations, actions, rewards, dones, returns, advantages, deltas, baselines, valids, lengths, env_infos, agent_infos
@@ -173,36 +193,52 @@ class RL2(RLAlgorithm):
     def _stack_paths(self, paths):
         max_total_path_length = self._inner_algo.max_path_length
 
-        observations = np_tensor_utils.stack_and_pad_tensor_n(paths, 'observations', max_total_path_length)
-        actions = np_tensor_utils.stack_and_pad_tensor_n(paths, 'actions', max_total_path_length)
-        rewards = np_tensor_utils.stack_and_pad_tensor_n(paths, 'rewards', max_total_path_length)
-        dones = np_tensor_utils.stack_and_pad_tensor_n(paths, 'dones', max_total_path_length)
+        observations = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'observations', max_total_path_length)
+        actions = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'actions', max_total_path_length)
+        rewards = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'rewards', max_total_path_length)
+        dones = np_tensor_utils.stack_and_pad_tensor_n(paths, 'dones',
+                                                       max_total_path_length)
 
         valids = [np.ones_like(path['returns']) for path in paths]
         valids = np_tensor_utils.pad_tensor_n(valids, max_total_path_length)
 
         lengths = np.stack([path['lengths'] for path in paths])
 
-        agent_infos = np_tensor_utils.stack_and_pad_tensor_dict(paths, 'agent_infos', max_total_path_length)
-        env_infos = np_tensor_utils.stack_and_pad_tensor_dict(paths, 'env_infos', max_total_path_length)
+        agent_infos = np_tensor_utils.stack_and_pad_tensor_dict(
+            paths, 'agent_infos', max_total_path_length)
+        env_infos = np_tensor_utils.stack_and_pad_tensor_dict(
+            paths, 'env_infos', max_total_path_length)
 
         # for debug, delete later
-        returns = np_tensor_utils.stack_and_pad_tensor_n(paths, 'returns', max_total_path_length)
-        advantages = np_tensor_utils.stack_and_pad_tensor_n(paths, 'advantages', max_total_path_length)
-        baselines = np_tensor_utils.stack_and_pad_tensor_n(paths, 'baselines', max_total_path_length)
-        deltas = np_tensor_utils.stack_and_pad_tensor_n(paths, 'deltas', max_total_path_length)
+        returns = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'returns', max_total_path_length)
+        advantages = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'advantages', max_total_path_length)
+        baselines = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'baselines', max_total_path_length)
+        deltas = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'deltas', max_total_path_length)
 
         mean_adv = np.stack([path['mean_adv'] for path in paths])
 
         return observations, actions, rewards, dones, baselines, returns, advantages, mean_adv, deltas, valids, lengths, env_infos, agent_infos
 
     def _stack_paths_for_evaluation(self, paths):
-        observations = np_tensor_utils.stack_and_pad_tensor_n(paths, 'observations', self.max_path_length)
-        actions = np_tensor_utils.stack_and_pad_tensor_n(paths, 'actions', self.max_path_length)
-        rewards = np_tensor_utils.stack_and_pad_tensor_n(paths, 'rewards', self.max_path_length)
-        dones = np_tensor_utils.stack_and_pad_tensor_n(paths, 'dones', self.max_path_length)
-        agent_infos = np_tensor_utils.stack_and_pad_tensor_dict(paths, 'agent_infos', self.max_path_length)
-        env_infos = np_tensor_utils.stack_and_pad_tensor_dict(paths, 'env_infos', self.max_path_length)
+        observations = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'observations', self.max_path_length)
+        actions = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'actions', self.max_path_length)
+        rewards = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'rewards', self.max_path_length)
+        dones = np_tensor_utils.stack_and_pad_tensor_n(paths, 'dones',
+                                                       self.max_path_length)
+        agent_infos = np_tensor_utils.stack_and_pad_tensor_dict(
+            paths, 'agent_infos', self.max_path_length)
+        env_infos = np_tensor_utils.stack_and_pad_tensor_dict(
+            paths, 'env_infos', self.max_path_length)
 
         valids = [np.ones_like(path['returns']) for path in paths]
         valids = np_tensor_utils.pad_tensor_n(valids, self.max_path_length)
@@ -214,21 +250,27 @@ class RL2(RLAlgorithm):
     def _compute_samples_data(self, i, paths):
         assert type(paths) == list
         for idx, path in enumerate(paths):
-            path["returns"] = np_tensor_utils.discount_cumsum(path["rewards"], self.discount)
+            path['returns'] = np_tensor_utils.discount_cumsum(
+                path['rewards'], self.discount)
         # ##################
         # for debug, delete later
         self.baselines[i].fit(paths)
-        all_path_baselines = [self.baselines[i].predict(path) for path in paths]
-        paths = self._compute_advantages_and_baselines(paths, all_path_baselines)
+        all_path_baselines = [
+            self.baselines[i].predict(path) for path in paths
+        ]
+        paths = self._compute_advantages_and_baselines(paths,
+                                                       all_path_baselines)
         # ##################
 
-        observations, actions, rewards, dones, returns, advantages, deltas, baselines, valids, lengths, env_infos, agent_infos = self._concatenate_paths(paths)
-        
+        observations, actions, rewards, dones, returns, advantages, deltas, baselines, valids, lengths, env_infos, agent_infos = self._concatenate_paths(
+            paths)
+
         # ##################
         # for debug, delete later
         mean_adv = np.mean(advantages)
         if self.normalize_adv:
-            advantages = (advantages - np.mean(advantages)) / (np.std(advantages) + 1e-8)
+            advantages = (advantages -
+                          np.mean(advantages)) / (np.std(advantages) + 1e-8)
         if self.positive_adv:
             advantages = (advantages - np.min(advantages)) + 1e-8
         # ##################
@@ -254,11 +296,11 @@ class RL2(RLAlgorithm):
         assert len(paths) == len(all_path_baselines)
         for idx, path in enumerate(paths):
             path_baselines = np.append(all_path_baselines[idx], 0)
-            deltas = path["rewards"] + \
+            deltas = path['rewards'] + \
                      self.discount * path_baselines[1:] - \
                      path_baselines[:-1]
             path['deltas'] = deltas
-            path["advantages"] = np_tensor_utils.discount_cumsum(
+            path['advantages'] = np_tensor_utils.discount_cumsum(
                 deltas, self.discount * self.gae_lambda)
             path['baselines'] = all_path_baselines[idx]
         return paths
