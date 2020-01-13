@@ -8,55 +8,55 @@ import tests.helpers as Rh
 class TestNothing:
 	def test_nothing_here(self):
 		# ######## generate plot for one garage vs one promp
-		# g_x = 'TotalEnvSteps'
-		# g_y = 'AverageReturn'
-		# p_x = 'n_timesteps'
-		# p_y = 'train-AverageReturn'
+		g_x = 'TotalEnvSteps'
+		g_y = 'Evaluation/AverageReturn'
+		p_x = 'n_timesteps'
+		p_y = 'train-AverageReturn'
 
-		# df_g = pd.read_csv('data/local/experiment/garage_epi=10_itr=500_HalfCheetahRandDir/progress.csv')
-		# df_g['Type'] = 'Garage'
+		df_g = pd.read_csv('data/local/experiment/garage_half_cheetah_vel_epi=2_itr=500/progress.csv')
+		df_g['Type'] = 'Garage'
 
-		# # df_p = pd.read_csv('data/local/experiment/promp_epi=2_itr=1000.csv')
-		# df_p = pd.read_csv('data/local/experiment/promp_epi=10_itr=500_HalfCheetahRandDir/progress.csv')
-		# df_p['Type'] = 'ProMP'
-		# df_p = df_p.rename(columns={p_x: g_x, p_y: g_y})
-		# data = pd.concat([df_g, df_p])
+		# df_p = pd.read_csv('data/local/experiment/promp_epi=2_itr=1000.csv')
+		df_p = pd.read_csv('data/local/experiment/progress.csv')
+		df_p['Type'] = 'ProMP'
+		df_p = df_p.rename(columns={p_x: g_x, p_y: g_y})
+		data = pd.concat([df_g, df_p])
 
-		# ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=data)
-		# ax.axes.flatten()[0].set_title('HalfCheetahRandDir')
+		ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=data)
+		ax.axes.flatten()[0].set_title('HalfCheetahRandVel')
 
-		# plt.savefig('data/local/experiment/garage_vs_promp_epi=10_itr=500_HalfCheetahRandDir.png')
+		plt.savefig('data/local/experiment/garage_vs_promp_epi=10_itr=500_HalfCheetahRandDir.png')
 
-		# plt.close()
+		plt.close()
 
 		######## generate plot for x garage vs x promp
-		target_folder = 'HalfCheetahRandVel_benchmark/'
-		seeds = [48, 75, 96]
-		prefix = 'data/local/benchmarks/rl2/'+target_folder
-		garage_tf_csvs = [
-			prefix+'trial_{}_seed_{}/garage/progress.csv'.format(i+1, seed) for i, seed in enumerate(seeds)
-		]
-		promp_csvs = [
-			prefix+'trial_{}_seed_{}/promp/progress.csv'.format(i+1, seed) for i, seed in enumerate(seeds)
-		]
-		garage_tf_csvs2 = prefix +'progress.csv'
-		plt_file = prefix+'benchmark_halfcheetahRandVel_result.png'
-		Rh.relplot(g_csvs=garage_tf_csvs,
-		           b_csvs=promp_csvs,
-		           g_csvs2='data/local/experiment/new_garage_epi=10_itr=500_baselines_sample_norm_adv/progress.csv',
-		           g_x='TotalEnvSteps',
-		           g_y='AverageReturn',
-		           g_z='Garage-previous',
-		           g_z2='Garage-latest',
-		           b_x='n_timesteps',
-		           b_y='train-AverageReturn',
-		           b_z='ProMP',
-		           trials=len(seeds),
-		           seeds=seeds,
-		           plt_file=plt_file,
-		           env_id='HalfCheetahRandDir over 3 seeds',
-		           x_label='TotalEnvSteps',
-		           y_label='AverageReturn')
+		# target_folder = 'HalfCheetahRandVel_benchmark/'
+		# seeds = [48, 75, 96]
+		# prefix = 'data/local/benchmarks/rl2/'+target_folder
+		# garage_tf_csvs = [
+		# 	prefix+'trial_{}_seed_{}/garage/progress.csv'.format(i+1, seed) for i, seed in enumerate(seeds)
+		# ]
+		# promp_csvs = [
+		# 	prefix+'trial_{}_seed_{}/promp/progress.csv'.format(i+1, seed) for i, seed in enumerate(seeds)
+		# ]
+		# garage_tf_csvs2 = prefix +'progress.csv'
+		# plt_file = prefix+'benchmark_halfcheetahRandVel_result.png'
+		# Rh.relplot(g_csvs=garage_tf_csvs,
+		#            b_csvs=promp_csvs,
+		#            g_csvs2='data/local/experiment/new_garage_epi=10_itr=500_baselines_sample_norm_adv/progress.csv',
+		#            g_x='TotalEnvSteps',
+		#            g_y='AverageReturn',
+		#            g_z='Garage-previous',
+		#            g_z2='Garage-latest',
+		#            b_x='n_timesteps',
+		#            b_y='train-AverageReturn',
+		#            b_z='ProMP',
+		#            trials=len(seeds),
+		#            seeds=seeds,
+		#            plt_file=plt_file,
+		#            env_id='HalfCheetahRandDir over 3 seeds',
+		#            x_label='TotalEnvSteps',
+		#            y_label='AverageReturn')
 
 		##### plot promp fit baseline before and after predict
 		# p_x = 'n_timesteps'
@@ -113,8 +113,8 @@ class TestNothing:
 
 		# ###### Only plot garage
 		# g_x = 'TotalEnvSteps'
-		# g_y = 'AverageReturn'
-		# df_g = pd.read_csv('data/local/experiment/new_garage_epi=10_itr=500_baselines_sample_norm_adv/progress.csv')
+		# g_y = 'Evaluation/AverageReturn'
+		# df_g = pd.read_csv('data/local/experiment/garage_half_cheetah_vel_epi=2_itr=500/progress.csv')
 		# df_g['Type'] = 'Garage'
 		# ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=df_g)
 		# ax.axes.flatten()[0].set_title('HalfCheetahRandVel')
