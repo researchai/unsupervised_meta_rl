@@ -70,7 +70,6 @@ class RLAlgorithm(abc.ABC):
         average_discounted_return = np.mean([rtn[0] for rtn in returns])
 
         undiscounted_returns = [sum(reward) for reward in batch['rewards']]
-
         tabular.record('Iteration', itr)
         tabular.record('Evaluation/NumTrajs', len(returns))
 

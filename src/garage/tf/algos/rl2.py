@@ -107,11 +107,6 @@ class RL2(RLAlgorithm):
         _observations, _actions, _rewards, _terminals, _lengths, _env_infos, _agent_infos = \
             self._stack_paths_for_evaluation(all_paths)
 
-        average_discounted_return = (np.mean(
-            [path['returns'][0] for path in all_paths]))
-
-        undiscounted_returns = [sum(path['rewards']) for path in all_paths]
-
         ent = np.sum(self.policy.distribution.entropy(agent_infos) *
                      valids) / np.sum(valids)
 

@@ -89,7 +89,7 @@ class RL2Sampler:
         vec_envs = []
         for env_ind in env_indices:
             vec_envs.extend([
-                copy.deepcopy(self.envs[env_ind])
+                self.envs[env_ind]
                 for _ in range(self._envs_per_worker)
             ])
         seed0 = deterministic.get_seed()
