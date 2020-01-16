@@ -1,11 +1,19 @@
+"""PEARL benchmark script."""
+
+import datetime
+import os
+import os.path as osp
+import random
+
 import akro
+import dowel
+from dowel import logger as dowel_logger
 import numpy as np
+import pytest
 import torch
 from torch.nn import functional as F  # NOQA
 
 from garage.envs import normalize
-from garage.envs.base import GarageEnv
-from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
@@ -15,7 +23,11 @@ from garage.torch.modules import FlattenMLP, MLPEncoder
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
+from tests.fixtures import snapshot_config
+import tests.helpers as Rh
 
+
+# Hyperparams for baselines and garage
 params = dict(
     env_name='cheetah-dir',
     n_train_tasks=2,
@@ -29,7 +41,7 @@ params = dict(
     ),
     algo_params=dict(
         meta_batch=4, # number of tasks to average the gradient across
-        num_iterations=5, # number of data sampling / training iterates
+        num_iterations=500, # number of data sampling / training iterates
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
         num_steps_prior=1000, # number of transitions to collect per task with z ~ prior
@@ -56,28 +68,76 @@ params = dict(
         num_exp_traj_eval=2, # how many exploration trajs to collect before beginning posterior sampling at test time
         recurrent=False, # recurrent or permutation-invariant encoder
         dump_eval_paths=False, # whether to save evaluation trajectories
-    ),
-    util_params=dict(
-        base_log_dir='output',
-        use_gpu=True,
-        gpu_id=0,
-        debug=False, # debugging triggers printing and writes logs to debug directory
-        docker=False, # docker is not yet supported
     )
 )
 
 
-def run_task(snapshot_config, *_):
-    """Set up environment and algorithm and run the task.
+class TestBenchmarkPEARL:
+    '''Compare benchmarks between garage and baselines.'''
 
-    Args:
-        snapshot_config (garage.experiment.SnapshotConfig): The snapshot
-            configuration used by LocalRunner to create the snapshotter.
-            If None, it will create one with default settings.
-        _ : Unused parameters
+    @pytest.mark.huge
+    def test_benchmark_pearl(self):
+        '''
+        Compare benchmarks between garage and baselines.
+        :return:
+        '''
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+        benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
+                                 'pearl', timestamp)
+        result_json = {}
+        
+        env_id = 'half_cheetah_dir'
+        task_dir = osp.join(benchmark_dir, env_id)
+        plt_file = osp.join(benchmark_dir,
+                            '{}_benchmark.png'.format(env_id))
+        garage_csvs = []
 
-    """
-    # create multi-task environment and sample tasks
+        garage_dir = osp.join(task_dir, 'garage')
+
+        garage_csv = run_garage(garage_dir)
+        garage_csvs.append(garage_csv)
+
+
+        Rh.plot(b_csvs=garage_csvs,
+                g_csvs=garage_csvs,
+                g_x='Epoch',
+                g_y='AverageReturn',
+                g_z='Garage',
+                b_x='total/epochs',
+                b_y='rollout/return',
+                b_z='Baseline',
+                trials=0,
+                seeds=[1],
+                plt_file=plt_file,
+                env_id=env_id,
+                x_label='Epoch',
+                y_label='AverageReturn')
+
+        result_json[env_id] = Rh.create_json(
+            b_csvs=garage_csvs,
+            g_csvs=garage_csvs,
+            seeds=[1],
+            trails=0,
+            g_x='Epoch',
+            g_y='AverageReturn',
+            b_x='total/epochs',
+            b_y='rollout/return',
+            factor_g=params['steps_per_epoch'] * params['n_rollout_steps'],
+            factor_b=1)
+
+        Rh.write_file(result_json, 'PEARL')
+
+
+def run_garage(log_dir):
+    '''
+    Create garage model and training.
+    Replace the ddpg with the algorithm you want to run.
+    :param env: Environment of the task.
+    :param seed: Random seed for the trial.
+    :param log_dir: Log dir path.
+    :return:
+    '''
+
     env = normalize(HalfCheetahDirEnv())
     runner = LocalRunner(snapshot_config)
     tasks = [0, 1]
@@ -140,14 +200,20 @@ def run_task(snapshot_config, *_):
         **params['algo_params']
     )
 
+    tu.set_gpu_mode(False)
+
+
+    # Set up logger since we are not using run_experiment
+    tabular_log_file = osp.join(log_dir, 'progress.csv')
+    tensorboard_log_dir = osp.join(log_dir)
+    dowel_logger.add_output(dowel.StdOutput())
+    dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
+    dowel_logger.add_output(dowel.TensorBoardOutput(tensorboard_log_dir))
+
     runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
-    runner.train(n_epochs=50, batch_size=256)
+    runner.train(n_epochs=params['algo_params']['num_iterations'], batch_size=256)
 
-tu.set_gpu_mode(False)
+    dowel_logger.remove_all()
 
-run_experiment(
-    run_task,
-    snapshot_mode='last',
-    seed=1,
-)
+    return tabular_log_file
