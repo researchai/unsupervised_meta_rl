@@ -1,6 +1,4 @@
 # from garage.envs import HalfCheetahVelEnv
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_vel import HalfCheetahRandVelEnv
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_direc import HalfCheetahRandDirecEnv
 from garage.envs import RL2Env
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
@@ -12,7 +10,7 @@ from garage.tf.optimizers import FiniteDifferenceHvp
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler.rl2_sampler import RL2Sampler
 
-from metaworld.benchmarks import ML1
+# from metaworld.benchmarks import ML1
 import os
 
 
