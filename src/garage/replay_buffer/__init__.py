@@ -8,8 +8,9 @@ from garage.replay_buffer.meta_replay_buffer import MetaReplayBuffer
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
 from garage.replay_buffer.path_buffer import PathBuffer
 from garage.replay_buffer.simple_replay_buffer import SimpleReplayBuffer
+from garage.replay_buffer.sac_replay_buffer import SACReplayBuffer
 
 __all__ = [
     'HerReplayBuffer', 'MetaReplayBuffer', 'MultiTaskReplayBuffer',
-    'PathBuffer', 'SimpleReplayBuffer'
+    'PathBuffer', 'SimpleReplayBuffer', 'SACReplayBuffer'
 ]

@@ -9,5 +9,6 @@ from garage.torch.algos.vpg import VPG
 from garage.torch.algos.pearl_sac import PEARLSAC
 from garage.torch.algos.ppo import PPO  # noqa: I100
 from garage.torch.algos.trpo import TRPO
+from garage.torch.algos.sac import SAC
 
-__all__ = ['DDPG', 'VPG', 'PPO', 'TRPO', 'PEARLSAC']
+__all__ = ['DDPG', 'VPG', 'PPO', 'TRPO', 'PEARLSAC', 'SAC']

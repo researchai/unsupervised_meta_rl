@@ -4,14 +4,11 @@
 
 from collections import OrderedDict
 import copy
-import time
 
 from dowel import logger, tabular
-import gtimer as gt
 import numpy as np
 import torch
 
-from garage.experiment.snapshotter import Snapshotter
 from garage.misc import eval_util
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
 from garage.sampler.in_place_sampler import InPlaceSampler
@@ -75,6 +72,7 @@ class PEARLSAC:
         self.env = env
         self.policy = nets[0]
         self.exploration_policy = nets[0] # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
+        self.sac = nets[1]
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
@@ -146,33 +144,15 @@ class PEARLSAC:
 
         self.recurrent = recurrent
         self.latent_dim = latent_dim
-        self.qf_criterion = torch.nn.MSELoss()
         self.vf_criterion = torch.nn.MSELoss()
-        self.vib_criterion = torch.nn.MSELoss()
-        self.l2_reg_criterion = torch.nn.MSELoss()
         self.kl_lambda = kl_lambda
 
         self.use_information_bottleneck = use_information_bottleneck
         self.use_next_obs_in_context = use_next_obs_in_context
 
-        self.qf1, self.qf2, self.vf = nets[1:]
-        self.target_vf = copy.deepcopy(self.vf)
-
         self.policy_optimizer = optimizer_class(
             self.policy.networks[1].parameters(),
             lr=policy_lr,
-        )
-        self.qf1_optimizer = optimizer_class(
-            self.qf1.parameters(),
-            lr=qf_lr,
-        )
-        self.qf2_optimizer = optimizer_class(
-            self.qf2.parameters(),
-            lr=qf_lr,
-        )
-        self.vf_optimizer = optimizer_class(
-            self.vf.parameters(),
-            lr=vf_lr,
         )
         self.context_optimizer = optimizer_class(
             self.policy.networks[0].parameters(),
@@ -359,7 +339,7 @@ class PEARLSAC:
     ###### Torch stuff #####
     @property
     def networks(self):
-        return self.policy.networks + [self.policy] + [self.qf1, self.qf2, self.vf, self.target_vf]
+        return self.policy.networks + [self.policy] + [self.sac]
 
     def to(self, device=None):
         if device == None:
@@ -423,19 +403,6 @@ class PEARLSAC:
             self._take_step(indices, context)
             # stop backprop
             self.policy.detach_z()
-
-    def _min_q(self, obs, actions, task_z):
-        q1 = self.qf1(obs, actions, task_z.detach())
-        q2 = self.qf2(obs, actions, task_z.detach())
-        min_q = torch.min(q1, q2)
-        return min_q
-
-    def _update_target_network(self):
-        for target_param, param in zip(self.target_vf.parameters(), self.vf.parameters()):
-            target_param.data.copy_(
-                target_param.data * (1.0 - self.soft_target_tau) \
-                    + param.data * self.soft_target_tau
-            )
 
     def _take_step(self, indices, context):
 

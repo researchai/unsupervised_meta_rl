@@ -14,10 +14,12 @@ from garage.sampler.stateful_pool import singleton_pool
 from garage.sampler.vec_env_executor import VecEnvExecutor
 from garage.sampler.worker import DefaultWorker, Worker
 from garage.sampler.worker_factory import WorkerFactory
+from garage.sampler.simple_sampler import SimpleSampler
+
 
 __all__ = [
     'BatchSampler', 'Sampler', 'ISSampler', 'singleton_pool', 'RaySampler',
     'SamplerWorker', 'ParallelVecEnvExecutor', 'VecEnvExecutor',
     'OffPolicyVectorizedSampler', 'OnPolicyVectorizedSampler', 'WorkerFactory',
-    'Worker', 'DefaultWorker', 'InPlaceSampler'
+    'Worker', 'DefaultWorker', 'InPlaceSampler', 'SimpleSampler'
 ]
