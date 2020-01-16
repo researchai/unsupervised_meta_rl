@@ -2,6 +2,7 @@
 """A sampler that does not perform serialization for sampling."""
 import numpy as np
 
+from garage.torch.policies import DeterministicWrapper
 from garage.sampler.utils import rollout
 
 
@@ -33,6 +34,7 @@ class InPlaceSampler:
     def obtain_samples(self,
                        max_samples=np.inf,
                        max_trajs=np.inf,
+                       deterministic=False,
                        accum_context=True,
                        resample=1):
         """Obtain samples in the environment up to max_samples or max_trajs.
@@ -40,6 +42,7 @@ class InPlaceSampler:
         Args:
             max_samples (int): Maximum number of samples.
             max_trajs (int):  Maximum number of trajectories.
+            deterministic (bool): Whether or not policy is deterministic.
             accum_context (bool): Whether or not to accumulate the collected
                 context.
             resample (int): How often (in trajectories) to resample context.
@@ -53,6 +56,7 @@ class InPlaceSampler:
         paths = []
         n_steps_total = 0
         n_trajs = 0
+        policy = DeterministicWrapper(self.policy) if deterministic else self.policy
 
         while n_steps_total < max_samples and n_trajs < max_trajs:
             path = rollout(self.env,

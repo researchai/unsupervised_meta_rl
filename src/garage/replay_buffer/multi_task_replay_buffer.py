@@ -7,7 +7,7 @@ import numpy as np
 from garage.replay_buffer.meta_replay_buffer import MetaReplayBuffer
 
 
-class MultiTaskReplayBuffer:
+class MultiTaskReplayBuffer(object):
     """This buffer is used in meta-RL algorithms involving multiple tasks.
 
     It contains a list of MetaReplayBuffers that can be accessed by index.

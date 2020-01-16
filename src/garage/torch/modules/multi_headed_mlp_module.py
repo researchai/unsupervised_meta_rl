@@ -145,7 +145,6 @@ class MultiHeadedMLPModule(nn.Module):
         """
 
         x = input_val
-        print(x.size())
         for layer in self._layers:
             x = layer(x)
 

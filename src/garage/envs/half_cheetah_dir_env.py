@@ -29,12 +29,11 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
 
     """
 
-    def __init__(self, task=None):
+    def __init__(self, task={}):
         directions = [-1, 1]
         self.tasks = [{'direction': direction} for direction in directions]
-        task = task or {'direction': 1.}
         self._task = task
-        self._goal_dir = task['direction']
+        self._goal_dir = task.get('direction', 1)
         self._goal = self._goal_dir
         super().__init__()
 
@@ -107,3 +106,7 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
         self._goal_dir = self._task['direction']
         self._goal = self._goal_dir
         self.reset()
+
+    @property
+    def goal(self):
+        return self._goal

@@ -47,10 +47,8 @@ def flatten_batch(tensor):
     """
     return tensor.reshape((-1, ) + tensor.shape[2:])
 
-"""
-GPU wrappers
-"""
 
+#GPU wrappers
 _use_gpu = False
 device = None
 
@@ -67,10 +65,10 @@ def set_gpu_mode(mode, gpu_id=0):
 
 
 def from_numpy(*args, **kwargs):
-    return torch.from_numpy(*args, **kwargs).float()
+    return torch.from_numpy(*args, **kwargs).float().to(device)
 
 
-def get_numpy(tensor):
+def to_numpy(tensor):
     return tensor.to('cpu').detach().numpy()
 
 

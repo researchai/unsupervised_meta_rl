@@ -6,11 +6,12 @@ Learning). The paper on PEARL can be found at https://arxiv.org/abs/1903.08254.
 Code is adapted from https://github.com/katerakelly/oyster.
 """
 
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
 
-from garage.torch.utils import np_to_torch
+from garage.torch.utils import from_numpy, to_numpy
 
 
 class ContextConditionedPolicy(nn.Module):
@@ -101,11 +102,25 @@ class ContextConditionedPolicy(nn.Module):
             inputs (dict): Dictionary of transition information in np arrays .
 
         """
-        transitions = np_to_torch(inputs)
-        o = transitions['observation']
-        r = transitions['reward']
-        a = transitions['action']
-        no = transitions['next_observation']
+
+        o, a, r, no, d, info = inputs
+        o = from_numpy(o[None, None, ...])
+        a = from_numpy(a[None, None, ...])
+        r = from_numpy(np.array([r])[None, None, ...])
+        no = from_numpy(no[None, None, ...])
+
+        if self._use_next_obs:
+            data = torch.cat([o, a, r, no], dim=2)
+        else:
+            data = torch.cat([o, a, r], dim=2)
+
+        """
+        #LWM
+        o, a, r, no, _, _ = inputs
+        o = from_numpy(o)
+        a = from_numpy(a)
+        r = from_numpy(np.array([r]))
+        no = from_numpy(no)
 
         if self._use_next_obs:
             data = torch.cat([o, a, r, no], dim=0)
@@ -113,7 +128,7 @@ class ContextConditionedPolicy(nn.Module):
             data = torch.cat([o, a, r], dim=0)
 
         data = torch.unsqueeze(torch.unsqueeze(data, 0), 0)
-
+        """
         if self._context is None:
             self._context = data
         else:
@@ -127,6 +142,7 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         params = self._context_encoder(context)
+        params = params.view(context.size(0), -1, self._context_encoder._output_dim)
         # given context, compute mean and variance of q(z|c)
         if self._use_ib:
             mu = params[..., :self._latent_dim]
@@ -134,10 +150,10 @@ class ContextConditionedPolicy(nn.Module):
             z_params = []
             # compute mu, sigma of product of gaussians
             for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared)):
-                s = torch.clamp(s, min=1e-7)
-                s = 1. / torch.sum(torch.reciprocal(s), dim=0)
-                m = s * torch.sum(m / s, dim=0)
-                z_params.append((m, s))
+                s2 = torch.clamp(s, min=1e-7)
+                s2 = 1. / torch.sum(torch.reciprocal(s2), dim=0)
+                mu = s2 * torch.sum(m / s2, dim=0)
+                z_params.append((mu, s2))
             self.z_means = torch.stack([p[0] for p in z_params])
             self.z_vars = torch.stack([p[1] for p in z_params])
         else:
@@ -169,34 +185,27 @@ class ContextConditionedPolicy(nn.Module):
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
-        """
-        actions, policy_outputs = self._policy.get_actions(in_)
-        actions = torch.Tensor(actions)
-        mean = policy_outputs['mean']
-        log_std = policy_outputs['log_std']
-        log_prob = self._policy.log_likelihood(in_, actions)
-
-        return (actions, mean, log_std, log_prob), task_z
-        """
         policy_outputs = self._policy(in_, reparameterize=True, return_log_prob=True)
 
         return policy_outputs, task_z
 
-    def get_action(self, obs):
+    def get_action(self, obs, deterministic=False):
         """Sample action from the policy, conditioned on the task embedding.
 
         Args:
             obs (torch.Tensor): Observation values.
+            deterministic (bool): Whether or not policy is deterministic.
 
         Returns:
             torch.Tensor: Output action values.
 
         """
         z = self.z
-        obs = torch.Tensor(obs)
-        obs = torch.unsqueeze(obs, 0)
-        in_ = torch.cat([obs, z], dim=1)
-        out = self._policy.get_action(in_)
+        #obs = torch.Tensor(obs)
+        #obs = torch.unsqueeze(obs, 0)
+        obs = from_numpy(obs[None])
+        obs_in = torch.cat([obs, z], dim=1)
+        out = self._policy.get_action(obs_in, deterministic=deterministic)
         return out
 
     def compute_kl_div(self):
@@ -227,6 +236,18 @@ class ContextConditionedPolicy(nn.Module):
 
         """
 
+    def log_diagnostics(self, eval_statistics):
+        """Log data about encodings to eval_statistics dictionary.
+       
+        Args:
+            eval_statistics (dict): Dictionary for logging info.
+
+        """
+        z_mean = np.mean(np.abs(to_numpy(self.z_means[0])))
+        z_sig = np.mean(to_numpy(self.z_vars[0]))
+        eval_statistics['Z mean eval'] = z_mean
+        eval_statistics['Z variance eval'] = z_sig
+
     @property
     def networks(self):
         """Return context_encoder and policy.
@@ -236,3 +257,13 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         return [self._context_encoder, self._policy]
+  
+    @property
+    def context(self):
+        """Return context.
+
+        Returns:
+            torch.Tensor: context values.
+
+        """
+        return self._context

@@ -55,23 +55,19 @@ def rollout(env,
     env_infos = []
     o = env.reset()
     next_o = None
-    agent.reset()
+    # LWD
+    #agent.reset()
     path_length = 0
     if animated:
         env.render()
     while path_length < max_path_length:
-        #print("lw_debug: rollout loop ", path_length)
         a, agent_info = agent.get_action(o)
-        #print("lw_debug: rollout loop after get_action")
-        #print(agent_info)
         if deterministic:
             a = agent_info['mean']
         next_o, r, d, env_info = env.step(a)
-        #print(env_info)
         if accum_context:
             agent.update_context([o, a, r, next_o, d, env_info])
-        
-        #print("lw_debug: rollout loop after accum_context")
+
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -101,10 +97,11 @@ def rollout(env,
             np.expand_dims(next_o, 0)
         )
     )
+    #LWM
     return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
+        observations=observations,
+        actions=actions,
+        rewards=np.array(rewards).reshape(-1, 1),
         next_observations=next_observations,
         terminals=np.array(terminals).reshape(-1, 1),
         #agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
