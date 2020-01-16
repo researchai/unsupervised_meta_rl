@@ -182,6 +182,7 @@ class RL2Sampler(BaseSampler):
                 t = time.time()
                 next_obses, rewards, dones, env_infos = self._vec_env.step(
                     actions)
+                # self._vec_env.envs[0].render()
                 env_time += time.time() - t
                 t = time.time()
 
