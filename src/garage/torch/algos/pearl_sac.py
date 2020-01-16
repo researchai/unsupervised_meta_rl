@@ -4,14 +4,11 @@
 
 from collections import OrderedDict
 import copy
-import time
 
 from dowel import logger, tabular
-import gtimer as gt
 import numpy as np
 import torch
 
-from garage.experiment.snapshotter import Snapshotter
 from garage.misc import eval_util
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
 from garage.sampler.in_place_sampler import InPlaceSampler
@@ -62,9 +59,6 @@ class PEARLSAC:
                  update_post_train=1,
                  eval_deterministic=True,
                  render=False,
-                 save_replay_buffer=False,
-                 save_algorithm=False,
-                 save_environment=False,
                  render_eval_paths=False,
                  dump_eval_paths=False,
                  plotter=None,
@@ -74,7 +68,6 @@ class PEARLSAC:
         # meta params
         self.env = env
         self.policy = nets[0]
-        self.exploration_policy = nets[0] # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
@@ -98,10 +91,6 @@ class PEARLSAC:
         self.num_exp_traj_eval = num_exp_traj_eval
         self.eval_deterministic = eval_deterministic
         self.render = render
-        self.save_replay_buffer = save_replay_buffer
-        self.save_algorithm = save_algorithm
-        self.save_environment = save_environment
-
         self.eval_statistics = None
         self.render_eval_paths = render_eval_paths
         self.dump_eval_paths = dump_eval_paths
@@ -131,25 +120,15 @@ class PEARLSAC:
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
         self._n_rollouts_total = 0
-        self._do_train_time = 0
-        self._epoch_start_time = None
-        self._algo_start_time = None
-        self._exploration_paths = []
 
-        # pearl params
         self.soft_target_tau = soft_target_tau
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
 
         self.recurrent = recurrent
         self.latent_dim = latent_dim
-        self.qf_criterion = torch.nn.MSELoss()
         self.vf_criterion = torch.nn.MSELoss()
-        self.vib_criterion = torch.nn.MSELoss()
-        self.l2_reg_criterion = torch.nn.MSELoss()
         self.kl_lambda = kl_lambda
 
         self.use_information_bottleneck = use_information_bottleneck
@@ -220,8 +199,6 @@ class PEARLSAC:
             # eval
             self.evaluate(epoch)
 
-
-
     def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
         self.policy.reset_belief()
 
@@ -240,9 +217,6 @@ class PEARLSAC:
                 context = self.sample_context(self.task_idx)
                 self.policy.infer_posterior(context)
         self._n_env_steps_total += num_transitions
-
-    def _can_train(self):
-        return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
 
     def collect_paths(self, idx, epoch, run):
         self.task_idx = idx
