@@ -1,6 +1,7 @@
 import torch
 from torch.autograd import Variable
 from torch.distributions import Distribution, Normal
+import garage.torch.utils as tu
 
 
 class TanhNormalDist:
@@ -55,8 +56,8 @@ class TanhNormalDist:
             self.normal_mean +
             self.normal_std *
             Variable(Normal(
-                torch.zeros(self.normal_mean.size()),
-                torch.ones(self.normal_std.size())
+                tu.zeros(self.normal_mean.size()),
+                tu.ones(self.normal_std.size())
             ).sample())
         )
         # z.requires_grad_()

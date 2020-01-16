@@ -11,7 +11,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from garage.torch.utils import from_numpy, to_numpy
+import garage.torch.utils as tu
 
 
 class ContextConditionedPolicy(nn.Module):
@@ -65,11 +65,11 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         # reset distribution over z to the prior
-        mu = torch.zeros(num_tasks, self._latent_dim)
+        mu = tu.zeros(num_tasks, self._latent_dim)
         if self._use_ib:
-            var = torch.ones(num_tasks, self._latent_dim)
+            var = tu.ones(num_tasks, self._latent_dim)
         else:
-            var = torch.zeros(num_tasks, self._latent_dim)
+            var = tu.zeros(num_tasks, self._latent_dim)
         self.z_means = mu
         self.z_vars = var
         # sample a new z from the prior
@@ -104,10 +104,10 @@ class ContextConditionedPolicy(nn.Module):
         """
 
         o, a, r, no, d, info = inputs
-        o = from_numpy(o[None, None, ...])
-        a = from_numpy(a[None, None, ...])
-        r = from_numpy(np.array([r])[None, None, ...])
-        no = from_numpy(no[None, None, ...])
+        o = tu.from_numpy(o[None, None, ...])
+        a = tu.from_numpy(a[None, None, ...])
+        r = tu.from_numpy(np.array([r])[None, None, ...])
+        no = tu.from_numpy(no[None, None, ...])
 
         if self._use_next_obs:
             data = torch.cat([o, a, r, no], dim=2)
@@ -203,7 +203,7 @@ class ContextConditionedPolicy(nn.Module):
         z = self.z
         #obs = torch.Tensor(obs)
         #obs = torch.unsqueeze(obs, 0)
-        obs = from_numpy(obs[None])
+        obs = tu.from_numpy(obs[None])
         obs_in = torch.cat([obs, z], dim=1)
         out = self._policy.get_action(obs_in, deterministic=deterministic)
         return out
@@ -215,8 +215,8 @@ class ContextConditionedPolicy(nn.Module):
             torch.Tensor: KL( q(z|c) || p(z) ).
 
         """
-        prior = torch.distributions.Normal(torch.zeros(self._latent_dim),
-                                           torch.ones(self._latent_dim))
+        prior = torch.distributions.Normal(tu.zeros(self._latent_dim),
+                                           tu.ones(self._latent_dim))
         posteriors = [
             torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in zip(
                 torch.unbind(self.z_means), torch.unbind(self.z_vars))
@@ -243,8 +243,8 @@ class ContextConditionedPolicy(nn.Module):
             eval_statistics (dict): Dictionary for logging info.
 
         """
-        z_mean = np.mean(np.abs(to_numpy(self.z_means[0])))
-        z_sig = np.mean(to_numpy(self.z_vars[0]))
+        z_mean = np.mean(np.abs(tu.to_numpy(self.z_means[0])))
+        z_sig = np.mean(tu.to_numpy(self.z_vars[0]))
         eval_statistics['Z mean eval'] = z_mean
         eval_statistics['Z variance eval'] = z_sig
 

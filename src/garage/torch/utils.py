@@ -72,6 +72,14 @@ def to_numpy(tensor):
     return tensor.to('cpu').detach().numpy()
 
 
+def zeros(*sizes, **kwargs):
+    return torch.zeros(*sizes, **kwargs).to(device)
+
+
+def ones(*sizes, **kwargs):
+    return torch.ones(*sizes, **kwargs).to(device)
+
+
 def elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):
         return tuple(
