@@ -62,10 +62,7 @@ def run_task(snapshot_config, *_):
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
-                   max_path_length=max_path_length,
-                   episode_per_task=episode_per_task,
-                   normalize_adv=True,
-                   positive_adv=False)
+                   max_path_length=max_path_length)
 
         runner.setup(algo,
                      envs,

@@ -182,7 +182,10 @@ class NPO2(BatchPolopt):
                 See process_samples() for details.
 
         """
-        if self._meta_learn:          
+        if self._meta_learn:
+            # first run so assign a initial baseline
+            if 'baselines' not in samples_data:
+                samples_data['baselines'] = self._get_baselines_prediction(samples_data)
             self._fit_baseline(samples_data)
             samples_data['baselines'] = self._get_baselines_prediction(samples_data)
         policy_opt_input_values = self._policy_opt_input_values(samples_data)
