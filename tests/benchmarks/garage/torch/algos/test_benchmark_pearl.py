@@ -15,7 +15,8 @@ from torch.nn import functional as F  # NOQA
 
 from garage.envs import normalize
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
-from garage.experiment import LocalRunner, run_experiment
+from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
+from garage.experiment import deterministic, LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
@@ -24,6 +25,7 @@ from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
 from tests.fixtures import snapshot_config
+from tests import benchmark_helper
 import tests.helpers as Rh
 
 
@@ -68,7 +70,8 @@ params = dict(
         num_exp_traj_eval=2, # how many exploration trajs to collect before beginning posterior sampling at test time
         recurrent=False, # recurrent or permutation-invariant encoder
         dump_eval_paths=False, # whether to save evaluation trajectories
-    )
+    ),
+    n_trials=2
 )
 
 
@@ -81,54 +84,60 @@ class TestBenchmarkPEARL:
         Compare benchmarks between garage and baselines.
         :return:
         '''
+        envs = [HalfCheetahVelEnv()]
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'pearl', timestamp)
         result_json = {}
-        
-        env_id = 'half_cheetah_dir'
-        task_dir = osp.join(benchmark_dir, env_id)
-        plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark.png'.format(env_id))
-        garage_csvs = []
+        env_id = 'HalfCheetahVel'
 
-        garage_dir = osp.join(task_dir, 'garage')
+        for env in envs:
+            seeds = random.sample(range(100), params['n_trials'])
+            task_dir = osp.join(benchmark_dir, env_id)
+            plt_file = osp.join(benchmark_dir,
+                                '{}_benchmark.png'.format(env_id))
+            garage_csvs = []
+            pearl_csvs = []
 
-        garage_csv = run_garage(garage_dir)
-        garage_csvs.append(garage_csv)
+            for trial in range(params['n_trials']):
+                seed = seeds[trial]
+                trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
+                garage_dir = trial_dir + '/garage'
+                pearl_dir = trial_dir + '/pearl'
 
+                garage_csv = run_garage(env, seed, garage_dir)
+                pearl_csv = run_garage(env, seed, pearl_dir)
 
-        Rh.plot(b_csvs=garage_csvs,
-                g_csvs=garage_csvs,
-                g_x='Epoch',
-                g_y='AverageReturn',
-                g_z='Garage',
-                b_x='total/epochs',
-                b_y='rollout/return',
-                b_z='Baseline',
-                trials=0,
-                seeds=[1],
+                garage_csvs.append(garage_csv)
+                pearl_csvs.append(pearl_csv)
+            
+            env.close()
+
+            benchmark_helper.plot_average_over_trials(
+                [pearl_csvs, garage_csvs],
+                ys=['TestTaskAverageReturn', 
+                    'TestTaskAverageReturn'],
                 plt_file=plt_file,
                 env_id=env_id,
-                x_label='Epoch',
-                y_label='AverageReturn')
+                x_label='TotalEnvSteps',
+                y_label='TestTaskAverageReturn',
+                names=['pearl', 'garage'],
+            )
 
-        result_json[env_id] = Rh.create_json(
-            b_csvs=garage_csvs,
-            g_csvs=garage_csvs,
-            seeds=[1],
-            trails=0,
-            g_x='Epoch',
-            g_y='AverageReturn',
-            b_x='total/epochs',
-            b_y='rollout/return',
-            factor_g=params['steps_per_epoch'] * params['n_rollout_steps'],
-            factor_b=1)
+            factor_val = params['algo_params']['meta_batch'] * params['algo_params']['max_path_length']
+            result_json[env_id] = benchmark_helper.create_json(
+                [pearl_csvs, garage_csvs],
+                seeds=seeds,
+                trials=params['n_trials'],
+                xs=['TotalEnvSteps', 'TotalEnvSteps'],
+                ys=['TestTaskAverageReturn', 'TestTaskAverageReturn'],
+                factors=[factor_val] * 2,
+                names=['pearl', 'garage'])
 
-        Rh.write_file(result_json, 'PEARL')
+            Rh.write_file(result_json, 'PEARL')
 
 
-def run_garage(log_dir):
+def run_garage(env, seed, log_dir):
     '''
     Create garage model and training.
     Replace the ddpg with the algorithm you want to run.
@@ -137,8 +146,8 @@ def run_garage(log_dir):
     :param log_dir: Log dir path.
     :return:
     '''
-
-    env = normalize(HalfCheetahDirEnv())
+    deterministic.set_seed(seed)
+    env = normalize(env)
     runner = LocalRunner(snapshot_config)
     tasks = [0, 1]
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -200,7 +209,8 @@ def run_garage(log_dir):
         **params['algo_params']
     )
 
-    tu.set_gpu_mode(False)
+    tu.set_gpu_mode(True)
+    pearlsac.to()
 
 
     # Set up logger since we are not using run_experiment

@@ -12,25 +12,22 @@ from garage.torch.policies import ContextConditionedPolicy, \
 import garage.torch.utils as tu
 
 params = dict(
-    env_name='cheetah-dir',
+    num_epochs=50,
     n_train_tasks=2,
     n_eval_tasks=2,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
-    path_to_weights=None, # path to pre-trained weights to load into networks
     env_params=dict(
         n_tasks=2, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
-        randomize_tasks=True, # shuffle the tasks after creating them
     ),
     algo_params=dict(
         meta_batch=4, # number of tasks to average the gradient across
-        num_iterations=5, # number of data sampling / training iterates
+        num_steps_per_epoch=2000, # number of meta-gradient steps taken per iteration
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
         num_steps_prior=1000, # number of transitions to collect per task with z ~ prior
         num_steps_posterior=0, # number of transitions to collect per task with z ~ posterior
         num_extra_rl_steps_posterior=1000, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
-        num_train_steps_per_itr=2000, # number of meta-gradient steps taken per iteration
         num_evals=2, # number of independent evals
         num_steps_per_eval=600,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
@@ -45,12 +42,11 @@ params = dict(
         context_lr=3e-4,
         reward_scale=5., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
         kl_lambda=.1, # weight on KL divergence term in encoder loss
-        use_information_bottleneck=True, # False makes latent context deterministic
-        use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
         num_exp_traj_eval=2, # how many exploration trajs to collect before beginning posterior sampling at test time
         recurrent=False, # recurrent or permutation-invariant encoder
-        dump_eval_paths=False, # whether to save evaluation trajectories
+        use_information_bottleneck=True, # False makes latent context deterministic
+        use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
 )
 
@@ -66,9 +62,9 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = normalize(HalfCheetahDirEnv())
+    env = normalize(HalfCheetahDirEnv(n_tasks=params['env_params']['n_tasks']))
     runner = LocalRunner(snapshot_config)
-    tasks = [0, 1]
+    tasks = range(params['env_params']['n_tasks'])
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     reward_dim = 1
@@ -130,7 +126,7 @@ def run_task(snapshot_config, *_):
 
     runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
-    runner.train(n_epochs=50, batch_size=256)
+    runner.train(n_epochs=params['num_epochs'], batch_size=256)
 
 tu.set_gpu_mode(False)
 
