@@ -55,8 +55,7 @@ def rollout(env,
     env_infos = []
     o = env.reset()
     next_o = None
-    # LWD
-    #agent.reset()
+    agent.reset()
     path_length = 0
     if animated:
         env.render()
@@ -99,15 +98,15 @@ def rollout(env,
     )
     #LWM
     return dict(
-        observations=observations,
-        actions=actions,
-        rewards=np.array(rewards).reshape(-1, 1),
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
         next_observations=next_observations,
         terminals=np.array(terminals).reshape(-1, 1),
-        #agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-        #env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
-        agent_infos=agent_infos,
-        env_infos=env_infos,
+        agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+        env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+        #agent_infos=agent_infos,
+        #env_infos=env_infos,
     )
 
 

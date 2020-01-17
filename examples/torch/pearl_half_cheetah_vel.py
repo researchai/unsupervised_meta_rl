@@ -1,7 +1,7 @@
 import numpy as np
 
 from garage.envs import normalize
-from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
+from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
 from garage.torch.algos import PEARLSAC
@@ -13,33 +13,33 @@ import garage.torch.utils as tu
 
 params = dict(
     num_epochs=50,
-    n_train_tasks=2,
-    n_eval_tasks=2,
+    n_train_tasks=100,
+    n_eval_tasks=30,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
-        n_tasks=2, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
+        n_tasks=130, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
     ),
     algo_params=dict(
-        meta_batch=4, # number of tasks to average the gradient across
-        num_steps_per_epoch=2000, # number of meta-gradient steps taken per iteration
+        meta_batch=16, # number of tasks to average the gradient across
+        num_steps_per_epoch=2000, # number of data sampling / training iterates
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
-        num_steps_prior=1000, # number of transitions to collect per task with z ~ prior
+        num_steps_prior=400, # number of transitions to collect per task with z ~ prior
         num_steps_posterior=0, # number of transitions to collect per task with z ~ posterior
-        num_extra_rl_steps_posterior=1000, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
-        num_evals=2, # number of independent evals
+        num_extra_rl_steps_posterior=600, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
+        num_evals=1, # number of independent evals
         num_steps_per_eval=600,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
-        embedding_batch_size=256, # number of transitions in the context batch
-        embedding_mini_batch_size=256, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
+        embedding_batch_size=100, # number of transitions in the context batch
+        embedding_mini_batch_size=100, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
         max_path_length=200, # max path length for this environment
         discount=0.99, # RL discount factor
         soft_target_tau=0.005, # for SAC target network update
         policy_lr=3E-4,
         qf_lr=3E-4,
+        vf_lr=3E-4,
         context_lr=3e-4,
-        use_automatic_entropy_tuning=True,
         reward_scale=5., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
         kl_lambda=.1, # weight on KL divergence term in encoder loss
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
@@ -62,7 +62,7 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = normalize(HalfCheetahDirEnv())
+    env = normalize(HalfCheetahVelEnv(n_tasks=params['env_params']['n_tasks']))
     runner = LocalRunner(snapshot_config)
     tasks = range(params['env_params']['n_tasks'])
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -94,6 +94,11 @@ def run_task(snapshot_config, *_):
         input_dim=obs_dim + action_dim + latent_dim,
         output_dim=1,
     )
+    vf = FlattenMLP(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_dim=obs_dim + latent_dim,
+        output_dim=1,
+    )
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],
@@ -101,7 +106,7 @@ def run_task(snapshot_config, *_):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
-    
+
     agent = ContextConditionedPolicy(
         latent_dim=latent_dim,
         context_encoder=context_encoder,
@@ -114,16 +119,18 @@ def run_task(snapshot_config, *_):
         env=env,
         train_tasks=list(tasks[:params['n_train_tasks']]),
         eval_tasks=list(tasks[-params['n_eval_tasks']:]),
-        nets=[agent, qf1, qf2],
+        nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **params['algo_params']
     )
+
+    tu.set_gpu_mode(False)
+    #pearlsac.to()
 
     runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
 
-tu.set_gpu_mode(False)
 
 run_experiment(
     run_task,
