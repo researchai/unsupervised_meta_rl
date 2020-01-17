@@ -368,27 +368,17 @@ def discounted_returns_meta_learn(discount, max_len, episode_per_task, rewards):
     return returns
 
 def split_paths(path, lengths):
-    observations = np.split(path['observations'], lengths)
-    actions = np.split(path['actions'], lengths)
-    rewards = np.split(path['rewards'], lengths)
-    dones = np.split(path['dones'], lengths)
-    returns = np.split(path['returns'], lengths)
-    advantages = np.split(path['advantages'], lengths)
-    baselines = np.split(path['baselines'], lengths)
-    # lengths = np.split(path['lengths'], lengths)
-    # valids = np.split(path['valids'], lengths)
-    # env_infos = np.split(path['env_infos'], lengths)
-    # agent_infos = np.split(path['agent_infos'], lengths)
+    # construct array for np.split
+    _lengths = np.cumsum(lengths)
+    paths_length = len(lengths)
+    paths = [dict()] * paths_length
+    for key in path.keys():
+        if type(path[key]) == dict:
+            split_path = split_paths(path[key], lengths)
+        else:
+            # the last array is always empty
+            split_path = np.split(path[key], _lengths)[:-1]
+        for i in range(paths_length):
+            paths[i][key] = split_path[i]
 
-    return [dict(
-        observations=observations[i],
-        actions=actions[i],
-        rewards=rewards[i],
-        baselines=baselines[i],
-        returns=returns[i],
-        advantages=advantages[i],
-        # valids=valids[i],
-        # lengths=lengths[i],
-        # agent_infos=agent_infos[i],
-        # env_infos=env_infos[i],
-    ) for i in range(len(lengths))]
+    return paths

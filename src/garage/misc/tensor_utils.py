@@ -128,7 +128,7 @@ def stack_and_pad_tensor_n(paths, key, max_len):
         numpy.ndarray: Stacked and padded tensor.
 
     """
-    ret = [path[key] for path in paths]
+    ret = np.asarray([path[key] for path in paths])
     ret = pad_tensor_n(ret, max_len)
     return ret
 
