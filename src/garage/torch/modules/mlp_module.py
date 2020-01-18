@@ -86,10 +86,13 @@ class FlattenMLP(MLPModule):
         flat_inputs = torch.cat(inputs, dim=1)
         return super().forward(flat_inputs, **kwargs)
 
-class MLPEncoder(FlattenMLP):
-    '''
+class MLPEncoder(MLPModule):
+    """
     Encode context via MLP.
-    '''
+    """
+    def forward(self, *inputs):
+        input_value = torch.cat(inputs, dim=1)
+        return super().forward(input_value)
 
     def reset(self, num_tasks=1):
         pass

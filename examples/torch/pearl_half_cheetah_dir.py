@@ -1,13 +1,16 @@
+import akro
 import numpy as np
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
+from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
-from garage.torch.modules import FlattenMLP, MLPEncoder
+from garage.torch.modules import MLPEncoder
+from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
@@ -72,14 +75,15 @@ def run_task(snapshot_config, *_):
 
     # instantiate networks
     latent_dim = params['latent_size']
-    context_encoder_input_dim = 2 * obs_dim + action_dim + reward_dim \
+    encoder_in_dim = 2 * obs_dim + action_dim + reward_dim \
         if params['algo_params']['use_next_obs_in_context'] \
             else obs_dim + action_dim + reward_dim
-    context_encoder_output_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
+    encoder_out_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
     net_size = params['net_size']
     recurrent = params['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
+    """
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
         input_dim=context_encoder_input_dim,
@@ -100,6 +104,33 @@ def run_task(snapshot_config, *_):
         input_dim=obs_dim + latent_dim,
         output_dim=1,
     )
+
+    latent = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    augmented_space = akro.Tuple((env.observation_space, latent))
+    augmented_env = EnvSpec(augmented_space, env.action_space)
+    """
+
+    context_encoder = encoder_model(input_dim=encoder_in_dim,
+                                    output_dim=encoder_out_dim,
+                                    hidden_sizes=[200, 200, 200])
+
+    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
+    space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
+    qf_env = EnvSpec(space_a, space_b)
+
+    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
+    action_space = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    vf_env = EnvSpec(obs_space, action_space)
+
+    vf = ContinuousMLPQFunction(env_spec=vf_env,
+                                hidden_sizes=[net_size, net_size, net_size])
+
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],
@@ -125,12 +156,12 @@ def run_task(snapshot_config, *_):
         **params['algo_params']
     )
 
+    tu.set_gpu_mode(False)
+    #pearlsac.to()
+
     runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
-
-tu.set_gpu_mode(False)
-#pearlsac.to()
 
 
 run_experiment(

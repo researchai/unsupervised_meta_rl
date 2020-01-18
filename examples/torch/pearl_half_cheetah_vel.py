@@ -1,13 +1,15 @@
+import akro
 import numpy as np
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
+from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
-from garage.torch.modules import FlattenMLP, MLPEncoder
+from garage.torch.polices import ContinuousMLPQFunction, MLPEncoder
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
@@ -80,6 +82,7 @@ def run_task(snapshot_config, *_):
     recurrent = params['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
+    """
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
         input_dim=context_encoder_input_dim,
@@ -100,6 +103,27 @@ def run_task(snapshot_config, *_):
         input_dim=obs_dim + latent_dim,
         output_dim=1,
     )
+    """
+
+    latent = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    augmented_space = akro.Tuple((env.observation_space, latent))
+    augmented_env = EnvSpec(augmented_space, env.action_space)
+
+    context_encoder = encoder_model(env_spec=augmented_env,
+                                    hidden_sizes=[200, 200, 200])
+
+    qf1 = ContinuousMLPQFunction(env_spec=augmented_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    qf2 = ContinuousMLPQFunction(env_spec=augmented_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+    
+    obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
+    action_space = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    vf_env = EnvSpec(obs_space, action_space)
+
+    vf = ContinuousMLPQFunction(env_spec=vf_env,
+                                hidden_sizes=[net_size, net_size, net_size])
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],

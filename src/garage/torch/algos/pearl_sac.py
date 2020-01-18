@@ -235,8 +235,8 @@ class PEARLSAC:
 
         # Q and V networks
         # encoder will only get gradients from Q nets
-        q1_pred = self.qf1(obs, actions, task_z)
-        q2_pred = self.qf2(obs, actions, task_z)
+        q1_pred = self.qf1(torch.cat([obs, actions, task_z], dim=1), None)
+        q2_pred = self.qf2(torch.cat([obs, actions, task_z], dim=1), None)
         v_pred = self.vf(obs, task_z.detach())
         # get targets for use in V and Q updates
 
@@ -261,7 +261,7 @@ class PEARLSAC:
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
 
-        qf_loss.backward()
+        qf_loss.backward(retain_graph=True)
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
@@ -498,8 +498,8 @@ class PEARLSAC:
         return [o, a, r, no, t]
 
     def _min_q(self, obs, actions, task_z):
-        q1 = self.qf1(obs, actions, task_z.detach())
-        q2 = self.qf2(obs, actions, task_z.detach())
+        q1 = self.qf1(torch.cat([obs, actions, task_z], dim=1), None)
+        q2 = self.qf2(torch.cat([obs, actions, task_z], dim=1), None)
         min_q = torch.min(q1, q2)
         return min_q
 
