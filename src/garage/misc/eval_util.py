@@ -76,10 +76,10 @@ def create_stats_ordered_dict(
         return OrderedDict({name: float(data)})
 
     stats = OrderedDict([
-        (name + ' Mean', np.mean(data)),
-        (name + ' Std', np.std(data)),
+        (name + 'Mean', np.mean(data)),
+        (name + 'Std', np.std(data)),
     ])
     if not exclude_max_min:
-        stats[name + ' Max'] = np.max(data)
-        stats[name + ' Min'] = np.min(data)
+        stats[name + 'Max'] = np.max(data)
+        stats[name + 'Min'] = np.min(data)
     return stats

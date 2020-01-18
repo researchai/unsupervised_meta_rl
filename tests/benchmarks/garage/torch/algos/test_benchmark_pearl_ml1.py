@@ -1,11 +1,25 @@
+"""PEARL benchmark script."""
+
+import datetime
+import os
+import os.path as osp
+import random
+
 import akro
+import dowel
+from dowel import logger as dowel_logger
 import numpy as np
+import pytest
+import torch
+from torch.nn import functional as F  # NOQA
+#pip install git+https://github.com/rlworkgroup/metaworld.git@master#egg=metaworld
+from metaworld.benchmarks import ML1
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
-from garage.experiment import LocalRunner, run_experiment
+from garage.experiment import deterministic, LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
@@ -14,15 +28,19 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
+from tests.fixtures import snapshot_config
+from tests import benchmark_helper
+import tests.helpers as Rh
 
+# hyperparams for baselines and garage
 params = dict(
     num_epochs=500,
-    num_train_tasks=100,
-    num_eval_tasks=30,
+    num_train_tasks=15,
+    num_eval_tasks=5,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
-        n_tasks=130, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
+        n_tasks=20, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
     ),
     algo_params=dict(
         meta_batch=16, # number of tasks to average the gradient across
@@ -52,21 +70,87 @@ params = dict(
         use_information_bottleneck=True, # False makes latent context deterministic
         use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
+    n_trials=3
 )
 
 
-def run_task(snapshot_config, *_):
-    """Set up environment and algorithm and run the task.
+class TestBenchmarkPEARL:
+    '''Compare benchmarks between garage and baselines.'''
 
-    Args:
-        snapshot_config (garage.experiment.SnapshotConfig): The snapshot
-            configuration used by LocalRunner to create the snapshotter.
-            If None, it will create one with default settings.
-        _ : Unused parameters
+    @pytest.mark.huge
+    def test_benchmark_pearl(self):
+        '''
+        Compare benchmarks between garage and baselines.
+        :return:
+        '''
+        envs = [ML1.get_train_tasks('reach-v1'),
+                ML1.get_train_tasks('push-v1'),
+                ML1.get_train_tasks('pick-place-v1'),]
+        env_ids = ['reach-v1', 'push-v1', 'pick-place-v1']
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+        benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
+                                 'pearl', timestamp)
+        result_json = {}
+        
 
-    """
-    # create multi-task environment and sample tasks
-    env = GarageEnv(normalize(HalfCheetahVelEnv()))
+        for idx in range(len(envs)):
+            env = envs[idx]
+            env_id = env_ids[idx]
+            seeds = random.sample(range(100), params['n_trials'])
+            task_dir = osp.join(benchmark_dir, env_id)
+            plt_file = osp.join(benchmark_dir,
+                                '{}_benchmark.png'.format(env_id))
+            garage_csvs = []
+            pearl_csvs = []
+
+            for trial in range(params['n_trials']):
+                seed = seeds[trial]
+                trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
+                garage_dir = trial_dir + '/garage'
+                #pearl_dir = trial_dir + '/pearl'
+
+                garage_csv = run_garage(env, seed, garage_dir)
+                #pearl_csv = run_pearl(env, seed, garage_dir)
+
+                garage_csvs.append(garage_csv)
+                #pearl_csvs.append(pearl_csv)
+            
+            env.close()
+
+            benchmark_helper.plot_average_over_trials(
+                [garage_csvs],
+                ys=['TestTaskAverageReturn'],
+                plt_file=plt_file,
+                env_id=env_id,
+                x_label='TotalEnvSteps',
+                y_label='TestTaskAverageReturn',
+                names=['garage_pearl'],
+            )
+
+            factor_val = params['algo_params']['meta_batch'] * params['algo_params']['max_path_length']
+            result_json[env_id] = benchmark_helper.create_json(
+                [garage_csvs],
+                seeds=seeds,
+                trials=params['n_trials'],
+                xs=['TotalEnvSteps'],
+                ys=['TestTaskAverageReturn'],
+                factors=[factor_val],
+                names=['garage_pearl'])
+
+            Rh.write_file(result_json, 'PEARL')
+
+
+def run_garage(env, seed, log_dir):
+    '''
+    Create garage model and training.
+    Replace the ddpg with the algorithm you want to run.
+    :param env: Environment of the task.
+    :param seed: Random seed for the trial.
+    :param log_dir: Log dir path.
+    :return:
+    '''
+    deterministic.set_seed(seed)
+    env = normalize(env)
     runner = LocalRunner(snapshot_config)
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -127,16 +211,20 @@ def run_task(snapshot_config, *_):
         **params['algo_params']
     )
 
-    tu.set_gpu_mode(False)
-    #pearlsac.to()
+    tu.set_gpu_mode(True)
+    pearlsac.to()
+
+    # Set up logger since we are not using run_experiment
+    tabular_log_file = osp.join(log_dir, 'progress.csv')
+    tensorboard_log_dir = osp.join(log_dir)
+    dowel_logger.add_output(dowel.StdOutput())
+    dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
+    dowel_logger.add_output(dowel.TensorBoardOutput(tensorboard_log_dir))
 
     runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
 
+    dowel_logger.remove_all()
 
-run_experiment(
-    run_task,
-    snapshot_mode='last',
-    seed=1,
-)
+    return tabular_log_file

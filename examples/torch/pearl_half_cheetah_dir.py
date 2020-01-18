@@ -68,7 +68,6 @@ def run_task(snapshot_config, *_):
     # create multi-task environment and sample tasks
     env = GarageEnv(normalize(HalfCheetahDirEnv()))
     runner = LocalRunner(snapshot_config)
-    tasks = range(params['env_params']['n_tasks'])
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     reward_dim = 1
@@ -82,33 +81,6 @@ def run_task(snapshot_config, *_):
     net_size = params['net_size']
     recurrent = params['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MLPEncoder
-
-    """
-    context_encoder = encoder_model(
-        hidden_sizes=[200, 200, 200],
-        input_dim=context_encoder_input_dim,
-        output_dim=context_encoder_output_dim,
-    )
-    qf1 = FlattenMLP(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_dim=obs_dim + action_dim + latent_dim,
-        output_dim=1,
-    )
-    qf2 = FlattenMLP(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_dim=obs_dim + action_dim + latent_dim,
-        output_dim=1,
-    )
-    vf = FlattenMLP(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_dim=obs_dim + latent_dim,
-        output_dim=1,
-    )
-
-    latent = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
-    augmented_space = akro.Tuple((env.observation_space, latent))
-    augmented_env = EnvSpec(augmented_space, env.action_space)
-    """
 
     context_encoder = encoder_model(input_dim=encoder_in_dim,
                                     output_dim=encoder_out_dim,
@@ -130,7 +102,6 @@ def run_task(snapshot_config, *_):
 
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
-
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],

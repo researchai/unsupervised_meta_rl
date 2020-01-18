@@ -14,13 +14,15 @@ import torch
 from torch.nn import functional as F  # NOQA
 
 from garage.envs import normalize
-from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
+from garage.envs.base import GarageEnv
+from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
-from garage.torch.modules import FlattenMLP, MLPEncoder
+from garage.torch.modules import MLPEncoder
+from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
@@ -28,50 +30,45 @@ from tests.fixtures import snapshot_config
 from tests import benchmark_helper
 import tests.helpers as Rh
 
-
-# Hyperparams for baselines and garage
+# hyperparams for baselines and garage
 params = dict(
-    env_name='cheetah-dir',
-    n_train_tasks=2,
-    n_eval_tasks=2,
+    num_epochs=500,
+    num_train_tasks=100,
+    num_eval_tasks=30,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
-    path_to_weights=None, # path to pre-trained weights to load into networks
     env_params=dict(
-        n_tasks=2, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
-        randomize_tasks=True, # shuffle the tasks after creating them
+        n_tasks=130, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
     ),
     algo_params=dict(
-        meta_batch=4, # number of tasks to average the gradient across
-        num_iterations=500, # number of data sampling / training iterates
+        meta_batch=16, # number of tasks to average the gradient across
+        num_steps_per_epoch=2000, # number of data sampling / training iterates
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
-        num_steps_prior=1000, # number of transitions to collect per task with z ~ prior
+        num_steps_prior=400, # number of transitions to collect per task with z ~ prior
         num_steps_posterior=0, # number of transitions to collect per task with z ~ posterior
-        num_extra_rl_steps_posterior=1000, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
-        num_train_steps_per_itr=2000, # number of meta-gradient steps taken per iteration
-        num_evals=2, # number of independent evals
+        num_extra_rl_steps_posterior=600, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
+        num_evals=1, # number of independent evals
         num_steps_per_eval=600,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
-        embedding_batch_size=256, # number of transitions in the context batch
-        embedding_mini_batch_size=256, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
+        embedding_batch_size=100, # number of transitions in the context batch
+        embedding_mini_batch_size=100, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
         max_path_length=200, # max path length for this environment
         discount=0.99, # RL discount factor
         soft_target_tau=0.005, # for SAC target network update
         policy_lr=3E-4,
         qf_lr=3E-4,
         vf_lr=3E-4,
-        context_lr=3e-4,
+        context_lr=3E-4,
         reward_scale=5., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
         kl_lambda=.1, # weight on KL divergence term in encoder loss
-        use_information_bottleneck=True, # False makes latent context deterministic
-        use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
         num_exp_traj_eval=2, # how many exploration trajs to collect before beginning posterior sampling at test time
         recurrent=False, # recurrent or permutation-invariant encoder
-        dump_eval_paths=False, # whether to save evaluation trajectories
+        use_information_bottleneck=True, # False makes latent context deterministic
+        use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
-    n_trials=2
+    n_trials=3
 )
 
 
@@ -103,36 +100,35 @@ class TestBenchmarkPEARL:
                 seed = seeds[trial]
                 trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
                 garage_dir = trial_dir + '/garage'
-                pearl_dir = trial_dir + '/pearl'
+                #pearl_dir = trial_dir + '/pearl'
 
                 garage_csv = run_garage(env, seed, garage_dir)
-                pearl_csv = run_garage(env, seed, pearl_dir)
+                #pearl_csv = run_pearl(env, seed, garage_dir)
 
                 garage_csvs.append(garage_csv)
-                pearl_csvs.append(pearl_csv)
+                #pearl_csvs.append(pearl_csv)
             
             env.close()
 
             benchmark_helper.plot_average_over_trials(
-                [pearl_csvs, garage_csvs],
-                ys=['TestTaskAverageReturn', 
-                    'TestTaskAverageReturn'],
+                [garage_csvs],
+                ys=['TestTaskAverageReturn'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
                 y_label='TestTaskAverageReturn',
-                names=['pearl', 'garage'],
+                names=['garage_pearl'],
             )
 
             factor_val = params['algo_params']['meta_batch'] * params['algo_params']['max_path_length']
             result_json[env_id] = benchmark_helper.create_json(
-                [pearl_csvs, garage_csvs],
+                [garage_csvs],
                 seeds=seeds,
                 trials=params['n_trials'],
-                xs=['TotalEnvSteps', 'TotalEnvSteps'],
-                ys=['TestTaskAverageReturn', 'TestTaskAverageReturn'],
-                factors=[factor_val] * 2,
-                names=['pearl', 'garage'])
+                xs=['TotalEnvSteps'],
+                ys=['TestTaskAverageReturn'],
+                factors=[factor_val],
+                names=['garage_pearl'])
 
             Rh.write_file(result_json, 'PEARL')
 
@@ -147,43 +143,42 @@ def run_garage(env, seed, log_dir):
     :return:
     '''
     deterministic.set_seed(seed)
-    env = normalize(env)
+    env = GarageEnv(normalize(env))
     runner = LocalRunner(snapshot_config)
-    tasks = [0, 1]
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     reward_dim = 1
 
     # instantiate networks
     latent_dim = params['latent_size']
-    context_encoder_input_dim = 2 * obs_dim + action_dim + reward_dim \
+    encoder_in_dim = 2 * obs_dim + action_dim + reward_dim \
         if params['algo_params']['use_next_obs_in_context'] \
             else obs_dim + action_dim + reward_dim
-    context_encoder_output_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
+    encoder_out_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
     net_size = params['net_size']
     recurrent = params['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
-    context_encoder = encoder_model(
-        hidden_sizes=[200, 200, 200],
-        input_dim=context_encoder_input_dim,
-        output_dim=context_encoder_output_dim,
-    )
-    qf1 = FlattenMLP(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_dim=obs_dim + action_dim + latent_dim,
-        output_dim=1,
-    )
-    qf2 = FlattenMLP(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_dim=obs_dim + action_dim + latent_dim,
-        output_dim=1,
-    )
-    vf = FlattenMLP(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_dim=obs_dim + latent_dim,
-        output_dim=1,
-    )
+    context_encoder = encoder_model(input_dim=encoder_in_dim,
+                                    output_dim=encoder_out_dim,
+                                    hidden_sizes=[200, 200, 200])
+
+    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
+    space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
+    qf_env = EnvSpec(space_a, space_b)
+
+    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
+    action_space = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    vf_env = EnvSpec(obs_space, action_space)
+
+    vf = ContinuousMLPQFunction(env_spec=vf_env,
+                                hidden_sizes=[net_size, net_size, net_size])
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],
@@ -191,7 +186,7 @@ def run_garage(env, seed, log_dir):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
-    
+
     agent = ContextConditionedPolicy(
         latent_dim=latent_dim,
         context_encoder=context_encoder,
@@ -202,8 +197,8 @@ def run_garage(env, seed, log_dir):
 
     pearlsac = PEARLSAC(
         env=env,
-        train_tasks=list(tasks[:params['n_train_tasks']]),
-        eval_tasks=list(tasks[-params['n_eval_tasks']:]),
+        num_train_tasks=params['num_train_tasks'],
+        num_eval_tasks=params['num_eval_tasks'],
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **params['algo_params']
@@ -211,7 +206,6 @@ def run_garage(env, seed, log_dir):
 
     tu.set_gpu_mode(True)
     pearlsac.to()
-
 
     # Set up logger since we are not using run_experiment
     tabular_log_file = osp.join(log_dir, 'progress.csv')
@@ -222,7 +216,7 @@ def run_garage(env, seed, log_dir):
 
     runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
-    runner.train(n_epochs=params['algo_params']['num_iterations'], batch_size=256)
+    runner.train(n_epochs=params['num_epochs'], batch_size=256)
 
     dowel_logger.remove_all()
 
