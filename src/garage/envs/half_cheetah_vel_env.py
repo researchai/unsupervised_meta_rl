@@ -29,11 +29,10 @@ class HalfCheetahVelEnv(HalfCheetahEnvMetaBase):
 
     """
 
-    def __init__(self, task=None, n_tasks=2):
+    def __init__(self, task=None):
+        task = task or {'velocity': 0.}
         self._task = task
-        self.tasks = self.sample_tasks(n_tasks)
-        self._goal_vel = self.tasks[0].get('velocity', 0.0)
-        self._goal = self._goal_vel
+        self._goal_vel = task['velocity']
         super().__init__()
 
     def step(self, action):
@@ -88,11 +87,11 @@ class HalfCheetahVelEnv(HalfCheetahEnvMetaBase):
                 value between 0 and 2.
 
         """
-        velocities = np.random.uniform(0.0, 2.0, size=(num_tasks, ))
+        velocities = self.np_random.uniform(0.0, 2.0, size=(num_tasks, ))
         tasks = [{'velocity': velocity} for velocity in velocities]
         return tasks
 
-    def reset_task(self, task_idx):
+    def set_task(self, task):
         """Reset with a task.
 
         Args:
@@ -100,14 +99,5 @@ class HalfCheetahVelEnv(HalfCheetahEnvMetaBase):
                 key, "velocity", usually between 0 and 2).
 
         """
-        self._task = self.tasks[task_idx]
-        self._goal_vel = self._task['velocity']
-        self._goal = self._goal_vel
-        self.reset()
-
-    def get_all_task_idx(self):
-        return range(len(self.tasks))
-
-    @property
-    def goal(self):
-        return self._goal
+        self._task = task
+        self._goal_vel = task['velocity']

@@ -19,8 +19,8 @@ class PEARLSAC:
     def __init__(self,
                  env,
                  nets,
-                 train_tasks,
-                 eval_tasks,
+                 num_train_tasks,
+                 num_eval_tasks,
                  latent_dim,
 
                  policy_lr=1e-3,
@@ -65,8 +65,8 @@ class PEARLSAC:
         # meta params
         self.env = env
         self.policy = nets[0]
-        self.train_tasks = train_tasks
-        self.eval_tasks = eval_tasks
+        self.num_train_tasks = num_train_tasks
+        self.num_eval_tasks = num_eval_tasks
         self.latent_dim = latent_dim
 
         self.policy_mean_reg_weight = policy_mean_reg_weight
@@ -112,17 +112,23 @@ class PEARLSAC:
             max_path_length=self.max_path_length,
         )
 
+        self.num_total_tasks = num_train_tasks + num_eval_tasks
+        self.tasks = env.sample_tasks(self.num_total_tasks)
+        self.tasks_idx = range(self.num_total_tasks)
+        self.train_tasks_idx = list(self.tasks_idx[:num_train_tasks])
+        self.eval_tasks_idx = list(self.tasks_idx[-num_eval_tasks:])
+
         # buffer for training RL update
         self.replay_buffer = MultiTaskReplayBuffer(
                 self.replay_buffer_size,
                 env,
-                self.train_tasks,
+                self.train_tasks_idx,
             )
         # buffer for training encoder update
         self.enc_replay_buffer = MultiTaskReplayBuffer(
                 self.replay_buffer_size,
                 env,
-                self.train_tasks,
+                self.train_tasks_idx,
         )
 
         self.qf1, self.qf2, self.vf = nets[1:]
@@ -156,18 +162,22 @@ class PEARLSAC:
         for _ in runner.step_epochs():
             epoch = runner.step_itr / self.num_steps_per_epoch
 
-            # collect initial set of data for train and eval
+            # collect initial set of data from all train tasks
             if epoch == 0:
-                for idx in self.train_tasks:
+                for idx in self.train_tasks_idx:
                     self.task_idx = idx
-                    self.env.reset_task(idx)
+                    self.task = self.tasks[idx]
+                    self.env.set_task(self.task)
+                    self.env.reset()
                     self.collect_data(self.num_initial_steps, 1, np.inf)
             
-            # sample data from train tasks
+            # collect data from random tasks
             for _ in range(self.num_tasks_sample):
-                idx = np.random.randint(len(self.train_tasks))
+                idx = np.random.randint(len(self.train_tasks_idx))
                 self.task_idx = idx
-                self.env.reset_task(idx)
+                self.task = self.tasks[idx]
+                self.env.set_task(self.task)
+                self.env.reset()
                 self.enc_replay_buffer.task_buffers[idx].clear()
 
                 # collect some trajectories with z ~ prior
@@ -182,12 +192,12 @@ class PEARLSAC:
             
             # sample train tasks and compute gradient updates on parameters
             for _ in range(self.num_steps_per_epoch):
-                indices = np.random.choice(self.train_tasks, self.meta_batch)
+                indices = np.random.choice(self.train_tasks_idx, self.meta_batch)
                 self._do_training(indices)
                 self.total_train_steps += 1
                 runner.step_itr += 1
 
-            # eval
+            # evaluate
             self.evaluate(epoch)
 
     def _do_training(self, indices):
@@ -333,13 +343,15 @@ class PEARLSAC:
             self.eval_statistics = OrderedDict()
 
         # eval on a subset of train tasks for speed
-        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        indices = np.random.choice(self.train_tasks_idx, len(self.eval_tasks_idx))
         logger.log('evaluating on {} train tasks'.format(len(indices)))
         # eval train tasks with posterior sampled from the training replay buffer
         train_returns = []
         for idx in indices:
             self.task_idx = idx
-            self.env.reset_task(idx)
+            self.task = self.tasks[idx]
+            self.env.set_task(self.task)
+            self.env.reset()
             paths = []
             for _ in range(self.num_steps_per_eval // self.max_path_length):
                 context = self.sample_context(idx)
@@ -355,8 +367,8 @@ class PEARLSAC:
         # eval train tasks with on-policy data to match eval of test tasks
         train_final_returns, train_online_returns = self._do_eval(indices)
         # eval test tasks
-        logger.log('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks)
+        logger.log('evaluating on {} test tasks'.format(len(self.eval_tasks_idx)))
+        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks_idx)
 
         # save the final posterior
         self.policy.log_diagnostics(self.eval_statistics)
@@ -423,7 +435,9 @@ class PEARLSAC:
 
     def collect_paths(self, idx):
         self.task_idx = idx
-        self.env.reset_task(idx)
+        self.task = self.tasks[idx]
+        self.env.set_task(self.task)
+        self.env.reset()
         self.policy.reset_belief()
         paths = []
         num_transitions = 0
@@ -438,9 +452,9 @@ class PEARLSAC:
                 context = self.policy.context
                 self.policy.infer_posterior(context)
 
-        goal = self.env.goal
-        for path in paths:
-            path['goal'] = goal
+        #goal = self.env.goal
+        #for path in paths:
+        #    path['goal'] = goal
 
         return paths
 

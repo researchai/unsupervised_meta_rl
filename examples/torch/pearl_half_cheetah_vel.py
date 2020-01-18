@@ -1,6 +1,7 @@
 import numpy as np
 
 from garage.envs import normalize
+from garage.envs.base import GarageEnv
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
@@ -22,7 +23,7 @@ params = dict(
     ),
     algo_params=dict(
         meta_batch=16, # number of tasks to average the gradient across
-        num_steps_per_epoch=2000, # number of data sampling / training iterates
+        num_steps_per_epoch=1, # number of data sampling / training iterates
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
         num_steps_prior=400, # number of transitions to collect per task with z ~ prior
@@ -62,7 +63,7 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = normalize(HalfCheetahVelEnv(n_tasks=params['env_params']['n_tasks']))
+    env = GarageEnv(normalize(HalfCheetahVelEnv()))
     runner = LocalRunner(snapshot_config)
     tasks = range(params['env_params']['n_tasks'])
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -117,8 +118,8 @@ def run_task(snapshot_config, *_):
 
     pearlsac = PEARLSAC(
         env=env,
-        train_tasks=list(tasks[:params['n_train_tasks']]),
-        eval_tasks=list(tasks[-params['n_eval_tasks']:]),
+        n_train_tasks=params['n_train_tasks'],
+        n_eval_tasks=params['n_eval_tasks'],
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **params['algo_params']

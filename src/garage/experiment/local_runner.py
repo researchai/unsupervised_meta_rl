@@ -231,8 +231,8 @@ class LocalRunner:
         params['stats'] = self._stats
 
         # Save states
-        params['env'] = self._env
-        params['algo'] = self._algo
+        #params['env'] = self._env
+        #params['algo'] = self._algo
 
         self._snapshotter.save_itr_params(epoch, params)
 

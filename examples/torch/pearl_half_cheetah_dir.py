@@ -1,6 +1,7 @@
 import numpy as np
 
 from garage.envs import normalize
+from garage.envs.base import GarageEnv
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import InPlaceSampler
@@ -13,8 +14,8 @@ import garage.torch.utils as tu
 
 params = dict(
     num_epochs=50,
-    n_train_tasks=2,
-    n_eval_tasks=2,
+    num_train_tasks=2,
+    num_eval_tasks=2,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
@@ -62,7 +63,7 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = normalize(HalfCheetahDirEnv(n_tasks=params['env_params']['n_tasks']))
+    env = GarageEnv(normalize(HalfCheetahDirEnv()))
     runner = LocalRunner(snapshot_config)
     tasks = range(params['env_params']['n_tasks'])
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -117,8 +118,8 @@ def run_task(snapshot_config, *_):
 
     pearlsac = PEARLSAC(
         env=env,
-        train_tasks=list(tasks[:params['n_train_tasks']]),
-        eval_tasks=list(tasks[-params['n_eval_tasks']:]),
+        num_train_tasks=params['num_train_tasks'],
+        num_eval_tasks=params['num_eval_tasks'],
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **params['algo_params']
@@ -129,6 +130,8 @@ def run_task(snapshot_config, *_):
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
 
 tu.set_gpu_mode(False)
+#pearlsac.to()
+
 
 run_experiment(
     run_task,
