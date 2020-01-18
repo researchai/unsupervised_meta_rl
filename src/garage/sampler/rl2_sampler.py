@@ -26,7 +26,7 @@ class RL2Sampler:
 
     Args:
         algo (garage.np.algos.RLAlgorithm): An algorithm instance.
-        env (List[garage.envs.GarageEnv]): Environements to sample from.
+        env (garage.envs.GarageEnv): Environement to sample from.
         meta_batch_size (int): Meta batch size for sampling. If it is
             larger than n_envs, it must be a multiple of n_envs so it can be
             evenly distributed among environments.
@@ -46,7 +46,7 @@ class RL2Sampler:
         if n_envs is None:
             n_envs = singleton_pool.n_parallel * 4
         self.algo = algo
-        self.envs = env
+        self.env = env
 
         self._n_envs = n_envs
         self._meta_batch_size = meta_batch_size
@@ -86,12 +86,13 @@ class RL2Sampler:
         if self._vec_env is not None:
             self._vec_env.close()
 
+        tasks = self.env.sample_tasks(self._meta_batch_size)
         vec_envs = []
-        for env_ind in env_indices:
-            vec_envs.extend([
-                self.envs[env_ind]
-                for _ in range(self._envs_per_worker)
-            ])
+        for ind, env_ind in enumerate(env_indices):
+            for _ in range(self._envs_per_worker):
+                vec_env = copy.deepcopy(self.env)
+                vec_env.set_task(tasks[ind])
+                vec_envs.append(vec_env)
         seed0 = deterministic.get_seed()
         if seed0 is not None:
             for (i, e) in enumerate(vec_envs):
