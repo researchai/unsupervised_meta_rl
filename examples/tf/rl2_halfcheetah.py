@@ -37,19 +37,16 @@ def run_task(snapshot_config, *_):
         meta_batch_size = 200
         n_epochs = 500
         episode_per_task = 2
-        env = HalfCheetahVelEnv()
-        envs = [RL2Env(copy.deepcopy(env)) for _ in range(meta_batch_size)]
-        tasks = envs[0].sample_tasks(meta_batch_size)
-        for i, task in enumerate(tasks):
-            envs[i].set_task(task)
+        env = RL2Env(HalfCheetahVelEnv())
+        # envs = [RL2Env(copy.deepcopy(env)) for _ in range(meta_batch_size)]
         policy = GaussianGRUPolicy(name='policy',
                                    hidden_dim=64,
-                                   env_spec=envs[0].spec,
+                                   env_spec=env.spec,
                                    state_include_action=False)
 
-        baseline = LinearFeatureBaseline(env_spec=envs[0].spec)
+        baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = PPO(env_spec=envs[0].spec,
+        inner_algo = PPO(env_spec=env.spec,
                          policy=policy,
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
@@ -65,7 +62,7 @@ def run_task(snapshot_config, *_):
                    max_path_length=max_path_length)
 
         runner.setup(algo,
-                     envs,
+                     env,
                      sampler_cls=RL2Sampler,
                      sampler_args=dict(meta_batch_size=meta_batch_size,
                                        n_envs=meta_batch_size))
