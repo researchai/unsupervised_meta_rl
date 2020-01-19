@@ -75,7 +75,7 @@ class RL2Sampler:
         """Shutdown workers."""
         self._vec_env.close()
 
-    def _setup_worker(self, env_indices):
+    def _setup_worker(self, env_indices, tasks):
         """Setup workers.
 
         Args:
@@ -86,12 +86,11 @@ class RL2Sampler:
         if self._vec_env is not None:
             self._vec_env.close()
 
-        tasks = self.env.sample_tasks(self._meta_batch_size)
         vec_envs = []
-        for ind, env_ind in enumerate(env_indices):
+        for env_ind in env_indices:
             for _ in range(self._envs_per_worker):
                 vec_env = copy.deepcopy(self.env)
-                vec_env.set_task(tasks[ind])
+                vec_env.set_task(tasks[env_ind])
                 vec_envs.append(vec_env)
         seed0 = deterministic.get_seed()
         if seed0 is not None:
@@ -150,16 +149,15 @@ class RL2Sampler:
         if batch_size is None:
             batch_size = self.algo.max_path_length * self._meta_batch_size
 
-        paths = OrderedDict()
-        for i in range(self._meta_batch_size):
-            paths[i] = []
-
+        paths = []
         n_samples = 0
+
+        tasks = self.env.sample_tasks(self._meta_batch_size)
 
         # Start main loop
         batch_size_per_loop = batch_size // len(self._vec_envs_indices)
         for vec_envs_indices in self._vec_envs_indices:
-            self._setup_worker(vec_envs_indices)
+            self._setup_worker(vec_envs_indices, tasks)
 
             obses = self._vec_env.reset()
             dones = np.asarray([True] * self._vec_env.num_envs)
@@ -216,7 +214,7 @@ class RL2Sampler:
                     if done:
                         obs = np.asarray(running_paths[idx]['observations'])
                         actions = np.asarray(running_paths[idx]['actions'])
-                        paths[idx].append(
+                        paths.append(
                             dict(observations=obs,
                                  actions=actions,
                                  rewards=np.asarray(
@@ -226,7 +224,8 @@ class RL2Sampler:
                                      running_paths[idx]['env_infos']),
                                  agent_infos=tensor_utils.
                                  stack_tensor_dict_list(
-                                     running_paths[idx]['agent_infos'])))
+                                     running_paths[idx]['agent_infos']),
+                                 batch_idx=idx))
                         n_samples += len(running_paths[idx]['rewards'])
                         running_paths[idx] = None
 

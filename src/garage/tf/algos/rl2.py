@@ -2,7 +2,9 @@
 
 Reference: https://arxiv.org/pdf/1611.02779.pdf.
 """
+import collections
 import numpy as np
+import garage
 
 from garage.np.algos import RLAlgorithm
 from dowel import logger, tabular
@@ -20,10 +22,9 @@ class RL2(RLAlgorithm):
             for the inner algorithm.
 
     """
-    def __init__(self,
-                 policy,
-                 inner_algo,
-                 max_path_length):
+
+    def __init__(self, policy, inner_algo, max_path_length):
+        assert isinstance(inner_algo, garage.tf.algos.BatchPolopt)
         self._inner_algo = inner_algo
         self._max_path_length = max_path_length
         self._env_spec = inner_algo.env_spec
@@ -40,7 +41,7 @@ class RL2(RLAlgorithm):
                 such as snapshotting and sampler control.
 
         Returns:
-            float: The average return in last epoch cycle.
+            float: The average return in last epoch.
 
         """
         last_return = None
@@ -64,13 +65,12 @@ class RL2(RLAlgorithm):
             numpy.float64: Average return.
 
         """
-        paths = self.process_samples(itr, paths)
-        self._inner_algo.log_diagnostics(paths)
+        paths = self._process_samples(itr, paths)
         logger.log('Optimizing policy...')
         self._inner_algo.optimize_policy(itr, paths)
         return paths['average_return']
 
-    def process_samples(self, itr, paths):
+    def _process_samples(self, itr, paths):
         # pylint: disable=too-many-statements
         """Return processed sample data based on the collected paths.
 
@@ -93,24 +93,30 @@ class RL2(RLAlgorithm):
                 * average_return: (numpy.float64)
 
         """
-        all_paths = []
         concatenated_path_in_meta_batch = []
         lengths = []
-        for _, path in paths.items():
-            concatenated_path, paths = self._concatenate_paths(path)
+
+        paths_by_task = collections.defaultdict(list)
+        for path in paths:
+            path['returns'] = np_tensor_utils.discount_cumsum(
+                path['rewards'], self._discount)
+            path['lengths'] = len(path['rewards'])
+            paths_by_task[path['batch_idx']].append(path)
+
+        for path in paths_by_task.values():
+            concatenated_path = self._concatenate_paths(path)
             concatenated_path_in_meta_batch.append(concatenated_path)
-            all_paths.extend(paths)
 
         observations, actions, rewards, terminals, returns, valids, lengths, env_infos, agent_infos = \
             self._stack_paths(max_len=self._inner_algo.max_path_length, paths=concatenated_path_in_meta_batch)
 
         _observations, _actions, _rewards, _terminals, _, _valids, _lengths, _env_infos, _agent_infos = \
-            self._stack_paths(max_len=self._max_path_length, paths=all_paths)
+            self._stack_paths(max_len=self._max_path_length, paths=paths)
 
         ent = np.sum(self._policy.distribution.entropy(agent_infos) *
                      valids) / np.sum(valids)
 
-        # performance is evaluated per individual paths
+        # performance is evaluated across all paths
         undiscounted_returns = self.evaluate_performance(
             itr,
             dict(env_spec=self._env_spec,
@@ -121,37 +127,23 @@ class RL2(RLAlgorithm):
                  env_infos=_env_infos,
                  agent_infos=_agent_infos,
                  lengths=_lengths,
-                 discount=self._discount,
-                 episode_reward_mean=self._inner_algo.episode_reward_mean))
-
-        self._inner_algo.episode_reward_mean.extend(undiscounted_returns)
-
-        # Log success rate for MetaWorld
-        if 'success' in all_paths[0]['env_infos']:
-            success_rate = sum(
-                [path['env_infos']['success'][-1]
-                 for path in all_paths]) * 100.0 / len(all_paths)
-            tabular.record('SuccessRate', success_rate)
+                 discount=self._discount))
 
         tabular.record('Entropy', ent)
         tabular.record('Perplexity', np.exp(ent))
-        tabular.record('Extras/EpisodeRewardMean',
-                       np.mean(self._inner_algo.episode_reward_mean))
 
         # all paths in each meta batch is stacked together
         # shape: [meta_batch, max_path_length * episoder_per_task, *dims]
         # per RL^2
-        concatenated_path = dict(
-            observations=observations,
-            actions=actions,
-            rewards=rewards,
-            valids=valids,
-            lengths=lengths,
-            agent_infos=agent_infos,
-            env_infos=env_infos,
-            paths=concatenated_path_in_meta_batch,
-            average_return=np.mean(undiscounted_returns)
-        )
+        concatenated_path = dict(observations=observations,
+                                 actions=actions,
+                                 rewards=rewards,
+                                 valids=valids,
+                                 lengths=lengths,
+                                 agent_infos=agent_infos,
+                                 env_infos=env_infos,
+                                 paths=concatenated_path_in_meta_batch,
+                                 average_return=np.mean(undiscounted_returns))
 
         return concatenated_path
 
@@ -178,8 +170,8 @@ class RL2(RLAlgorithm):
 
         if self._flatten_input:
             observations = np.concatenate([
-                self._env_spec.observation_space.flatten_n(path['observations'])
-                for path in paths
+                self._env_spec.observation_space.flatten_n(
+                    path['observations']) for path in paths
             ])
         else:
             observations = np.concatenate(
@@ -192,20 +184,12 @@ class RL2(RLAlgorithm):
         dones = np.concatenate([path['dones'] for path in paths])
         valids = np.concatenate(
             [np.ones_like(path['rewards']) for path in paths])
+        returns = np.concatenate([path['returns'] for path in paths])
+
         env_infos = np_tensor_utils.concat_tensor_dict_list(
             [path['env_infos'] for path in paths])
         agent_infos = np_tensor_utils.concat_tensor_dict_list(
             [path['agent_infos'] for path in paths])
-
-        for path in paths:
-            # calculate returns for fitting baseline the first time
-            # and lengths for spliting the concatenated paths into individual paths
-            # within each meta batch
-            path['returns'] = np_tensor_utils.discount_cumsum(
-                path['rewards'], self._discount)
-            path['lengths'] = len(path['rewards'])
-            returns.append(path['returns'])
-
         lengths = [path['lengths'] for path in paths]
 
         concatenated_path = dict(
@@ -219,7 +203,7 @@ class RL2(RLAlgorithm):
             agent_infos=agent_infos,
             env_infos=env_infos,
         )
-        return concatenated_path, paths
+        return concatenated_path
 
     def _stack_paths(self, max_len, paths):
         """Pad paths to max_len and stacked all paths together.
@@ -256,20 +240,18 @@ class RL2(RLAlgorithm):
             paths, 'actions', max_len)
         rewards = np_tensor_utils.stack_and_pad_tensor_n(
             paths, 'rewards', max_len)
-        dones = np_tensor_utils.stack_and_pad_tensor_n(paths, 'dones',
-                                                       max_len)
+        dones = np_tensor_utils.stack_and_pad_tensor_n(paths, 'dones', max_len)
         returns = np_tensor_utils.stack_and_pad_tensor_n(
             paths, 'returns', max_len)
+        agent_infos = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'agent_infos', max_len)
+        env_infos = np_tensor_utils.stack_and_pad_tensor_n(
+            paths, 'env_infos', max_len)
 
         valids = [np.ones_like(path['rewards']) for path in paths]
         valids = np_tensor_utils.pad_tensor_n(valids, max_len)
 
         lengths = np.stack([path['lengths'] for path in paths])
-
-        agent_infos = np_tensor_utils.stack_and_pad_tensor_dict(
-            paths, 'agent_infos', max_len)
-        env_infos = np_tensor_utils.stack_and_pad_tensor_dict(
-            paths, 'env_infos', max_len)
 
         return observations, actions, rewards, dones, returns, valids, lengths, env_infos, agent_infos
 
@@ -280,5 +262,3 @@ class RL2(RLAlgorithm):
     @property
     def max_path_length(self):
         return self._max_path_length
-    
-    

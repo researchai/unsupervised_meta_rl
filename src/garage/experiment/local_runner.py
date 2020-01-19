@@ -206,10 +206,7 @@ class LocalRunner:
         """
         paths = self._sampler.obtain_samples(
             itr, (batch_size or self._train_args.batch_size))
-        if type(paths) == list:
-            self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
-        else:
-            self._stats.total_env_steps += sum([sum([len(p['rewards']) for p in path]) for _, path in paths.items()])
+        self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
 
         return paths
 
