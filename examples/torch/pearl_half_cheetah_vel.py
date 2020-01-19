@@ -6,7 +6,7 @@ from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
-from garage.sampler import InPlaceSampler
+from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
 from garage.torch.modules import MLPEncoder
@@ -130,7 +130,7 @@ def run_task(snapshot_config, *_):
     tu.set_gpu_mode(False)
     #pearlsac.to()
 
-    runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
+    runner.setup(algo=pearlsac, env=env, sampler_cls=PEARLSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
 

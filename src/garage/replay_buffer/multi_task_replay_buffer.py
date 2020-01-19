@@ -94,16 +94,16 @@ class MultiTaskReplayBuffer(object):
         Args:
             task (int): Task index.
             batch_size (int): Size of random batch.
-            sequence (bool): True if ordered batch.
+            sequence (bool): True if sampling trajectories.
 
         Returns:
             dict: Dictionary containing random batch.
 
         """
         if sequence:
-            batch = self.task_buffers[task].random_sequence(batch_size)
+            batch = self.task_buffers[task].sample_trajectory(batch_size)
         else:
-            batch = self.task_buffers[task].random_batch(batch_size)
+            batch = self.task_buffers[task].sample_batch(batch_size)
         return batch
 
     def num_steps_can_sample(self, task):

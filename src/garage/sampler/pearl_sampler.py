@@ -6,7 +6,7 @@ from garage.torch.policies import DeterministicWrapper
 from garage.sampler.utils import rollout
 
 
-class InPlaceSampler:
+class PEARLSampler:
     """A sampler used in meta-RL algorithms involving context.
 
     It stores context and resample belief in the policy every step.

@@ -18,7 +18,7 @@ from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
-from garage.sampler import InPlaceSampler
+from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import RecurrentEncoder
 from garage.torch.modules import MLPEncoder
@@ -68,7 +68,8 @@ params = dict(
         use_information_bottleneck=True, # False makes latent context deterministic
         use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
-    n_trials=3
+    n_trials=3,
+    use_gpu=True,
 )
 
 
@@ -112,7 +113,7 @@ class TestBenchmarkPEARL:
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['TestTaskAverageReturn'],
+                ys=['TestAverageReturn'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
@@ -126,7 +127,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['TestTaskAverageReturn'],
+                ys=['TestAverageReturn'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 
@@ -204,8 +205,9 @@ def run_garage(env, seed, log_dir):
         **params['algo_params']
     )
 
-    tu.set_gpu_mode(True)
-    pearlsac.to()
+    tu.set_gpu_mode(params['use_gpu'])
+    if params['use_gpu'] == True: 
+        pearlsac.to()
 
     # Set up logger since we are not using run_experiment
     tabular_log_file = osp.join(log_dir, 'progress.csv')
@@ -214,7 +216,7 @@ def run_garage(env, seed, log_dir):
     dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
     dowel_logger.add_output(dowel.TensorBoardOutput(tensorboard_log_dir))
 
-    runner.setup(algo=pearlsac, env=env, sampler_cls=InPlaceSampler,
+    runner.setup(algo=pearlsac, env=env, sampler_cls=PEARLSampler,
         sampler_args=dict(max_path_length=params['algo_params']['max_path_length']))
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
 

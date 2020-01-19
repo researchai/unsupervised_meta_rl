@@ -2,7 +2,7 @@
 import numpy as np
 
 from garage.replay_buffer.meta_replay_buffer import MetaReplayBuffer
-from garage.sampler import InPlaceSampler
+from garage.sampler import PEARLSampler
 from garage.tf.envs import TfEnv
 from garage.torch.policies import DeterministicMLPPolicy
 from tests.fixtures.envs.dummy import DummyBoxEnv
@@ -16,7 +16,7 @@ def test_all():
     max_samples = 50
     max_trajs = 50
 
-    sampler = InPlaceSampler(env, policy, max_path_length)
+    sampler = PEARLSampler(env, policy, max_path_length)
 
     paths, _ = sampler.obtain_samples(max_samples=max_samples,
                                       max_trajs=max_trajs,
