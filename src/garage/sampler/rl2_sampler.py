@@ -87,7 +87,6 @@ class RL2Sampler(BaseSampler):
         if self._vec_env is not None:
             self._vec_env.close()
 
-        tasks = self.env.sample_tasks(self._meta_batch_size)
         vec_envs = []
         for env_ind in env_indices:
             for _ in range(self._envs_per_worker):
