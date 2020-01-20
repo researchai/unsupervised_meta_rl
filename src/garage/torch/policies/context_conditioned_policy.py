@@ -142,7 +142,8 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         params = self._context_encoder(context)
-        params = params.view(context.size(0), -1, self._context_encoder._output_dim)
+        #params = params.view(context.size(0), -1, self._context_encoder._output_dim)
+        params = params.view(context.size(0), -1, self._context_encoder.output_size)
         # given context, compute mean and variance of q(z|c)
         if self._use_ib:
             mu = params[..., :self._latent_dim]
