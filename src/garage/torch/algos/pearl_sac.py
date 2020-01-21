@@ -320,8 +320,8 @@ class PEARLSAC:
         next_obs = next_obs.view(t * b, -1)
 
         # optimize qf and encoder networks
-        #q1_pred = self.qf1(torch.cat([obs, actions, task_z], dim=1), None)
-        #q2_pred = self.qf2(torch.cat([obs, actions, task_z], dim=1), None)
+        #q1_pred = self.qf1(torch.cat([obs, actions], dim=1), task_z)
+        #q2_pred = self.qf2(torch.cat([obs, actions], dim=1), task_z)
         q1_pred = self.qf1(obs, actions, task_z)
         q2_pred = self.qf2(obs, actions, task_z)
         v_pred = self.vf(obs, task_z.detach())
@@ -354,8 +354,8 @@ class PEARLSAC:
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        #q1 = self.qf1(torch.cat([obs, new_actions, task_z], dim=1), None)
-        #q2 = self.qf2(torch.cat([obs, new_actions, task_z], dim=1), None)
+        #q1 = self.qf1(torch.cat([obs, new_actions], dim=1), task_z.detach())
+        #q2 = self.qf2(torch.cat([obs, new_actions], dim=1), task_z.detach())
         q1 = self.qf1(obs, new_actions, task_z.detach())
         q2 = self.qf2(obs, new_actions, task_z.detach())
         min_q = torch.min(q1, q2)

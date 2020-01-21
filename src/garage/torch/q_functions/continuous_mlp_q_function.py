@@ -32,8 +32,4 @@ class ContinuousMLPQFunction(MLPModule):
 
     def forward(self, observations, actions):
         """Return Q-value(s)."""
-        if actions is None:
-            input_val = observations
-        else:
-            input_val = torch.cat([observations, actions], 1)
-        return super().forward(input_val)
+        return super().forward(torch.cat([observations, actions], 1))

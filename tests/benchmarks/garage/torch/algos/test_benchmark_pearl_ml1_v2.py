@@ -12,6 +12,8 @@ import numpy as np
 import pytest
 import torch
 from torch.nn import functional as F  # NOQA
+#pip install git+https://github.com/rlworkgroup/metaworld.git@master#egg=metaworld
+from metaworld.benchmarks import ML1
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
@@ -20,7 +22,7 @@ from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
-from garage.torch.embeddings import RecurrentEncoder
+#from garage.torch.embeddings import RecurrentEncoder
 #from garage.torch.modules import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
@@ -29,22 +31,23 @@ import garage.torch.utils as tu
 from tests.fixtures import snapshot_config
 from tests import benchmark_helper
 import tests.helpers as Rh
-from rlkit.torch.networks import FlattenMlp, MlpEncoder
+
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 
 
 # hyperparams for baselines and garage
 params = dict(
-    num_epochs=380,
-    num_train_tasks=100,
-    num_eval_tasks=30,
+    num_epochs=200,
+    num_train_tasks=50,
+    num_eval_tasks=10,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
-        n_tasks=130, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
+        n_tasks=60, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
     ),
     algo_params=dict(
         meta_batch=16, # number of tasks to average the gradient across
-        num_steps_per_epoch=2000, # number of data sampling / training iterates
+        num_steps_per_epoch=4000, # number of data sampling / training iterates
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
         num_steps_prior=400, # number of transitions to collect per task with z ~ prior
@@ -70,7 +73,7 @@ params = dict(
         use_information_bottleneck=True, # False makes latent context deterministic
         use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
-    n_trials=3,
+    n_trials=1,
     use_gpu=True,
 )
 
@@ -84,14 +87,19 @@ class TestBenchmarkPEARL:
         Compare benchmarks between garage and baselines.
         :return:
         '''
-        envs = [HalfCheetahVelEnv()]
+        envs = [ML1.get_train_tasks('reach-v1'),
+                ML1.get_train_tasks('push-v1'),
+                ML1.get_train_tasks('pick-place-v1'),]
+        env_ids = ['reach-v1', 'push-v1', 'pick-place-v1']
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'pearl', timestamp)
         result_json = {}
-        env_id = 'HalfCheetahVel'
+        
 
-        for env in envs:
+        for idx in range(len(envs)):
+            env = envs[idx]
+            env_id = env_ids[idx]
             seeds = random.sample(range(100), params['n_trials'])
             task_dir = osp.join(benchmark_dir, env_id)
             plt_file = osp.join(benchmark_dir,
@@ -208,7 +216,7 @@ def run_garage(env, seed, log_dir):
     )
 
     tu.set_gpu_mode(params['use_gpu'])
-    if params['use_gpu'] == True: 
+    if params['use_gpu']: 
         pearlsac.to()
 
     # Set up logger since we are not using run_experiment

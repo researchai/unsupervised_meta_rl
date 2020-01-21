@@ -76,23 +76,3 @@ class MLPModule(MultiHeadedMLPModule):
 
         """
         return super().forward(input_value)[0]
-
-class FlattenMLP(MLPModule):
-    """
-    If there are multiple inputs, concatenate along dim 1.
-    """
-
-    def forward(self, *inputs, **kwargs):
-        flat_inputs = torch.cat(inputs, dim=1)
-        return super().forward(flat_inputs, **kwargs)
-
-class MLPEncoder(MLPModule):
-    """
-    Encode context via MLP.
-    """
-    def forward(self, *inputs):
-        input_value = torch.cat(inputs, dim=1)
-        return super().forward(input_value)
-
-    def reset(self, num_tasks=1):
-        pass

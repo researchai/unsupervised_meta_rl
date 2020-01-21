@@ -65,13 +65,12 @@ class PEARLSampler:
                            accum_context=accum_context)
 
             # save the latent context that generated this trajectory
-            if accum_context:
-                path['context'] = self.policy.z.detach().cpu().numpy()
+            path['context'] = self.policy.z.detach().cpu().numpy()
             paths.append(path)
             n_steps_total += len(path['observations'])
             n_trajs += 1
 
             # resample z every transition
-            if accum_context and n_trajs % resample == 0:
+            if n_trajs % resample == 0:
                 self.policy.sample_from_belief()
         return paths, n_steps_total

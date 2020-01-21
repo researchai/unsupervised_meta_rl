@@ -9,15 +9,15 @@ from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
-from garage.torch.embeddings import RecurrentEncoder
-from garage.torch.modules import MLPEncoder
+from garage.torch.embeddings import MLPEncoder, RecurrentEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
 import garage.torch.utils as tu
 
+
 params = dict(
-    num_epochs=5,
+    num_epochs=500,
     num_train_tasks=100,
     num_eval_tasks=30,
     latent_size=5,
@@ -25,18 +25,18 @@ params = dict(
     env_params=dict(n_tasks=130, ),
     algo_params=dict(
         meta_batch=16,
-        num_steps_per_epoch=2,
-        num_initial_steps=2,
+        num_steps_per_epoch=2000,
+        num_initial_steps=2000,
         num_tasks_sample=5,
-        num_steps_prior=4,
+        num_steps_prior=400,
         num_steps_posterior=0,
         num_extra_rl_steps_posterior=600,
         num_evals=1,
-        num_steps_per_eval=6,
+        num_steps_per_eval=600,
         batch_size=256,
         embedding_batch_size=100,
         embedding_mini_batch_size=100,
-        max_path_length=2,
+        max_path_length=200,
         discount=0.99,
         soft_target_tau=0.005,
         policy_lr=3E-4,
@@ -84,9 +84,11 @@ def run_task(snapshot_config, *_):
     recurrent = params['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
+
     context_encoder = encoder_model(input_dim=encoder_in_dim,
                                     output_dim=encoder_out_dim,
                                     hidden_sizes=[200, 200, 200])
+
 
     space_a = akro.Box(low=-1,
                        high=1,
