@@ -164,7 +164,7 @@ class PEARLSAC:
 
         self.eval_deterministic = eval_deterministic
         self.render_eval_paths = render_eval_paths
-        self.plotter = plotter
+        #self.plotter = plotter
 
         self.total_env_steps = 0
         self.total_train_steps = 0
@@ -320,10 +320,10 @@ class PEARLSAC:
         next_obs = next_obs.view(t * b, -1)
 
         # optimize qf and encoder networks
-        #q1_pred = self.qf1(torch.cat([obs, actions], dim=1), task_z)
-        #q2_pred = self.qf2(torch.cat([obs, actions], dim=1), task_z)
-        q1_pred = self.qf1(obs, actions, task_z)
-        q2_pred = self.qf2(obs, actions, task_z)
+        q1_pred = self.qf1(torch.cat([obs, actions], dim=1), task_z)
+        q2_pred = self.qf2(torch.cat([obs, actions], dim=1), task_z)
+        #q1_pred = self.qf1(obs, actions, task_z)
+        #q2_pred = self.qf2(obs, actions, task_z)
         v_pred = self.vf(obs, task_z.detach())
 
         with torch.no_grad():
@@ -354,10 +354,10 @@ class PEARLSAC:
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        #q1 = self.qf1(torch.cat([obs, new_actions], dim=1), task_z.detach())
-        #q2 = self.qf2(torch.cat([obs, new_actions], dim=1), task_z.detach())
-        q1 = self.qf1(obs, new_actions, task_z.detach())
-        q2 = self.qf2(obs, new_actions, task_z.detach())
+        q1 = self.qf1(torch.cat([obs, new_actions], dim=1), task_z.detach())
+        q2 = self.qf2(torch.cat([obs, new_actions], dim=1), task_z.detach())
+        #q1 = self.qf1(obs, new_actions, task_z.detach())
+        #q2 = self.qf2(obs, new_actions, task_z.detach())
         min_q = torch.min(q1, q2)
 
         # optimize vf
@@ -458,8 +458,8 @@ class PEARLSAC:
         if self.render_eval_paths:
             self.env.render_paths(paths)
 
-        if self.plotter:
-            self.plotter.draw()
+        #if self.plotter:
+        #    self.plotter.draw()
 
         tabular.record('Epoch', epoch)
         tabular.record('TotalTrainSteps', self.total_train_steps)

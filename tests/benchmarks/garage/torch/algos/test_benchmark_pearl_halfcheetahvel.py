@@ -20,8 +20,7 @@ from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
-from garage.torch.embeddings import RecurrentEncoder
-#from garage.torch.modules import MLPEncoder
+from garage.torch.embeddings import RecurrentEncoder, MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
@@ -29,7 +28,6 @@ import garage.torch.utils as tu
 from tests.fixtures import snapshot_config
 from tests import benchmark_helper
 import tests.helpers as Rh
-from rlkit.torch.networks import FlattenMlp, MlpEncoder
 
 
 # hyperparams for baselines and garage
@@ -160,28 +158,28 @@ def run_garage(env, seed, log_dir):
     encoder_out_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
     net_size = params['net_size']
     recurrent = params['algo_params']['recurrent']
-    encoder_model = RecurrentEncoder if recurrent else MlpEncoder
+    encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
-    context_encoder = MlpEncoder(
-        hidden_sizes=[200, 200, 200],
-        input_size=encoder_in_dim,
-        output_size=encoder_out_dim,
-    )
-    qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
-        output_size=1,
-    )
+    context_encoder = encoder_model(input_dim=encoder_in_dim,
+                                    output_dim=encoder_out_dim,
+                                    hidden_sizes=[200, 200, 200])
+
+    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
+    space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
+    qf_env = EnvSpec(space_a, space_b)
+
+    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
+    action_space = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    vf_env = EnvSpec(obs_space, action_space)
+
+    vf = ContinuousMLPQFunction(env_spec=vf_env,
+                                hidden_sizes=[net_size, net_size, net_size])
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],

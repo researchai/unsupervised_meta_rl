@@ -13,6 +13,15 @@ import torch.nn.functional as F
 
 import garage.torch.utils as tu
 
+def _product_of_gaussians(mus, sigmas_squared):
+    '''
+    compute mu, sigma of product of gaussians
+    '''
+    sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
+    sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
+    mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
+    return mu, sigma_squared
+
 
 class ContextConditionedPolicy(nn.Module):
     """A policy that outputs actions based on observation and latent context.
@@ -142,19 +151,12 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         params = self._context_encoder(context)
-        #params = params.view(context.size(0), -1, self._context_encoder._output_dim)
-        params = params.view(context.size(0), -1, self._context_encoder.output_size)
-        # given context, compute mean and variance of q(z|c)
+        params = params.view(context.size(0), -1, self._context_encoder._output_dim)
+        # with probabilistic z, predict mean and variance of q(z | c)
         if self._use_ib:
             mu = params[..., :self._latent_dim]
             sigma_squared = F.softplus(params[..., self._latent_dim:])
-            z_params = []
-            # compute mu, sigma of product of gaussians
-            for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared)):
-                s2 = torch.clamp(s, min=1e-7)
-                s2 = 1. / torch.sum(torch.reciprocal(s2), dim=0)
-                mu = s2 * torch.sum(m / s2, dim=0)
-                z_params.append((mu, s2))
+            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
             self.z_means = torch.stack([p[0] for p in z_params])
             self.z_vars = torch.stack([p[1] for p in z_params])
         else:
