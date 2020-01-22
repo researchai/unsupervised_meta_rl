@@ -82,8 +82,8 @@ class TestBenchmarkPEARL:
         Compare benchmarks between garage and baselines.
         :return:
         '''
-        envs = [ML1.get_train_tasks('reach-v1')]
-        env_ids = ['reach-v1']
+        envs = [ML1.get_train_tasks('push-v1')]
+        env_ids = ['push-v1']
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'pearl', timestamp)
