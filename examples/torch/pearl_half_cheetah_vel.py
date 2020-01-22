@@ -9,7 +9,7 @@ from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
-from garage.torch.embeddings import MLPEncoder, RecurrentEncoder
+from garage.torch.embeddings import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
@@ -17,26 +17,26 @@ import garage.torch.utils as tu
 
 
 params = dict(
-    num_epochs=500,
-    num_train_tasks=100,
-    num_eval_tasks=30,
+    num_epochs=2,
+    num_train_tasks=10,
+    num_test_tasks=3,
     latent_size=5,
     net_size=300,
-    env_params=dict(n_tasks=130, ),
+    env_params=dict(n_tasks=13, ),
     algo_params=dict(
-        meta_batch=16,
-        num_steps_per_epoch=2000,
-        num_initial_steps=2000,
+        meta_batch_size=16,
+        num_steps_per_epoch=5,
+        num_initial_steps=5,
         num_tasks_sample=5,
-        num_steps_prior=400,
+        num_steps_prior=4,
         num_steps_posterior=0,
-        num_extra_rl_steps_posterior=600,
+        num_extra_rl_steps_posterior=6,
         num_evals=1,
-        num_steps_per_eval=600,
+        num_steps_per_eval=6,
         batch_size=256,
         embedding_batch_size=100,
         embedding_mini_batch_size=100,
-        max_path_length=200,
+        max_path_length=2,
         discount=0.99,
         soft_target_tau=0.005,
         policy_lr=3E-4,
@@ -81,27 +81,22 @@ def run_task(snapshot_config, *_):
         if params['algo_params']['use_information_bottleneck'] \
             else latent_dim
     net_size = params['net_size']
-    recurrent = params['algo_params']['recurrent']
-    encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
-
-    context_encoder = encoder_model(input_dim=encoder_in_dim,
+    context_encoder = MLPEncoder(input_dim=encoder_in_dim,
                                     output_dim=encoder_out_dim,
                                     hidden_sizes=[200, 200, 200])
-
 
     space_a = akro.Box(low=-1,
                        high=1,
                        shape=(obs_dim + latent_dim, ),
                        dtype=np.float32)
     space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
-    qf1_env = EnvSpec(space_a, space_b)
-    qf2_env = copy.deepcopy(qf1_env)
+    qf_env = EnvSpec(space_a, space_b)
 
-    qf1 = ContinuousMLPQFunction(env_spec=qf1_env,
+    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
-    qf2 = ContinuousMLPQFunction(env_spec=qf2_env,
+    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
     obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
@@ -121,7 +116,7 @@ def run_task(snapshot_config, *_):
         action_dim=action_dim,
     )
 
-    agent = ContextConditionedPolicy(
+    context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=latent_dim,
         context_encoder=context_encoder,
         policy=policy,
@@ -130,9 +125,12 @@ def run_task(snapshot_config, *_):
     )
 
     pearlsac = PEARLSAC(env=env,
+                        policy=context_conditioned_policy,
+                        qf1=qf1,
+                        qf2=qf2,
+                        vf=vf,
                         num_train_tasks=params['num_train_tasks'],
-                        num_eval_tasks=params['num_eval_tasks'],
-                        nets=[agent, qf1, qf2, vf],
+                        num_test_tasks=params['num_test_tasks'],
                         latent_dim=latent_dim,
                         **params['algo_params'])
 
@@ -144,7 +142,7 @@ def run_task(snapshot_config, *_):
                  env=env,
                  sampler_cls=PEARLSampler,
                  sampler_args=dict(
-                     max_path_length=params['algo_params']['max_path_length']))
+                 max_path_length=params['algo_params']['max_path_length']))
     runner.train(n_epochs=params['num_epochs'], batch_size=256)
 
 

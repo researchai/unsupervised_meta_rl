@@ -21,12 +21,12 @@ from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 params = dict(
     num_epochs=500,
     num_train_tasks=100,
-    num_eval_tasks=30,
+    num_test_tasks=30,
     latent_size=5,
     net_size=300,
     env_params=dict(n_tasks=130, ),
     algo_params=dict(
-        meta_batch=16,
+        meta_batch_size=16,
         num_steps_per_epoch=2000,
         num_initial_steps=2000,
         num_tasks_sample=5,
@@ -124,7 +124,7 @@ def run_task(snapshot_config, *_):
 
     pearlsac = PEARLSAC(env=env,
                         num_train_tasks=params['num_train_tasks'],
-                        num_eval_tasks=params['num_eval_tasks'],
+                        num_test_tasks=params['num_test_tasks'],
                         nets=[agent, qf1, qf2, vf],
                         latent_dim=latent_dim,
                         **params['algo_params'])

@@ -22,8 +22,7 @@ from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
-#from garage.torch.embeddings import RecurrentEncoder
-#from garage.torch.modules import MLPEncoder
+from garage.torch.embeddings import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy
@@ -32,15 +31,12 @@ from tests.fixtures import snapshot_config
 from tests import benchmark_helper
 import tests.helpers as Rh
 
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
-
-
 # hyperparams for baselines and garage
 params = dict(
-    num_epochs=200,
+    num_epochs=250,
     num_train_tasks=50,
     num_test_tasks=10,
-    latent_size=5, # dimension of the latent context vector
+    latent_size=7, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
         n_tasks=60, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
@@ -48,24 +44,24 @@ params = dict(
     algo_params=dict(
         meta_batch_size=16, # number of tasks to average the gradient across
         num_steps_per_epoch=4000, # number of data sampling / training iterates
-        num_initial_steps=2000, # number of transitions collected per task before training
-        num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
-        num_steps_prior=400, # number of transitions to collect per task with z ~ prior
+        num_initial_steps=4000, # number of transitions collected per task before training
+        num_tasks_sample=15, # number of randomly sampled tasks to collect data for each iteration
+        num_steps_prior=750, # number of transitions to collect per task with z ~ prior
         num_steps_posterior=0, # number of transitions to collect per task with z ~ posterior
-        num_extra_rl_steps_posterior=600, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
-        num_evals=1, # number of independent evals
-        num_steps_per_eval=600,  # nuumber of transitions to eval on
+        num_extra_rl_steps_posterior=750, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
+        num_evals=5, # number of independent evals
+        num_steps_per_eval=450,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
         embedding_batch_size=100, # number of transitions in the context batch
         embedding_mini_batch_size=100, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
-        max_path_length=200, # max path length for this environment
+        max_path_length=150, # max path length for this environment
         discount=0.99, # RL discount factor
         soft_target_tau=0.005, # for SAC target network update
         policy_lr=3E-4,
         qf_lr=3E-4,
         vf_lr=3E-4,
         context_lr=3E-4,
-        reward_scale=5., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
+        reward_scale=10., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
         kl_lambda=.1, # weight on KL divergence term in encoder loss
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
         num_exp_traj_eval=2, # how many exploration trajs to collect before beginning posterior sampling at test time
@@ -73,8 +69,8 @@ params = dict(
         use_information_bottleneck=True, # False makes latent context deterministic
         use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
-    n_trials=1,
-    use_gpu=True,
+    n_trials=3,
+    use_gpu=False,
 )
 
 
@@ -87,10 +83,8 @@ class TestBenchmarkPEARL:
         Compare benchmarks between garage and baselines.
         :return:
         '''
-        envs = [ML1.get_train_tasks('reach-v1'),
-                ML1.get_train_tasks('push-v1'),
-                ML1.get_train_tasks('pick-place-v1'),]
-        env_ids = ['reach-v1', 'push-v1', 'pick-place-v1']
+        envs = [ML1.get_train_tasks('reach-v1')]
+        env_ids = ['reach-v1']
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'pearl', timestamp)
@@ -167,29 +161,27 @@ def run_garage(env, seed, log_dir):
             else obs_dim + action_dim + reward_dim
     encoder_out_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
     net_size = params['net_size']
-    recurrent = params['algo_params']['recurrent']
-    encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
-    context_encoder = MlpEncoder(
-        hidden_sizes=[200, 200, 200],
-        input_size=encoder_in_dim,
-        output_size=encoder_out_dim,
-    )
-    qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
-        output_size=1,
-    )
+    context_encoder = MLPEncoder(input_dim=encoder_in_dim,
+                                 output_dim=encoder_out_dim,
+                                 hidden_sizes=[200, 200, 200])
+
+    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
+    space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
+    qf_env = EnvSpec(space_a, space_b)
+
+    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+                                 hidden_sizes=[net_size, net_size, net_size])
+
+    obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
+    action_space = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    vf_env = EnvSpec(obs_space, action_space)
+
+    vf = ContinuousMLPQFunction(env_spec=vf_env,
+                                hidden_sizes=[net_size, net_size, net_size])
 
     policy = TanhGaussianMLPPolicy(
         hidden_sizes=[net_size, net_size, net_size],
@@ -198,7 +190,7 @@ def run_garage(env, seed, log_dir):
         action_dim=action_dim,
     )
 
-    agent = ContextConditionedPolicy(
+    context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=latent_dim,
         context_encoder=context_encoder,
         policy=policy,
@@ -208,15 +200,18 @@ def run_garage(env, seed, log_dir):
 
     pearlsac = PEARLSAC(
         env=env,
+        policy=context_conditioned_policy,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
         num_train_tasks=params['num_train_tasks'],
         num_test_tasks=params['num_test_tasks'],
-        nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **params['algo_params']
     )
 
     tu.set_gpu_mode(params['use_gpu'])
-    if params['use_gpu']: 
+    if params['use_gpu'] == True: 
         pearlsac.to()
 
     # Set up logger since we are not using run_experiment

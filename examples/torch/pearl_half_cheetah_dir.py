@@ -18,14 +18,14 @@ import garage.torch.utils as tu
 params = dict(
     num_epochs=50,
     num_train_tasks=2,
-    num_eval_tasks=2,
+    num_test_tasks=2,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
         n_tasks=2, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
     ),
     algo_params=dict(
-        meta_batch=4, # number of tasks to average the gradient across
+        meta_batch_size=4, # number of tasks to average the gradient across
         num_steps_per_epoch=2000, # number of meta-gradient steps taken per iteration
         num_initial_steps=2000, # number of transitions collected per task before training
         num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
@@ -121,7 +121,7 @@ def run_task(snapshot_config, *_):
     pearlsac = PEARLSAC(
         env=env,
         num_train_tasks=params['num_train_tasks'],
-        num_eval_tasks=params['num_eval_tasks'],
+        num_test_tasks=params['num_test_tasks'],
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **params['algo_params']
