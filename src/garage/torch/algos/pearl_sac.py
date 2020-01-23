@@ -223,6 +223,18 @@ class PEARLSAC:
             lr=context_lr,
         )
 
+    def __getstate__(self):
+        """Object.__getstate__.
+
+        Returns:
+            dict: the state to be pickled for the instance.
+
+        """
+        data = self.__dict__.copy()
+        del data['replay_buffer']
+        del data['enc_replay_buffer']
+        return data
+
     def train(self, runner):
         """Obtain samples, train, and evaluate for each epoch.
 
