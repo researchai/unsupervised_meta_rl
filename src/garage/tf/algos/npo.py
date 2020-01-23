@@ -333,7 +333,6 @@ class NPO(BatchPolopt):
                                      i.baseline_var,
                                      rewards,
                                      name='adv')
-
             adv_flat = flatten_batch(adv, name='adv_flat')
             adv_valid = filter_valids(adv_flat,
                                       i.flat.valid_var,
@@ -396,7 +395,6 @@ class NPO(BatchPolopt):
                     ll = pol_dist.log_likelihood_sym(i.action_var,
                                                      policy_dist_info,
                                                      name='log_likelihood')
-
                     vanilla = ll * adv * i.valid_var
                 else:
                     ll = pol_dist.log_likelihood_sym(i.valid.action_var,

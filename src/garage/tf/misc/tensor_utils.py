@@ -317,7 +317,7 @@ def center_advs(advs, axes, eps, offset=0, scale=1, name=None):
     with tf.name_scope(name, 'center_adv', [advs, axes, eps]):
         mean, var = tf.nn.moments(advs, axes=axes)
         advs = tf.nn.batch_normalization(advs, mean, var, offset, scale, eps)
-    return advs, mean
+    return advs
 
 
 def center_advs_local(advs, axes, eps, max_len, name=None):
@@ -327,7 +327,7 @@ def center_advs_local(advs, axes, eps, max_len, name=None):
         mean = tf.tile(tf.expand_dims(mean, axis=axes), [1, max_len])
         variance = tf.tile(tf.expand_dims(variance, axis=axes), [1, max_len])
         advs = (advs - mean) / (tf.sqrt(variance) + eps) # epsilon to avoid dividing by zero
-    return advs, mean
+    return advs
 
 
 def positive_advs(advs, eps, name=None):
