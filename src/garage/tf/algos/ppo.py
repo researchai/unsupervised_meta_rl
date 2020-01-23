@@ -4,7 +4,7 @@ from garage.tf.algos.npo2 import NPO2
 from garage.tf.optimizers import FirstOrderOptimizer
 
 
-class PPO(NPO2):
+class PPO(NPO):
     """Proximal Policy Optimization.
 
     See https://arxiv.org/abs/1707.06347.
@@ -78,7 +78,7 @@ class PPO(NPO2):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 meta_learn=False,
+                 # meta_learn=False,
                  num_of_env=1,
                  episode_per_task=1,
                  name='PPO'):
@@ -107,7 +107,7 @@ class PPO(NPO2):
                          stop_entropy_gradient=stop_entropy_gradient,
                          entropy_method=entropy_method,
                          flatten_input=flatten_input,
-                         meta_learn=meta_learn,
-                         num_of_env=num_of_env,
-                         episode_per_task=episode_per_task,
+                         # meta_learn=meta_learn,
+                         # num_of_env=num_of_env,
+                         # episode_per_task=episode_per_task,
                          name=name)
