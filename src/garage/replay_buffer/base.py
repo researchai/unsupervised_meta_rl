@@ -137,6 +137,14 @@ class ReplayBuffer(metaclass=abc.ABCMeta):
             transitions[key] = val.swapaxes(0, 1)
         return transitions
 
+    def clear(self):
+        self._current_size = 0
+        self._current_ptr = 0
+        self._n_transitions_stored = 0
+        self._initialized_buffer = False
+        self._buffer.clear()
+        self._episode_buffer.clear()
+
     @property
     def full(self):
         """Whether the buffer is full."""

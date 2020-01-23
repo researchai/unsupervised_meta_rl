@@ -11,6 +11,7 @@ from dowel import logger, tabular
 import numpy as np
 import torch
 
+from garage.replay_buffer.simple_replay_buffer import SimpleReplayBuffer
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
 from garage.sampler.pearl_sampler import PEARLSampler
 import garage.torch.utils as tu
@@ -187,17 +188,19 @@ class PEARLSAC:
         self._eval_tasks_idx = list(self._tasks_idx[-num_test_tasks:])
 
         # buffer for training RL update
-        self.replay_buffer = MultiTaskReplayBuffer(
-            replay_buffer_size,
-            env,
-            self._train_tasks_idx,
-        )
-        # buffer for training encoder update
-        self.enc_replay_buffer = MultiTaskReplayBuffer(
-            replay_buffer_size,
-            env,
-            self._train_tasks_idx,
-        )
+        self._replay_buffers = {
+            i: SimpleReplayBuffer(env_spec=env,
+                                  size_in_transitions=replay_buffer_size,
+                                  time_horizon=max_path_length)
+            for i in range(num_train_tasks)
+        }
+
+        self._context_replay_buffers = {
+            i: SimpleReplayBuffer(env_spec=env,
+                                  size_in_transitions=replay_buffer_size,
+                                  time_horizon=max_path_length)
+            for i in range(num_train_tasks)
+        }
 
         self.target_vf = copy.deepcopy(self._vf)
         self.vf_criterion = torch.nn.MSELoss()
@@ -231,8 +234,8 @@ class PEARLSAC:
 
         """
         data = self.__dict__.copy()
-        del data['replay_buffer']
-        del data['enc_replay_buffer']
+        del data['_replay_buffers']
+        del data['_context_replay_buffers']
         return data
 
     def train(self, runner):
@@ -263,7 +266,7 @@ class PEARLSAC:
                 self._task = self._tasks[idx]
                 self.env.set_task(self._task)
                 self.env.reset()
-                self.enc_replay_buffer.task_buffers[idx].clear()
+                self._context_replay_buffers[idx].clear()
 
                 # obtain samples with z ~ prior
                 if self._num_steps_prior > 0:
@@ -304,6 +307,7 @@ class PEARLSAC:
 
         # sample context
         context_batch = self.sample_context(indices)
+        
         # clear context and hidden encoder state
         self.policy.reset_belief(num_tasks=len(indices))
 
@@ -531,15 +535,25 @@ class PEARLSAC:
 
         while num_transitions < num_samples:
             paths, n_samples = self.sampler.obtain_samples(
-                max_samples=num_samples - num_transitions,
+                max_samples=num_samples-num_transitions,
                 max_trajs=update_posterior_rate,
                 accum_context=False,
                 resample=resample_z_rate)
             num_transitions += n_samples
-            self.replay_buffer.add_paths(self.task_idx, paths)
 
-            if add_to_enc_buffer:
-                self.enc_replay_buffer.add_paths(self.task_idx, paths)
+            for path in paths:
+                o = path['observations']
+                a = path['actions']
+                r = path['rewards']
+                no = path['next_observations']
+                t = path['terminals']
+                self._replay_buffers[self.task_idx].add_transitions(
+                    observation=o, action=a, reward=r, next_observation=no, terminal=t)
+
+                if add_to_enc_buffer:
+                    self._context_replay_buffers[self.task_idx].add_transitions(
+                        observation=o, action=a, reward=r, next_observation=no, terminal=t)
+
             if update_posterior_rate != np.inf:
                 context = self.sample_context(self.task_idx)
                 self.policy.infer_posterior(context)
@@ -557,17 +571,30 @@ class PEARLSAC:
 
         """
         # transitions sampled randomly from replay buffer
-        batches = [
-            tu.np_to_pytorch_batch(
-                self.replay_buffer.random_batch(idx,
-                                                batch_size=self._batch_size))
-            for idx in indices
-        ]
-        unpacked = [self.unpack_batch(batch) for batch in batches]
-        # group like elements together
-        unpacked = [[x[i] for x in unpacked] for i in range(len(unpacked[0]))]
-        unpacked = [torch.cat(x, dim=0) for x in unpacked]
-        return unpacked
+        initialized = False
+        for idx in indices:
+            batch = self._replay_buffers[idx].sample(self._batch_size)
+            if not initialized:
+                o = batch['observation'][np.newaxis]
+                a = batch['action'][np.newaxis]
+                r = batch['reward'][np.newaxis]
+                no = batch['next_observation'][np.newaxis]
+                t = batch['terminal'][np.newaxis]
+                initialized = True
+            else:
+                o = np.vstack((o, batch['observation'][np.newaxis]))
+                a = np.vstack((a, batch['action'][np.newaxis]))
+                r = np.vstack((r, batch['reward'][np.newaxis]))
+                no = np.vstack((no, batch['next_observation'][np.newaxis]))
+                t = np.vstack((t, batch['terminal'][np.newaxis]))
+        
+        o = tu.from_numpy(o)
+        a = tu.from_numpy(a)
+        r = tu.from_numpy(r)
+        no = tu.from_numpy(no)
+        t = tu.from_numpy(t)
+
+        return o, a, r, no, t
 
     def sample_context(self, indices):
         """Sample batch of context from a list of tasks.
@@ -582,39 +609,28 @@ class PEARLSAC:
         # make method work given a single task index
         if not hasattr(indices, '__iter__'):
             indices = [indices]
-        batches = [
-            tu.np_to_pytorch_batch(
-                self.enc_replay_buffer.random_batch(
-                    idx,
-                    batch_size=self._embedding_batch_size,
-                    sequence=self._recurrent)) for idx in indices
-        ]
-        context = [self.unpack_batch(batch) for batch in batches]
-        # group like elements together
-        context = [[x[i] for x in context] for i in range(len(context[0]))]
-        context = [torch.cat(x, dim=0) for x in context]
-        if self._use_next_obs_in_context:
-            context = torch.cat(context[:-1], dim=2)
-        else:
-            context = torch.cat(context[:-2], dim=2)
-        return context
 
-    def unpack_batch(self, batch):
-        """Unpack a batch and return individual elements.
+        initialized = False
+        for idx in indices:
+            batch = self._replay_buffers[idx].sample(self._embedding_batch_size)
+            o = batch['observation']
+            a = batch['action']
+            r = np.transpose(batch['reward'][np.newaxis])
+            context = np.hstack((np.hstack((o, a)), r))
+            if self._use_next_obs_in_context:
+                context = np.hstack((context, batch['next_observation']))
 
-        Args:
-            batch (torch.Tensor): Data.
+            if not initialized:
+                final_context = context[np.newaxis]
+                initialized = True
+            else:
+                final_context = np.vstack((final_context, context[np.newaxis]))
 
-        Returns:
-            torch.Tensor: Unpacked data.
+        final_context = tu.from_numpy(final_context)
+        if len(indices) == 1:
+            final_context = final_context.unsqueeze(0)
 
-        """
-        o = batch['observations'][None, ...]
-        a = batch['actions'][None, ...]
-        r = batch['rewards'][None, ...]
-        no = batch['next_observations'][None, ...]
-        t = batch['terminals'][None, ...]
-        return [o, a, r, no, t]
+        return final_context
 
     def collect_paths(self, idx):
         """Collect paths for evaluation.
