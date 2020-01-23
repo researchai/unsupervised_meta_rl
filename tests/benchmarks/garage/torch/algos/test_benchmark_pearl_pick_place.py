@@ -149,7 +149,7 @@ def run_garage(env, seed, log_dir):
     env = GarageEnv(normalize(env))
     path = os.path.join(os.getcwd(), 'data/local/experiment')
     snapshot_config = SnapshotConfig(snapshot_dir=path,
-                                     snapshot_mode='last',
+                                     snapshot_mode='gap',
                                      snapshot_gap=50)
     runner = LocalRunner(snapshot_config)
     obs_dim = int(np.prod(env.observation_space.shape))
