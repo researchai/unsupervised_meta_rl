@@ -40,6 +40,10 @@ class TanhNormalDist:
             pre_tanh_value = torch.log(
                 (1+value) / (1-value)
             ) / 2
+
+        # return self.normal.log_prob(pre_tanh_value) - torch.sum(torch.log(
+        #     1 - value * value + self.epsilon), axis=-1)
+
         return self.normal.log_prob(pre_tanh_value) - torch.log(
             1 - value * value + self.epsilon
         )
