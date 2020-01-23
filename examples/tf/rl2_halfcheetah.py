@@ -52,9 +52,9 @@ def run_task(snapshot_config, *_):
                          max_path_length=max_path_length * episode_per_task,
                          discount=0.99,
                          lr_clip_range=0.2,
-                         meta_learn=True,
-                         num_of_env=meta_batch_size,
-                         episode_per_task=episode_per_task,
+                         # meta_learn=True,
+                         # num_of_env=meta_batch_size,
+                         # episode_per_task=episode_per_task,
                          optimizer_args=dict(max_epochs=5))
 
         algo = RL2(policy=policy,
