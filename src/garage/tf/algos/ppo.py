@@ -80,7 +80,7 @@ class PPO(NPO):
                  flatten_input=True,
                  # meta_learn=False,
                  num_of_env=1,
-                 episode_per_task=1,
+                 # episode_per_task=1,
                  name='PPO'):
         if optimizer is None:
             optimizer = FirstOrderOptimizer
@@ -108,6 +108,6 @@ class PPO(NPO):
                          entropy_method=entropy_method,
                          flatten_input=flatten_input,
                          # meta_learn=meta_learn,
-                         # num_of_env=num_of_env,
+                         num_of_env=num_of_env,
                          # episode_per_task=episode_per_task,
                          name=name)

@@ -31,13 +31,13 @@ def run_task(snapshot_config, *_):
         # env = RL2Env(env=HalfCheetahVelEnv())
         # env2 = RL2Env(env=HalfCheetahRandVelEnv())
         # env = RL2Env(env=HalfCheetahRandDirecEnv())
-        # env = RL2Env(ML1.get_train_tasks('push-v1'))
+        env = RL2Env(ML1.get_train_tasks('push-v1'))
 
         max_path_length = 100
         meta_batch_size = 200
         n_epochs = 500
-        episode_per_task = 2
-        env = RL2Env(HalfCheetahVelEnv())
+        episode_per_task = 10
+        # env = RL2Env(HalfCheetahVelEnv())
         # envs = [RL2Env(copy.deepcopy(env)) for _ in range(meta_batch_size)]
         policy = GaussianGRUPolicy(name='policy',
                                    hidden_dim=64,
@@ -53,7 +53,7 @@ def run_task(snapshot_config, *_):
                          discount=0.99,
                          lr_clip_range=0.2,
                          # meta_learn=True,
-                         # num_of_env=meta_batch_size,
+                         num_of_env=meta_batch_size,
                          # episode_per_task=episode_per_task,
                          optimizer_args=dict(max_epochs=5))
 
