@@ -31,10 +31,10 @@ class RL2Env(gym.Wrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self.action_space = akro.from_gym(self.env.action_space)
-        self.observation_space = akro.from_gym(self._create_rl2_obs_space(env))
-        self.spec = EnvSpec(action_space=self.action_space,
-                            observation_space=self.observation_space)
+        action_space = akro.from_gym(self.env.action_space)
+        observation_space = akro.from_gym(self._create_rl2_obs_space(env))
+        self.spec = EnvSpec(action_space=action_space,
+                            observation_space=observation_space)
 
     def _create_rl2_obs_space(self, env):
         obs_flat_dim = np.prod(env.observation_space.shape)
