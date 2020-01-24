@@ -73,8 +73,8 @@ class RLAlgorithm(abc.ABC):
 
         if 'success' in batch['env_infos']:
             success_rate = sum(
-                [path['env_infos']['success'][-1]
-                 for path in paths]) * 1.0 / len(paths)
+                [successes[-1]
+                 for successes in batch['env_infos']['success']]) * 1.0 / len(batch['env_infos']['success'])
             tabular.record('SuccessRate', success_rate)
 
         tabular.record('Iteration', itr)

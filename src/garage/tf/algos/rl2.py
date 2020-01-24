@@ -139,7 +139,7 @@ class RL2(RLAlgorithm):
                                  actions=actions,
                                  rewards=rewards,
                                  valids=valids,
-                                 lengths=lengths,
+                                 # lengths=lengths,
                                  agent_infos=agent_infos,
                                  env_infos=env_infos,
                                  paths=concatenated_path_in_meta_batch,
