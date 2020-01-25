@@ -71,7 +71,10 @@ class VPG(BatchPolopt):
             use_softplus_entropy=False,
             stop_entropy_gradient=False,
             entropy_method='no_entropy',
+            training_batch_size=None,
+            training_epochs=1,
     ):
+        self._env_spec = env_spec
         self._gae_lambda = gae_lambda
         self._center_adv = center_adv
         self._positive_adv = positive_adv
@@ -80,6 +83,8 @@ class VPG(BatchPolopt):
         self._stop_entropy_gradient = stop_entropy_gradient
         self._entropy_method = entropy_method
         self._eps = 1e-8
+        self._training_batch_size = training_batch_size
+        self._training_epochs = training_epochs
 
         self._maximum_entropy = (entropy_method == 'max')
         self._entropy_regularzied = (entropy_method == 'regularized')
@@ -132,41 +137,36 @@ class VPG(BatchPolopt):
                 * average_return: (float)
 
         """
-        obs, actions, rewards, valids, baselines = self.process_samples(
-            itr, paths)
+        batch_size = (self._training_batch_size if self._training_batch_size
+                      else len(paths))
+        samples = self.process_samples(itr, paths)
 
-        loss = self._compute_loss(itr, obs, actions, rewards, valids,
-                                  baselines)
+        for _ in range(self._training_epochs):
+            minibatch_ids_list = torch.randperm(len(paths)).split(batch_size)
 
-        self._old_policy.load_state_dict(self.policy.state_dict())
+            for minibatch_ids in minibatch_ids_list:
+                obs, actions, rewards, valids, baselines = self._get_minibatch(samples, minibatch_ids)
 
-        self._optimizer.zero_grad()
-        loss.backward()
+                loss = self._compute_loss(itr, obs, actions, rewards, valids,
+                                          baselines)
 
-        kl_before = self._compute_kl_constraint(obs).detach()
-        self._optimize(itr, obs, actions, rewards, valids, baselines)
+                self._old_policy.load_state_dict(self.policy.state_dict())
 
-        with torch.no_grad():
-            loss_after = self._compute_loss(itr, obs, actions, rewards, valids,
-                                            baselines)
-            kl = self._compute_kl_constraint(obs)
-            policy_entropy = self._compute_policy_entropy(obs)
+                self._optimizer.zero_grad()
+                loss.backward()
+                self._optimize(itr, obs, actions, rewards, valids, baselines)
+
+                self.baseline.fit(paths)
 
         average_returns = log_performance(itr,
                                           TrajectoryBatch.from_trajectory_list(
                                               self.env_spec, paths),
                                           discount=self.discount)
 
-        with tabular.prefix(self.policy.name):
-            tabular.record('LossBefore', loss.item())
-            tabular.record('LossAfter', loss_after.item())
-            tabular.record('dLoss', loss.item() - loss_after.item())
-            tabular.record('KLBefore', kl_before.item())
-            tabular.record('KL', kl.item())
-            tabular.record('Entropy', policy_entropy.mean().item())
-
-        self.baseline.fit(paths)
         return np.mean(average_returns)
+
+    def _get_minibatch(self, samples, minibatch_ids):
+        return Samples(*[s[minibatch_ids]for s in samples])
 
     def _compute_loss(self, itr, obs, actions, rewards, valids, baselines):
         """Compute mean value of loss.
@@ -249,6 +249,8 @@ class VPG(BatchPolopt):
             torch.Tensor: Calculated entropy values given observation
 
         """
+        policy_entropy = self.policy.entropy(obs)
+
         if self._stop_entropy_gradient:
             with torch.no_grad():
                 policy_entropy = self.policy.entropy(obs)
@@ -320,7 +322,6 @@ class VPG(BatchPolopt):
                 path['returns'] = tensor_utils.discount_cumsum(
                     path['rewards'], self.discount)
 
-        valids = [len(path['actions']) for path in paths]
         obs = torch.stack([
             pad_to_last(path['observations'],
                         total_length=self.max_path_length,
@@ -335,9 +336,13 @@ class VPG(BatchPolopt):
             pad_to_last(path['rewards'], total_length=self.max_path_length)
             for path in paths
         ])
+        valids = np.array([len(path['actions']) for path in paths])
         baselines = torch.stack([
             pad_to_last(self._get_baselines(path),
                         total_length=self.max_path_length) for path in paths
         ])
 
-        return obs, actions, rewards, valids, baselines
+        return Samples(obs, actions, rewards, valids, baselines)
+
+from collections import namedtuple
+Samples = namedtuple('Samples', 'obs actions rewards valids baselines')
