@@ -6,6 +6,10 @@ import numpy as np
 
 from garage.misc import tensor_utils
 
+# ML1 returns observation that is out of bound.
+# Disable temporarily.
+_disable_checks = True
+
 
 class TrajectoryBatch(
         collections.namedtuple('TrajectoryBatch', [
@@ -85,20 +89,22 @@ class TrajectoryBatch(
                 lengths):  # noqa: D102
         # pylint: disable=too-many-branches
 
-        first_observation = observations[0]
-        first_action = actions[0]
-        inferred_batch_size = lengths.sum()
+        if not _disable_checks:
 
-        # lengths
-        if len(lengths.shape) != 1:
-            raise ValueError(
-                'Lengths tensor must be a tensor of shape (N,), but got a '
-                'tensor of shape {} instead'.format(lengths.shape))
+            first_observation = observations[0]
+            first_action = actions[0]
+            inferred_batch_size = lengths.sum()
 
-        if not (lengths.dtype.kind == 'u' or lengths.dtype.kind == 'i'):
-            raise ValueError(
-                'Lengths tensor must have an integer dtype, but got dtype {} '
-                'instead.'.format(lengths.dtype))
+            # lengths
+            if len(lengths.shape) != 1:
+                raise ValueError(
+                    'Lengths tensor must be a tensor of shape (N,), but got a '
+                    'tensor of shape {} instead'.format(lengths.shape))
+
+            if not (lengths.dtype.kind == 'u' or lengths.dtype.kind == 'i'):
+                raise ValueError(
+                    'Lengths tensor must have an integer dtype, but got dtype {} '
+                    'instead.'.format(lengths.dtype))
 
         # observations
         if not env_spec.observation_space.contains(first_observation):
@@ -120,11 +126,11 @@ class TrajectoryBatch(
                     'got data with shape {} instead.'.format(
                         env_spec.observation_space, first_observation))
 
-        if observations.shape[0] != inferred_batch_size:
-            raise ValueError(
-                'Expected batch dimension of observations to be length {}, '
-                'but got length {} instead.'.format(inferred_batch_size,
-                                                    observations.shape[0]))
+            if observations.shape[0] != inferred_batch_size:
+                raise ValueError(
+                    'Expected batch dimension of observations to be length {}, '
+                    'but got length {} instead.'.format(
+                        inferred_batch_size, observations.shape[0]))
 
         # observations
         if not env_spec.observation_space.contains(last_observations[0]):
@@ -146,83 +152,84 @@ class TrajectoryBatch(
                     'but got data with shape {} instead.'.format(
                         env_spec.observation_space, last_observations[0]))
 
-        if last_observations.shape[0] != len(lengths):
-            raise ValueError(
-                'Expected batch dimension of last_observations to be length '
-                '{}, but got length {} instead.'.format(
-                    len(lengths), last_observations.shape[0]))
-
-        # actions
-        if not env_spec.action_space.contains(first_action):
-            # Discrete actions can be either in the space normally, or one-hot
-            # encoded.
-            if isinstance(env_spec.action_space, (akro.Box, akro.Discrete)):
-                if env_spec.action_space.flat_dim != np.prod(
-                        first_action.shape):
-                    raise ValueError('actions should have the same '
-                                     'dimensionality as the action_space '
-                                     '({}), but got data with shape {} '
-                                     'instead'.format(
-                                         env_spec.action_space.flat_dim,
-                                         first_action.shape))
-            else:
+            if last_observations.shape[0] != len(lengths):
                 raise ValueError(
-                    'actions must conform to action_space {}, but got data '
-                    'with shape {} instead.'.format(env_spec.action_space,
-                                                    first_action))
+                    'Expected batch dimension of last_observations to be length '
+                    '{}, but got length {} instead.'.format(
+                        len(lengths), last_observations.shape[0]))
 
-        if actions.shape[0] != inferred_batch_size:
-            raise ValueError(
-                'Expected batch dimension of actions to be length {}, but got '
-                'length {} instead.'.format(inferred_batch_size,
-                                            actions.shape[0]))
+            # actions
+            if not env_spec.action_space.contains(first_action):
+                # Discrete actions can be either in the space normally, or one-hot
+                # encoded.
+                if isinstance(env_spec.action_space,
+                              (akro.Box, akro.Discrete)):
+                    if env_spec.action_space.flat_dim != np.prod(
+                            first_action.shape):
+                        raise ValueError('actions should have the same '
+                                         'dimensionality as the action_space '
+                                         '({}), but got data with shape {} '
+                                         'instead'.format(
+                                             env_spec.action_space.flat_dim,
+                                             first_action.shape))
+                else:
+                    raise ValueError(
+                        'actions must conform to action_space {}, but got data '
+                        'with shape {} instead.'.format(
+                            env_spec.action_space, first_action))
 
-        # rewards
-        if rewards.shape != (inferred_batch_size, ):
-            raise ValueError(
-                'Rewards tensor must have shape {}, but got shape {} '
-                'instead.'.format(inferred_batch_size, rewards.shape))
-
-        # terminals
-        if terminals.shape != (inferred_batch_size, ):
-            raise ValueError(
-                'terminals tensor must have shape {}, but got shape {} '
-                'instead.'.format(inferred_batch_size, terminals.shape))
-
-        if terminals.dtype != np.bool:
-            raise ValueError(
-                'terminals tensor must be dtype np.bool, but got tensor '
-                'of dtype {} instead.'.format(terminals.dtype))
-
-        # env_infos
-        for key, val in env_infos.items():
-            if not isinstance(val, (dict, np.ndarray)):
+            if actions.shape[0] != inferred_batch_size:
                 raise ValueError(
-                    'Each entry in env_infos must be a numpy array or '
-                    'dictionary, but got key {} with value type {} instead.'.
-                    format(key, type(val)))
+                    'Expected batch dimension of actions to be length {}, but got '
+                    'length {} instead.'.format(inferred_batch_size,
+                                                actions.shape[0]))
 
-            if (isinstance(val, np.ndarray)
-                    and val.shape[0] != inferred_batch_size):
+            # rewards
+            if rewards.shape != (inferred_batch_size, ):
                 raise ValueError(
-                    'Each entry in env_infos must have a batch dimension of '
-                    'length {}, but got key {} with batch size {} instead.'.
-                    format(inferred_batch_size, key, val.shape[0]))
+                    'Rewards tensor must have shape {}, but got shape {} '
+                    'instead.'.format(inferred_batch_size, rewards.shape))
 
-        # agent_infos
-        for key, val in agent_infos.items():
-            if not isinstance(val, (dict, np.ndarray)):
+            # terminals
+            if terminals.shape != (inferred_batch_size, ):
                 raise ValueError(
-                    'Each entry in agent_infos must be a numpy array or '
-                    'dictionary, but got key {} with value type {} instead.'
-                    'instead'.format(key, type(val)))
+                    'terminals tensor must have shape {}, but got shape {} '
+                    'instead.'.format(inferred_batch_size, terminals.shape))
 
-            if (isinstance(val, np.ndarray)
-                    and val.shape[0] != inferred_batch_size):
+            if terminals.dtype != np.bool:
                 raise ValueError(
-                    'Each entry in agent_infos must have a batch dimension of '
-                    'length {}, but got key {} with batch size {} instead.'.
-                    format(inferred_batch_size, key, val.shape[0]))
+                    'terminals tensor must be dtype np.bool, but got tensor '
+                    'of dtype {} instead.'.format(terminals.dtype))
+
+            # env_infos
+            for key, val in env_infos.items():
+                if not isinstance(val, (dict, np.ndarray)):
+                    raise ValueError(
+                        'Each entry in env_infos must be a numpy array or '
+                        'dictionary, but got key {} with value type {} instead.'
+                        .format(key, type(val)))
+
+                if (isinstance(val, np.ndarray)
+                        and val.shape[0] != inferred_batch_size):
+                    raise ValueError(
+                        'Each entry in env_infos must have a batch dimension of '
+                        'length {}, but got key {} with batch size {} instead.'
+                        .format(inferred_batch_size, key, val.shape[0]))
+
+            # agent_infos
+            for key, val in agent_infos.items():
+                if not isinstance(val, (dict, np.ndarray)):
+                    raise ValueError(
+                        'Each entry in agent_infos must be a numpy array or '
+                        'dictionary, but got key {} with value type {} instead.'
+                        'instead'.format(key, type(val)))
+
+                if (isinstance(val, np.ndarray)
+                        and val.shape[0] != inferred_batch_size):
+                    raise ValueError(
+                        'Each entry in agent_infos must have a batch dimension of '
+                        'length {}, but got key {} with batch size {} instead.'
+                        .format(inferred_batch_size, key, val.shape[0]))
 
         return super().__new__(TrajectoryBatch, env_spec, observations,
                                last_observations, actions, rewards, terminals,
