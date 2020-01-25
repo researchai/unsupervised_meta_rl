@@ -6,7 +6,6 @@ import numpy as np
 
 from garage.misc import tensor_utils
 
-
 class TrajectoryBatch(
         collections.namedtuple('TrajectoryBatch', [
             'env_spec',
@@ -84,6 +83,16 @@ class TrajectoryBatch(
                 rewards, terminals, env_infos, agent_infos,
                 lengths):  # noqa: D102
         # pylint: disable=too-many-branches
+
+        # ML1 returns observation that is out of bound.
+        # Disable temporarily.
+        _disable_checks = True
+
+        if _disable_checks:
+            return super().__new__(TrajectoryBatch, env_spec, observations,
+                                   last_observations, actions, rewards,
+                                   terminals,
+                                   env_infos, agent_infos, lengths)
 
         first_observation = observations[0]
         first_action = actions[0]

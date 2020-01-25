@@ -155,6 +155,37 @@ class SetTaskSampler(TaskSampler):
         ]
 
 
+class AllSetTaskSampler(TaskSampler):
+    """Variant of SetTaskSampler that enforces all available tasks are sampled.
+
+    This is used for environments that implement `sample_tasks` and `set_task`.
+    For example, :py:class:`~HalfCheetahVelEnv`, as implemented in Garage.
+
+    Args:
+        env_constructor (Callable[gym.Env]): Callable that produces
+            an environment (for example, an environment type).
+
+
+    """
+    def __init__(self, env_constructor):
+        self._env_constructor = env_constructor
+        self._env = env_constructor()
+        assert hasattr(self._env, 'num_tasks')
+        # assert hasattr(self._env, '_task_names')
+
+    @property
+    def n_tasks(self):
+        """int or None: The number of tasks if known and finite."""
+        return getattr(self._env, 'num_tasks', None)
+
+    def sample(self, n_tasks, with_replacement=False):
+        assert n_tasks == self.n_tasks
+        self._env._sampled_all = True
+        tasks = self._env.sample_tasks(n_tasks)
+        self._env._sampled_all = False
+        return [SetTaskUpdate(self._env_constructor, task) for task in tasks]
+
+
 class EnvPoolSampler(TaskSampler):
     """TaskSampler that samples from a finite pool of environments.
 
