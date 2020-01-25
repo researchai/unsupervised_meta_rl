@@ -23,7 +23,7 @@ benchmark_helper.plot_average_over_trials(
     xs=['n_timesteps', 'n_timesteps', 'n_timesteps'],
     plt_file='/home/kzhu/prog/resl/garage/playpen/benchmark_dup.png',
     env_id='HalfCheetahDir',
-    x_label='',
+    x_label='TotalEnvSteps',
     y_label='AverageReturn',
     names=['ProMP_fit-first', 'ProMP_fit-later_shared-baseline', 'ProMP_fit-later_independent-baseline']
 )
