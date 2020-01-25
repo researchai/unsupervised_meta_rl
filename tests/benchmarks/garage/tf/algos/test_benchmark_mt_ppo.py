@@ -36,7 +36,7 @@ from tests import benchmark_helper
 from tests import helpers as Rh
 from tests.fixtures import snapshot_config
 from tests.wrappers import AutoStopEnv
-
+from metaworld.benchmarks import MT10
 
 hyper_parameters = {
     'hidden_sizes': [64, 64],
@@ -48,8 +48,8 @@ hyper_parameters = {
     'policy_ent_coeff': 0.0,
     'max_path_length': 100,
     'batch_size': 2048,
-    'n_epochs': 500,
-    'n_trials': 10,
+    'n_epochs': 100,
+    'n_trials': 1,
     'training_batch_size': 32,
     'training_epochs': 4,
 }
@@ -78,23 +78,26 @@ class TestBenchmarkPPO:
 
         """
         # pylint: disable=no-self-use
-        mujoco1m = benchmarks.get_benchmark('Mujoco1M')
+        # mujoco1m = benchmarks.get_benchmark('Mujoco1M')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/ppo/%s/' % timestamp
         result_json = {}
-        for task in mujoco1m['tasks']:
-            env_id = task['env_id']
 
-            env = gym.make(env_id)
+        mt10_train_env = MT10.get_train_tasks()
+        mt10_train_tasks = mt10_train_env.sample_tasks(10)
+
+        for task in mt10_train_tasks:
+            mt10_train_env.set_task(task)
+
             baseline_env = AutoStopEnv(
-                env_name=env_id,
+                mt10_train_env,
                 max_path_length=hyper_parameters['max_path_length'])
 
             seeds = random.sample(range(100), hyper_parameters['n_trials'])
 
-            task_dir = osp.join(benchmark_dir, env_id)
+            task_dir = osp.join(benchmark_dir, str(task))
             plt_file = osp.join(benchmark_dir,
-                                '{}_benchmark.png'.format(env_id))
+                                '{}_benchmark.png'.format(str(task)))
 
             baselines_csvs = []
             garage_tf_csvs = []
@@ -116,8 +119,8 @@ class TestBenchmarkPPO:
                                                  baselines_dir)
 
                     # Run garage algorithms
-                    env.reset()
-                    garage_tf_csv = run_garage_tf(env, seed, garage_tf_dir)
+                    mt10_train_env.reset()
+                    garage_tf_csv = run_garage_tf(mt10_train_env, seed, garage_tf_dir)
 
                 # env.reset()
                 # garage_pytorch_csv = run_garage_pytorch(
@@ -127,7 +130,7 @@ class TestBenchmarkPPO:
                 garage_tf_csvs.append(garage_tf_csv)
                 # garage_pytorch_csvs.append(garage_pytorch_csv)
 
-            env.close()
+            mt10_train_env.close()
 
             # benchmark_helper.plot_average_over_trials(
             #     [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
@@ -153,7 +156,7 @@ class TestBenchmarkPPO:
             #     factors=[hyper_parameters['batch_size']] * 2,
             #     names=['baseline', 'garage-TF'])
 
-            result_json[env_id] = benchmark_helper.create_json(
+            result_json[task] = benchmark_helper.create_json(
                 [baselines_csvs, garage_tf_csvs],
                 seeds=seeds,
                 trials=hyper_parameters['n_trials'],
@@ -175,7 +178,7 @@ class TestBenchmarkPPO:
             #            trials=hyper_parameters['n_trials'],
             #            seeds=seeds,
             #            plt_file=plt_file,
-            #            env_id=env_id,
+            #            env_id=task,
             #            x_label='EnvTimeStep',
             #            y_label='Performance')
 
@@ -184,9 +187,9 @@ class TestBenchmarkPPO:
                 ['eprewmean', 'Evaluation/AverageReturn'],
                 ['total_timesteps', 'TotalEnvSteps'],
                 plt_file=plt_file,
-                env_id=env_id,
-                x_label='EnvTimeStep',
-                y_label='Performance',
+                env_id=task,
+                x_label='Iteration',
+                y_label='Evaluation/AverageReturn',
                 names=['baseline', 'garage-TensorFlow'],
             )
 
@@ -382,5 +385,3 @@ def run_baselines(env, seed, log_dir):
                total_timesteps=hyper_parameters['batch_size'] * hyper_parameters['n_epochs'])  # yapf: disable  # noqa: E501
 
     return osp.join(log_dir, 'progress.csv')
-
-

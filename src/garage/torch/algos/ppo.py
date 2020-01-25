@@ -59,7 +59,9 @@ class PPO(VPG):
                  policy_ent_coeff=0.0,
                  use_softplus_entropy=False,
                  stop_entropy_gradient=False,
-                 entropy_method='no_entropy'):
+                 entropy_method='no_entropy',
+                 training_batch_size=None,
+                 training_epochs=1):
 
         super().__init__(env_spec=env_spec,
                          policy=policy,
@@ -75,7 +77,9 @@ class PPO(VPG):
                          policy_ent_coeff=policy_ent_coeff,
                          use_softplus_entropy=use_softplus_entropy,
                          stop_entropy_gradient=stop_entropy_gradient,
-                         entropy_method=entropy_method)
+                         entropy_method=entropy_method,
+                         training_batch_size=training_batch_size,
+                         training_epochs=training_epochs)
 
         self._lr_clip_range = lr_clip_range
 

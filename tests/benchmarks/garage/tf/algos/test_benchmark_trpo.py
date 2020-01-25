@@ -28,8 +28,10 @@ from garage.envs import normalize
 from garage.experiment import deterministic, LocalRunner
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
+from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
+from garage.tf.optimizers import FirstOrderOptimizer
 from garage.tf.policies import GaussianMLPPolicy
 from garage.torch.algos import TRPO as PyTorch_TRPO
 from garage.torch.policies import GaussianMLPPolicy as PyTorch_GMP
@@ -39,16 +41,18 @@ import tests.helpers as Rh
 from tests.wrappers import AutoStopEnv
 
 hyper_parameters = {
-    'hidden_sizes': [32, 32],
+    'hidden_sizes': [64, 32], # following openai/spinning
     'max_kl': 0.01,
     'gae_lambda': 0.97,
     'discount': 0.99,
     'max_path_length': 100,
-    'n_epochs': 999,
-    'batch_size': 1024,
-    'n_trials': 5
+    'cg_iters': 10,
+    'batch_size': 2048,
+    'n_epochs': 500,
+    'n_trials': 10,
+    'training_epochs': 3,
+    'learning_rate': 0.001
 }
-
 
 class TestBenchmarkPPO:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
@@ -82,9 +86,9 @@ class TestBenchmarkPPO:  # pylint: disable=too-few-public-methods
                 baselines_dir = trial_dir + '/baselines'
 
                 # Run garage algorithms
-                env.reset()
-                garage_pytorch_csv = run_garage_pytorch(
-                    env, seed, garage_pytorch_dir)
+                # env.reset()
+                # garage_pytorch_csv = run_garage_pytorch(
+                #     env, seed, garage_pytorch_dir)
 
                 # pylint: disable=not-context-manager
                 with tf.Graph().as_default():
@@ -97,35 +101,50 @@ class TestBenchmarkPPO:  # pylint: disable=too-few-public-methods
                                                   baselines_dir)
 
                 garage_tf_csvs.append(garage_tf_csv)
-                garage_pytorch_csvs.append(garage_pytorch_csv)
+                # garage_pytorch_csvs.append(garage_pytorch_csv)
                 baselines_csvs.append(baselines_csv)
 
             env.close()
 
-            benchmark_helper.plot_average_over_trials(
-                [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
-                [
-                    'eprewmean', 'Evaluation/AverageReturn',
-                    'Evaluation/AverageReturn'
-                ],
-                plt_file=plt_file,
-                env_id=env_id,
-                x_label='Iteration',
-                y_label='Evaluation/AverageReturn',
-                names=['baseline', 'garage-TensorFlow', 'garage-PyTorch'],
-            )
+            # benchmark_helper.plot_average_over_trials(
+            #     [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
+            #     [
+            #         'eprewmean', 'Evaluation/AverageReturn',
+            #         'Evaluation/AverageReturn'
+            #     ],
+            #     plt_file=plt_file,
+            #     env_id=env_id,
+            #     x_label='Iteration',
+            #     y_label='Evaluation/AverageReturn',
+            #     names=['baseline', 'garage-TensorFlow', 'garage-PyTorch'],
+            # )
 
-            result_json[env_id] = benchmark_helper.create_json(
-                [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
-                seeds=seeds,
-                trials=hyper_parameters['n_trials'],
-                xs=['nupdates', 'Iteration', 'Iteration'],
-                ys=[
-                    'eprewmean', 'Evaluation/AverageReturn',
-                    'Evaluation/AverageReturn'
-                ],
-                factors=[hyper_parameters['batch_size']] * 3,
-                names=['baseline', 'garage-TF', 'garage-PT'])
+            Rh.relplot(g_csvs=garage_tf_csvs,
+                       b_csvs=baselines_csvs,
+                       g_x='TotalEnvSteps',
+                       g_y='Evaluation/AverageReturn',
+                       g_z='Garage',
+                       b_x='TimestepsSoFar',
+                       b_y='EpRewMean',
+                       b_z='Openai/Baseline',
+                       trials=hyper_parameters['n_trials'],
+                       seeds=seeds,
+                       plt_file=plt_file,
+                       env_id=env_id,
+                       x_label='EnvTimeStep',
+                       y_label='Performance')
+
+            # result_json[env_id] = benchmark_helper.create_json(
+            #     [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
+            #     seeds=seeds,
+            #     trials=hyper_parameters['n_trials'],
+            #     xs=['nupdates', 'Iteration', 'Iteration'],
+            #     ys=[
+            #         'eprewmean', 'Evaluation/AverageReturn',
+            #         'Evaluation/AverageReturn'
+            #     ],
+            #     factors=[hyper_parameters['batch_size']] * 3,
+            #     names=['baseline', 'garage-TF', 'garage-PT'])
 
         Rh.write_file(result_json, 'TRPO')
 
@@ -202,7 +221,22 @@ def run_garage(env, seed, log_dir):
             output_nonlinearity=None,
         )
 
-        baseline = LinearFeatureBaseline(env_spec=env.spec)
+        # baseline = LinearFeatureBaseline(env_spec=env.spec)
+        baseline = GaussianMLPBaseline(
+            env_spec=env.spec,
+            regressor_args=dict(
+                hidden_sizes=hyper_parameters['hidden_sizes'],
+                use_trust_region=False,
+                optimizer=FirstOrderOptimizer,
+                optimizer_args=dict(
+                    batch_size=hyper_parameters['batch_size'],
+                    max_epochs=hyper_parameters['training_epochs'],
+                    tf_optimizer_args=dict(
+                        learning_rate=hyper_parameters['learning_rate'],
+                    ),
+                ),
+            ),
+        )
 
         algo = TRPO(env_spec=env.spec,
                     policy=policy,
@@ -274,13 +308,13 @@ def run_baselines(env, seed, log_dir):
                    policy_fn,
                    timesteps_per_batch=hyper_parameters['batch_size'],
                    max_kl=hyper_parameters['max_kl'],
-                   cg_iters=10,
-                   cg_damping=0.1,
+                   cg_iters=hyper_parameters['cg_iters'],
+                   # cg_damping=0.1,
                    max_timesteps=(hyper_parameters['batch_size'] *
                                   hyper_parameters['n_epochs']),
                    gamma=hyper_parameters['discount'],
                    lam=hyper_parameters['gae_lambda'],
-                   vf_iters=5,
-                   vf_stepsize=1e-3)
+                   vf_iters=hyper_parameters['training_epochs'],
+                   vf_stepsize=hyper_parameters['learning_rate'])
 
     return osp.join(log_dir, 'progress.csv')
