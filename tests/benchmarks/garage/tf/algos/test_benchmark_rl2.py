@@ -21,6 +21,7 @@ import tests.helpers as Rh
 
 from garage.envs import RL2Env
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
+from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
 from garage.tf.algos import PPO as GaragePPO
 from garage.tf.algos import RL2
@@ -49,13 +50,13 @@ hyper_parameters = {
     'discount': 0.99,
     'max_path_length': 100,
     'n_itr': 500,
-    'rollout_per_task': 2,
+    'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
-    'n_trials': 1,
+    'n_trials': 2,
     'cell_type': 'gru'
 }
 
@@ -81,20 +82,20 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
             promp_csvs = []
 
             for trial in range(hyper_parameters['n_trials']):
-                seed = 54
+                seed = seeds[trial]
                 trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
                 garage_tf_dir = trial_dir + '/garage'
                 promp_dir = trial_dir + '/promp'
 
-                # with tf.Graph().as_default():
-                #     env.reset()
-                #     garage_tf_csv = run_garage(env, seed, garage_tf_dir)
+                with tf.Graph().as_default():
+                    env.reset()
+                    garage_tf_csv = run_garage(env, seed, garage_tf_dir)
 
                 with tf.Graph().as_default():
                     env.reset()
                     promp_csv = run_promp(env, seed, promp_dir)
 
-                # garage_tf_csvs.append(garage_tf_csv)
+                garage_tf_csvs.append(garage_tf_csv)
                 promp_csvs.append(promp_csv)
 
             env.close()
@@ -105,20 +106,20 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
         p_y = 'train-AverageReturn'
 
 
-        # Rh.relplot(g_csvs=garage_tf_csvs,
-        #            b_csvs=promp_csvs,
-        #            g_x=g_x,
-        #            g_y=g_y,
-        #            g_z='Garage',
-        #            b_x=p_x,
-        #            b_y=p_y,
-        #            b_z='ProMP',
-        #            trials=hyper_parameters['n_trials'],
-        #            seeds=seeds,
-        #            plt_file=plt_file,
-        #            env_id=env_id,
-        #            x_label=g_x,
-        #            y_label=g_y)
+        Rh.relplot(g_csvs=garage_tf_csvs,
+                   b_csvs=promp_csvs,
+                   g_x=g_x,
+                   g_y=g_y,
+                   g_z='Garage',
+                   b_x=p_x,
+                   b_y=p_y,
+                   b_z='ProMP',
+                   trials=hyper_parameters['n_trials'],
+                   seeds=seeds,
+                   plt_file=plt_file,
+                   env_id=env_id,
+                   x_label=g_x,
+                   y_label=g_y)
 
 
 def run_garage(env, seed, log_dir):
@@ -153,9 +154,6 @@ def run_garage(env, seed, log_dir):
             discount=hyper_parameters['discount'],
             gae_lambda=hyper_parameters['gae_lambda'],
             lr_clip_range=hyper_parameters['lr_clip_range'],
-            meta_learn=True,
-            num_of_env=hyper_parameters['meta_batch_size'],
-            episode_per_task=hyper_parameters['rollout_per_task'],
             optimizer_args=dict(
                 max_epochs=hyper_parameters['optimizer_max_epochs'],
                 tf_optimizer_args=dict(
@@ -167,11 +165,7 @@ def run_garage(env, seed, log_dir):
         algo = RL2(
             policy=policy,
             inner_algo=inner_algo,
-            max_path_length=hyper_parameters['max_path_length'],
-            episode_per_task=hyper_parameters['rollout_per_task'],
-            normalize_adv=hyper_parameters['normalize_adv'],
-            positive_adv=hyper_parameters['positive_adv'])
-
+            max_path_length=hyper_parameters['max_path_length'])
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
@@ -180,8 +174,9 @@ def run_garage(env, seed, log_dir):
         dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
 
         runner.setup(algo, env, sampler_cls=RL2Sampler, sampler_args=dict(
-            meta_batch_size=hyper_parameters['meta_batch_size'], episode_per_task=hyper_parameters['rollout_per_task'], n_envs=hyper_parameters['meta_batch_size']))
-        runner.train(n_epochs=hyper_parameters['n_itr'], batch_size=None)
+            meta_batch_size=hyper_parameters['meta_batch_size'], n_envs=hyper_parameters['meta_batch_size']))
+        runner.train(n_epochs=hyper_parameters['n_itr'],
+            batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])
 
         dowel_logger.remove_all()
 

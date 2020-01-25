@@ -103,7 +103,6 @@ class NPO(BatchPolopt):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 num_of_env=1,
                  name='NPO'):
         self._name = name
         self._name_scope = tf.name_scope(self._name)
@@ -145,8 +144,7 @@ class NPO(BatchPolopt):
                          center_adv=center_adv,
                          positive_adv=positive_adv,
                          fixed_horizon=fixed_horizon,
-                         flatten_input=flatten_input,
-                         num_of_env=num_of_env)
+                         flatten_input=flatten_input)
 
     def init_opt(self):
         """Initialize optimizater."""
@@ -168,13 +166,9 @@ class NPO(BatchPolopt):
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
         """
-        if 'baselines' not in samples_data:
-          samples_data['baselines'] = self._get_baselines_prediction(
-              samples_data)
-        self._fit_baseline(samples_data)
-        samples_data['baselines'] = self._get_baselines_prediction(
-            samples_data)
+        self._fit_baseline_first(samples_data)
         policy_opt_input_values = self._policy_opt_input_values(samples_data)
+
         # Train policy network
         logger.log('Computing loss before')
         loss_before = self._optimizer.loss(policy_opt_input_values)
@@ -196,28 +190,80 @@ class NPO(BatchPolopt):
         pol_ent = self._f_policy_entropy(*policy_opt_input_values)
         tabular.record('{}/Entropy'.format(self.policy.name), np.mean(pol_ent))
 
-        # self._fit_baseline(samples_data)
+        # self._fit_baseline_after(samples_data)
 
-    def _get_baselines_prediction(self, samples_data):
-        """Get baselines predictions on samples.
+    def _fit_baseline_first(self, samples_data):
+        """Update baselines from samples and get baseline prediction.
 
         Args:
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
 
-        Returns:
-            np.ndarray: Baseline predictions, shape :math:`[N, S^*]`.
-
         """
-        all_paths = samples_data['paths']
-        # lengths = samples_data['lengths']
-        baselines = np.zeros((self.num_of_env, self.max_path_length))
-        for ind, paths in enumerate(all_paths):
-            # split_path = split_paths(paths, lengths[ind])
-            # baselines[ind] = np.concatenate(
-                # [self.baselines[ind].predict(path) for path in split_path])
-            baselines[ind] = self.baselines[ind].predict(paths).reshape([self.max_path_length])
-        return baselines
+        policy_opt_input_values = self._policy_opt_input_values(samples_data)
+
+        # Augment reward from baselines
+        rewards_tensor = self._f_rewards(*policy_opt_input_values)
+        returns_tensor = self._f_returns(*policy_opt_input_values)
+
+        paths = samples_data['paths']
+        valids = samples_data['valids']
+
+        baselines = []
+        # Fit baseline
+        logger.log('Fitting baseline...')
+        for ind, path in enumerate(paths):
+            path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
+            path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
+            self.baseline.fit([path])
+            baseline = self.baseline.predict(path).squeeze(-1)
+            baselines.append(baseline)
+
+        baselines = np_tensor_utils.pad_tensor_n(baselines, self.max_path_length)
+        samples_data['baselines'] = baselines
+
+    def _fit_baseline_after(self, samples_data):
+        """Update baselines from samples.
+        Args:
+            samples_data (dict): Processed sample data.
+                See process_samples() for details.
+        """
+        policy_opt_input_values = self._policy_opt_input_values(samples_data)
+
+        # Augment reward from baselines
+        rewards_tensor = self._f_rewards(*policy_opt_input_values)
+        returns_tensor = self._f_returns(*policy_opt_input_values)
+        returns_tensor = np.squeeze(returns_tensor, -1)
+        paths = samples_data['paths']
+        valids = samples_data['valids']
+        baselines = [path['baselines'] for path in paths]
+
+        # Recompute parts of samples_data
+        aug_rewards = []
+        aug_returns = []
+        for rew, ret, val, path in zip(rewards_tensor, returns_tensor, valids,
+                                       paths):
+            path['rewards'] = rew[val.astype(np.bool)]
+            path['returns'] = ret[val.astype(np.bool)]
+            aug_rewards.append(path['rewards'])
+            aug_returns.append(path['returns'])
+
+        aug_rewards = concat_tensor_list(aug_rewards)
+        aug_returns = concat_tensor_list(aug_returns)
+        samples_data['rewards'] = aug_rewards
+        samples_data['returns'] = aug_returns
+
+        # Calculate explained variance
+        ev = np_tensor_utils.explained_variance_1d(np.concatenate(baselines),
+                                                   aug_returns)
+        tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
+
+        # Fit baseline
+        logger.log('Fitting baseline...')
+        if hasattr(self.baseline, 'fit_with_samples'):
+            self.baseline.fit_with_samples(paths, samples_data)
+        else:
+            self.baseline.fit(paths)
 
     def _build_inputs(self):
         """Build input variables.
@@ -248,8 +294,6 @@ class NPO(BatchPolopt):
             baseline_var = new_tensor(name='baseline',
                                       ndim=2,
                                       dtype=tf.float32)
-            # length_var = new_tensor(name='length', ndim=2, dtype=tf.int32)
-
             policy_state_info_vars = {
                 k: tf.compat.v1.placeholder(tf.float32,
                                             shape=[None] * 2 + list(shape),
@@ -321,7 +365,6 @@ class NPO(BatchPolopt):
             reward_var=reward_var,
             baseline_var=baseline_var,
             valid_var=valid_var,
-            # length_var=length_var,
             policy_state_info_vars=policy_state_info_vars,
             policy_old_dist_info_vars=policy_old_dist_info_vars,
             flat=pol_flat,
@@ -334,7 +377,6 @@ class NPO(BatchPolopt):
             reward_var=reward_var,
             baseline_var=baseline_var,
             valid_var=valid_var,
-            # length_var=length_var,
             policy_state_info_vars_list=policy_state_info_vars_list,
             policy_old_dist_info_vars_list=policy_old_dist_info_vars_list,
         )
@@ -580,77 +622,6 @@ class NPO(BatchPolopt):
 
         return policy_entropy
 
-    # def _fit_baseline(self, samples_data):
-    #     """Update baselines from samples.
-    #     Args:
-    #         samples_data (dict): Processed sample data.
-    #             See process_samples() for details.
-    #     """
-    #     policy_opt_input_values = self._policy_opt_input_values(samples_data)
-
-    #     # Augment reward from baselines
-    #     rewards_tensor = self._f_rewards(*policy_opt_input_values)
-    #     returns_tensor = self._f_returns(*policy_opt_input_values)
-    #     returns_tensor = np.squeeze(returns_tensor, -1)
-
-    #     paths = samples_data['paths']
-    #     valids = samples_data['valids']
-    #     # baselines = [path['baselines'] for path in paths]
-    #     baselines = samples_data['baselines']
-
-    #     # Recompute parts of samples_data
-    #     aug_rewards = []
-    #     aug_returns = []
-    #     for rew, ret, val, path in zip(rewards_tensor, returns_tensor, valids,
-    #                                    paths):
-    #         path['rewards'] = rew[val.astype(np.bool)]
-    #         path['returns'] = ret[val.astype(np.bool)]
-    #         aug_rewards.append(path['rewards'])
-    #         aug_returns.append(path['returns'])
-    #     aug_rewards = concat_tensor_list(aug_rewards)
-    #     aug_returns = concat_tensor_list(aug_returns)
-    #     samples_data['rewards'] = aug_rewards
-    #     samples_data['returns'] = aug_returns
-
-    #     # Calculate explained variance
-    #     ev = np_tensor_utils.explained_variance_1d(np.concatenate(baselines),
-    #                                                aug_returns)
-    #     tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
-
-    #     # Fit baseline
-    #     logger.log('Fitting baseline...')
-    #     if hasattr(self.baseline, 'fit_with_samples'):
-    #         self.baseline.fit_with_samples(paths, samples_data)
-    #     else:
-    #         self.baseline.fit(paths)
-
-    def _fit_baseline(self, samples_data):
-        """Update baselines from samples.
-
-        Args:
-            samples_data (dict): Processed sample data.
-                See process_samples() for details.
-
-        """
-        policy_opt_input_values = self._policy_opt_input_values(samples_data)
-
-        # Augment reward from baselines
-        rewards_tensor = self._f_rewards(*policy_opt_input_values)
-        returns_tensor = self._f_returns(*policy_opt_input_values)
-
-        paths = samples_data['paths']
-        valids = samples_data['valids']
-        # lengths = samples_data['lengths']
-
-        # Fit baseline
-        logger.log('Fitting baseline...')
-        for ind, path in enumerate(paths):
-            path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
-            path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
-            # split_path = split_paths(path, lengths[ind])
-            # self.baselines[ind].fit(split_path)
-            self.baselines[ind].fit([path])
-
     def _policy_opt_input_values(self, samples_data):
         """Map rollout samples to the policy optimizer inputs.
         Args:
@@ -673,7 +644,6 @@ class NPO(BatchPolopt):
             reward_var=samples_data['rewards'],
             baseline_var=samples_data['baselines'],
             valid_var=samples_data['valids'],
-            # length_var=samples_data['lengths'],
             policy_state_info_vars_list=policy_state_info_list,
             policy_old_dist_info_vars_list=policy_old_dist_info_list,
         )

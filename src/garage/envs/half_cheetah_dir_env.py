@@ -102,3 +102,7 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
         """
         self._task = task
         self._goal_dir = task['direction']
+
+    def log_diagnostics(self, *args, **kwargs):
+        """Method that ProMP requires."""
+        pass
