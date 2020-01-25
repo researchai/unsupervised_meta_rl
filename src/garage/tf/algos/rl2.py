@@ -103,13 +103,20 @@ class RL2(RLAlgorithm):
             path['lengths'] = len(path['rewards'])
             paths_by_task[path['batch_idx']].append(path)
 
+        # all path in paths_by_task[i] are sampled from task[i]
+        # 
         for path in paths_by_task.values():
             concatenated_path = self._concatenate_paths(path)
             concatenated_path_in_meta_batch.append(concatenated_path)
 
+        # prepare paths for inner algorithm
+        # pad the concatenated paths
         observations, actions, rewards, terminals, returns, valids, lengths, env_infos, agent_infos = \
             self._stack_paths(max_len=self._inner_algo.max_path_length, paths=concatenated_path_in_meta_batch)
 
+        # prepare paths for performance evaluation
+        # performance is evaluated across all paths, so each path
+        # is padded with self._max_path_length
         _observations, _actions, _rewards, _terminals, _, _valids, _lengths, _env_infos, _agent_infos = \
             self._stack_paths(max_len=self._max_path_length, paths=paths)
 
@@ -139,7 +146,7 @@ class RL2(RLAlgorithm):
                                  actions=actions,
                                  rewards=rewards,
                                  valids=valids,
-                                 # lengths=lengths,
+                                 baselines=np.zeros_like(rewards),
                                  agent_infos=agent_infos,
                                  env_infos=env_infos,
                                  paths=concatenated_path_in_meta_batch,
