@@ -11,6 +11,7 @@ from garage.np.algos import RLAlgorithm
 from garage.sampler import OnPolicyVectorizedSampler
 from garage.tf.misc import tensor_utils
 from garage.tf.samplers import BatchSampler
+from collections import defaultdict
 
 
 class BatchPolopt(RLAlgorithm):
@@ -81,7 +82,7 @@ class BatchPolopt(RLAlgorithm):
 
         Args:
             runner (LocalRunner): LocalRunner is passed to give algorithm
-                the access to runner.step_epochs(), which provides services
+                the accesslog_performance to runner.step_epochs(), which provides services
                 such as snapshotting and sampler control.
 
         Returns:
@@ -154,10 +155,17 @@ class BatchPolopt(RLAlgorithm):
 
         max_path_length = self.max_path_length
 
-        undiscounted_returns = log_performance(
-            itr,
-            TrajectoryBatch.from_trajectory_list(self.env_spec, paths),
-            discount=self.discount)
+        dic = defaultdict(lambda: list())
+        for path in paths:
+            assert all(path['env_infos']['task_name'][0] == name
+                       for name in path['env_infos']['task_name'])
+            dic[path['env_infos']['task_name'][0]].append(path)
+
+        for task_name, sep_paths in dic.items():
+            undiscounted_returns = log_performance(
+                itr,
+                TrajectoryBatch.from_trajectory_list(self.env_spec, sep_paths),
+                discount=self.discount, prefix=task_name)
 
         if self.flatten_input:
             paths = [
