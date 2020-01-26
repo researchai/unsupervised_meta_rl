@@ -11,6 +11,7 @@ from garage.experiment.deterministic import get_seed, set_seed
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
 from garage.sampler.base import BaseSampler
+from garage.sampler.rl2_worker import RL2Worker
 # This is avoiding a circular import
 from garage.sampler.worker import DefaultWorker
 from garage.sampler.worker_factory import WorkerFactory
@@ -150,9 +151,9 @@ class LocalRunner:
 
     def make_sampler(self,
                      sampler_cls,
+                     n_workers,
                      *,
                      seed=None,
-                     n_workers=psutil.cpu_count(logical=False),
                      max_path_length=None,
                      worker_class=DefaultWorker,
                      sampler_args=None):
@@ -189,7 +190,7 @@ class LocalRunner:
                                                    agents=self._algo.policy,
                                                    envs=self._env)
 
-    def setup(self, algo, env, sampler_cls=None, sampler_args=None):
+    def setup(self, algo, env, n_workers, sampler_cls=None, worker_class=DefaultWorker, sampler_args=None):
         """Set up runner for algorithm and environment.
 
         This method saves algo and env within runner and creates a sampler.
@@ -209,13 +210,18 @@ class LocalRunner:
         self._algo = algo
         self._env = env
         self._policy = self._algo.policy
+        self._n_worker = n_workers
+        self._worker_class = worker_class
 
         if sampler_args is None:
             sampler_args = {}
         if sampler_cls is None:
             sampler_cls = algo.sampler_cls
-        self._sampler = self.make_sampler(sampler_cls,
-                                          sampler_args=sampler_args)
+        self._sampler = self.make_sampler(
+            sampler_cls,
+            n_workers=n_workers,
+            worker_class=worker_class,
+            sampler_args=sampler_args)
 
         self._has_setup = True
 
@@ -287,6 +293,8 @@ class LocalRunner:
         # Save states
         params['env'] = self._env
         params['algo'] = self._algo
+        params['n_worker'] = self._n_worker
+        params['worker_class'] = self._worker_class
 
         self._snapshotter.save_itr_params(epoch, params)
 
@@ -315,6 +323,8 @@ class LocalRunner:
         set_seed(self._setup_args.seed)
         self.setup(env=saved['env'],
                    algo=saved['algo'],
+                   n_workers=saved['n_worker'],
+                   worker_class=saved['worker_class'],
                    sampler_cls=self._setup_args.sampler_cls,
                    sampler_args=self._setup_args.sampler_args)
 

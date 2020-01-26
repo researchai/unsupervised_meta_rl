@@ -101,7 +101,12 @@ class RL2(RLAlgorithm):
             path['returns'] = np_tensor_utils.discount_cumsum(
                 path['rewards'], self._discount)
             path['lengths'] = len(path['rewards'])
-            paths_by_task[path['batch_idx']].append(path)
+            if 'batch_idx' in path:
+                paths_by_task[path['batch_idx']].append(path)            
+            elif 'batch_idx' in path['agent_infos']:
+                paths_by_task[path['agent_infos']['batch_idx'][0]].append(path)
+            else:
+                raise ValueError('Batch idx is required for RL2 but not found')
 
         # all path in paths_by_task[i] are sampled from task[i]
         # 

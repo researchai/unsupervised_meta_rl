@@ -8,26 +8,26 @@ import tests.helpers as Rh
 class TestNothing:
 	def test_nothing_here(self):
 		# ######## generate plot for one garage vs one promp
-		g_x = 'TotalEnvSteps'
-		g_y = 'Evaluation/AverageReturn'
-		p_x = 'n_timesteps'
-		p_y = 'train-AverageReturn'
+		# g_x = 'TotalEnvSteps'
+		# g_y = 'Evaluation/AverageReturn'
+		# p_x = 'n_timesteps'
+		# p_y = 'train-AverageReturn'
 
-		df_g = pd.read_csv('data/local/experiment/garage_half_cheetah_vel_epi=2_itr=500/progress.csv')
-		df_g['Type'] = 'Garage'
+		# df_g = pd.read_csv('data/local/experiment/garage_half_cheetah_vel_epi=2_itr=500/progress.csv')
+		# df_g['Type'] = 'Garage'
 
-		# df_p = pd.read_csv('data/local/experiment/promp_epi=2_itr=1000.csv')
-		df_p = pd.read_csv('data/local/experiment/progress.csv')
-		df_p['Type'] = 'ProMP'
-		df_p = df_p.rename(columns={p_x: g_x, p_y: g_y})
-		data = pd.concat([df_g, df_p])
+		# # df_p = pd.read_csv('data/local/experiment/promp_epi=2_itr=1000.csv')
+		# df_p = pd.read_csv('data/local/experiment/progress.csv')
+		# df_p['Type'] = 'ProMP'
+		# df_p = df_p.rename(columns={p_x: g_x, p_y: g_y})
+		# data = pd.concat([df_g, df_p])
 
-		ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=data)
-		ax.axes.flatten()[0].set_title('HalfCheetahRandVel')
+		# ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=data)
+		# ax.axes.flatten()[0].set_title('HalfCheetahRandVel')
 
-		plt.savefig('data/local/experiment/garage_vs_promp_epi=10_itr=500_HalfCheetahRandDir.png')
+		# plt.savefig('data/local/experiment/garage_vs_promp_epi=10_itr=500_HalfCheetahRandDir.png')
 
-		plt.close()
+		# plt.close()
 
 		######## generate plot for x garage vs x promp
 		# target_folder = 'HalfCheetahRandVel_benchmark/'
@@ -112,13 +112,15 @@ class TestNothing:
 		# plt.close()
 
 		# ###### Only plot garage
-		# g_x = 'TotalEnvSteps'
+		g_x = 'TotalEnvSteps'
 		# g_y = 'Evaluation/AverageReturn'
-		# df_g = pd.read_csv('data/local/experiment/garage_half_cheetah_vel_epi=2_itr=500/progress.csv')
-		# df_g['Type'] = 'Garage'
-		# ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=df_g)
-		# ax.axes.flatten()[0].set_title('HalfCheetahRandVel')
+		g_y = 'SuccessRate'
+		# df_g = pd.read_csv('data/local/experiment/ml10-rl2/progress.csv')
+		df_g = pd.read_csv('../progress.csv')
+		df_g['Type'] = 'Garage'
+		ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=df_g)
+		ax.axes.flatten()[0].set_title('pick-place')
 
-		# plt.savefig('data/local/experiment/result_return.png')
+		plt.savefig('data/local/experiment/result_return3.png')
 
-		# plt.close()
+		plt.close()

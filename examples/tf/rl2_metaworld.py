@@ -11,7 +11,11 @@ from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
 from garage.tf.policies import GaussianGRUPolicy
+from garage.tf.policies import GaussianLSTMPolicy
+from garage.sampler import LocalSampler
 from garage.sampler.rl2_sampler import RL2Sampler
+from garage.sampler.worker import DefaultWorker
+from garage.sampler.rl2_worker import RL2Worker
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
@@ -38,24 +42,21 @@ def run_task(snapshot_config, *_):
         # env = RL2Env(env=HalfCheetahRandDirecEnv())
         # env = RL2Env(ML1.get_train_tasks('push-v1'))
 
+        max_path_length = 150
+        meta_batch_size = 40
+        n_epochs = 500
+        episode_per_task = 10
+
         ML10_train_envs = [
-            env(*ML10_ARGS['train'][task]['args'],
-                **ML10_ARGS['train'][task]['kwargs'])
+            RL2Env(env(*ML10_ARGS['train'][task]['args'],
+                **ML10_ARGS['train'][task]['kwargs']))
             for (task, env) in ML10_ENVS['train'].items()
         ]
         tasks = task_sampler.EnvPoolSampler(ML10_train_envs)
-        assert tasks.n_tasks == 10
-        updates = tasks.sample(10)
-        for env in ML10_train_envs:
-            assert any(env is update() for update in updates)
-
-        import pdb
-        pdb.set_trace()
-        max_path_length = 100
-        meta_batch_size = 200
-        n_epochs = 500
-        episode_per_task = 10
-        policy = GaussianGRUPolicy(name='policy',
+        tasks.grow_pool(meta_batch_size)
+        envs = tasks.sample(meta_batch_size)
+        env = envs[0]()
+        policy = GaussianLSTMPolicy(name='policy',
                                    hidden_dim=64,
                                    env_spec=env.spec,
                                    state_include_action=False)
@@ -67,18 +68,27 @@ def run_task(snapshot_config, *_):
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
                          discount=0.99,
+                         gae_lambda=0.95,
                          lr_clip_range=0.2,
-                         optimizer_args=dict(max_epochs=5))
+                         optimizer_args=dict(
+                            batch_size=32,
+                            max_epochs=10,
+                         ),
+                         stop_entropy_gradient=True,
+                         entropy_method='max',
+                         policy_ent_coeff=0.02,
+                         center_adv=False)
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
                    max_path_length=max_path_length)
 
         runner.setup(algo,
-                     env,
-                     sampler_cls=RL2Sampler,
-                     sampler_args=dict(meta_batch_size=meta_batch_size,
-                                       n_envs=meta_batch_size))
+                     envs,
+                     sampler_cls=LocalSampler,
+                     n_workers=meta_batch_size,
+                     worker_class=RL2Worker)
+
         runner.train(n_epochs=n_epochs,
                      batch_size=episode_per_task * max_path_length *
                      meta_batch_size)
