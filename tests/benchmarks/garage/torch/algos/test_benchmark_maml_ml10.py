@@ -8,6 +8,7 @@ garage.tf.samplers.BatchSampler to smooth the reward curve.
 import datetime
 import os.path as osp
 import random
+import sys
 
 import numpy as np
 import dowel
@@ -264,5 +265,9 @@ def run_promp(env, seed, log_dir):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        test_garage = sys.argv[1] in ('both', 'garage')
+        test_promp = sys.argv[1] in ('both', 'promp')
+
     test_cls = TestBenchmarkMAML()
     test_cls.test_benchmark_maml()
