@@ -39,8 +39,8 @@ class RL2Env(gym.Wrapper):
     def _create_rl2_obs_space(self, env):
         obs_flat_dim = np.prod(env.observation_space.shape)
         action_flat_dim = np.prod(env.action_space.shape)
-        return gym.spaces.Box(low=env.observation_space.low[0],
-                              high=env.observation_space.high[0],
+        return gym.spaces.Box(low=-np.inf,
+                              high=np.inf,
                               shape=(obs_flat_dim + action_flat_dim + 1 + 1,))
 
     def reset(self):

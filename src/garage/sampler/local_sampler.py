@@ -2,6 +2,7 @@
 
 from garage import TrajectoryBatch
 from garage.sampler.sampler import Sampler
+from garage.envs import RL2Env
 
 
 class LocalSampler(Sampler):
@@ -85,6 +86,7 @@ class LocalSampler(Sampler):
 
         """
         agent_updates = self._factory.prepare_worker_messages(agent_update)
+        env_update = env_update if env_update is not None else self._envs
         env_updates = self._factory.prepare_worker_messages(env_update)
         for worker, agent_up, env_up in zip(self._workers, agent_updates,
                                             env_updates):
@@ -97,7 +99,7 @@ class LocalSampler(Sampler):
                 batch = worker.rollout()
                 completed_samples += len(batch.actions)
                 batches.append(batch)
-                if completed_samples > num_samples:
+                if completed_samples >= num_samples:
                     return TrajectoryBatch.concatenate(*batches)
 
     def shutdown_worker(self):
