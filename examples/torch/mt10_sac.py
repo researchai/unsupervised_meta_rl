@@ -13,6 +13,7 @@ import torch
 from torch.nn import functional as F  # NOQA
 from torch import nn as nn
 
+from garage import wrap_experiment
 from garage.envs import normalize
 from metaworld.envs.mujoco.env_dict import EASY_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT
@@ -28,10 +29,10 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
-
-def run_task(snapshot_config, *_):
+@wrap_experiment(snapshot_mode='all')
+def mt10_sac(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
-    runner = LocalRunner(snapshot_config)
+    runner = LocalRunner(ctxt)
     MT10_envs_by_id = {}
     MT10_envs_test = {}
     for (task, env) in EASY_MODE_CLS_DICT.items():
@@ -75,13 +76,10 @@ def run_task(snapshot_config, *_):
                 discount=0.99,
                 buffer_batch_size=1280)
     tu.set_gpu_mode(True)
-    sac.to()
+    sac.to('cuda:0')
+
     runner.setup(algo=sac, env=env, sampler_cls=SimpleSampler, sampler_args=sampler_args)
 
     runner.train(n_epochs=13000, batch_size=1500)
 
-run_experiment(
-    run_task,
-    snapshot_mode='last',
-    seed=532,
-)
+mt10_sac(seed=532)

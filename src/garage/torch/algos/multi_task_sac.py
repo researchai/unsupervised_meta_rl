@@ -111,6 +111,7 @@ class MTSAC(OffPolicyRLAlgorithm):
                                         rew=sample.reward,
                                         next_obs=sample.next_observation,
                                         done=sample.terminal)
+            import ipdb; ipdb.set_trace()
             for _ in range(self.gradient_steps):
                 last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
                                               runner.step_path)
@@ -257,9 +258,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         Returns:
             list: A list of networks.
         """
-        return [self.target_qf1, self.target_qf2] + [self.policy] + [
-            self.qf1, self.qf2
-        ]
+        return [self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2, self.log_alpha]
 
     def to(self, device=None):
         """Put all the networks within the model on device.

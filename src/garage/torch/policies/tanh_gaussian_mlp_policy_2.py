@@ -32,19 +32,18 @@ class TanhGaussianMLPPolicy2(Policy, TanhGaussianMLPTwoHeadedModule2):
 
     def forward(self, inputs):
         """Forward method."""
-        return super().forward(torch.Tensor(inputs))
+        return super().forward(inputs)
 
     def get_action(self, observation):
         """Get a single action given an observation."""
         with torch.no_grad():
-            if(type(observation) != torch.Tensor):
-                import ipdb; ipdb.set_trace()
+            if type(observation) != torch.Tensor:
                 observation = tu.from_numpy(observation)
             observation = observation.unsqueeze(0)
             dist = self.forward(observation)
-            return (dist.rsample().squeeze(0).numpy(),
-                    dict(mean=dist.mean.squeeze(0).numpy(),
-                         log_std=(dist.variance**.5).log().squeeze(0).numpy()))
+            return (dist.rsample().squeeze(0).cpu().numpy(),
+                    dict(mean=dist.mean.squeeze(0).cpu().numpy(),
+                         log_std=(dist.variance**.5).log().squeeze(0).cpu().numpy()))
 
     def get_actions(self, observations):
         """Get actions given observations."""
