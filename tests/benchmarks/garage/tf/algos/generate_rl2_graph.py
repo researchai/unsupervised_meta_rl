@@ -113,14 +113,14 @@ class TestNothing:
 
 		# ###### Only plot garage
 		g_x = 'TotalEnvSteps'
-		# g_y = 'Evaluation/AverageReturn'
-		g_y = 'SuccessRate'
+		g_y = 'Evaluation/AverageReturn'
+		# g_y = 'SuccessRate'
 		# df_g = pd.read_csv('data/local/experiment/ml10-rl2/progress.csv')
-		df_g = pd.read_csv('../progress.csv')
+		df_g = pd.read_csv('data/local/experiment/halfcheetahVel/progress.csv')
 		df_g['Type'] = 'Garage'
 		ax = sns.relplot(x=g_x, y=g_y, hue='Type', kind='line', data=df_g)
 		ax.axes.flatten()[0].set_title('pick-place')
 
-		plt.savefig('data/local/experiment/result_return3.png')
+		plt.savefig('data/local/experiment/result_return.png')
 
 		plt.close()

@@ -30,14 +30,18 @@ def run_task(snapshot_config, *_):
 
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        # env = RL2Env(env=HalfCheetahVelEnv())
+        env = RL2Env(env=HalfCheetahVelEnv())
         # env2 = RL2Env(env=HalfCheetahRandVelEnv())
         # env = RL2Env(env=HalfCheetahRandDirecEnv())
-        env = RL2Env(ML1.get_train_tasks('push-v1'))
+        # env = RL2Env(ML1.get_train_tasks('push-v1'))
 
-        max_path_length = 150
-        meta_batch_size = 40
-        n_epochs = 500
+        # max_path_length = 150
+        # meta_batch_size = 40
+        # n_epochs = 500
+        # episode_per_task = 10
+        max_path_length = 100
+        meta_batch_size = 200
+        n_epochs = 200
         episode_per_task = 10
         policy = GaussianLSTMPolicy(name='policy',
                                     hidden_dim=64,
