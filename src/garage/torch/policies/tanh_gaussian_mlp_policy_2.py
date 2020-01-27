@@ -3,6 +3,7 @@ import torch
 
 from garage.torch.modules import TanhGaussianMLPTwoHeadedModule2
 from garage.torch.policies import Policy
+import garage.torch.utils as tu
 
 
 class TanhGaussianMLPPolicy2(Policy, TanhGaussianMLPTwoHeadedModule2):
@@ -37,7 +38,8 @@ class TanhGaussianMLPPolicy2(Policy, TanhGaussianMLPTwoHeadedModule2):
         """Get a single action given an observation."""
         with torch.no_grad():
             if(type(observation) != torch.Tensor):
-                observation = torch.Tensor(observation)
+                import ipdb; ipdb.set_trace()
+                observation = tu.from_numpy(observation)
             observation = observation.unsqueeze(0)
             dist = self.forward(observation)
             return (dist.rsample().squeeze(0).numpy(),

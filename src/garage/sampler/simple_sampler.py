@@ -44,18 +44,18 @@ class SimpleSampler(BaseSampler):
                                max_path_length=self._max_path_length)
         returned_samples = []
         while samples_collected < batch_size:
-                rg = rollout_generator(self._env,
-                               self._agent,
-                               deterministic=self._deterministic,
-                               max_path_length=self._max_path_length)
-                for sample in rg:
-                    if samples_collected >= batch_size:
-                        break
-                    returned_samples.append(sample)
-                    samples_collected += 1
+            rg = rollout_generator(self._env,
+                            self._agent,
+                            deterministic=self._deterministic,
+                            max_path_length=self._max_path_length)
+            for sample in rg:
+                if samples_collected >= batch_size:
+                    break
+                returned_samples.append(sample)
+                samples_collected += 1
         assert len(returned_samples) == samples_collected == batch_size
         return returned_samples
-    
+
     def shutdown_worker(self):
         pass
 

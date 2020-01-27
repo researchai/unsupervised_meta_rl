@@ -5,11 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 
-<<<<<<< HEAD
-from garage.torch.distributions import TanhNormal2
-=======
 from garage.torch.distributions import TanhNormal
->>>>>>> 9b7eb56... temp
 from garage.torch.modules.mlp_module import MLPModule
 from garage.torch.modules.multi_headed_mlp_module import MultiHeadedMLPModule
 
@@ -140,14 +136,7 @@ class TanhGaussianMLPBaseModule2(nn.Module):
             std = log_std_uncentered.exp()
         else:
             std = log_std_uncentered.exp().exp().add(1.).log()
-<<<<<<< HEAD
-
-        cov = (std**2).diag_embed()
-        dist = TanhNormal2(mean, cov)
-
-=======
         dist = TanhNormal(mean, std)
->>>>>>> 9b7eb56... temp
         return dist
 
     def _to_scalar_if_not_none(self, tensor):

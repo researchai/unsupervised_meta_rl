@@ -6,11 +6,13 @@ import torch
 import torch.nn.functional as F
 
 from dowel import logger, tabular
-from garage.torch.utils import np_to_torch, torch_to_np
+import garage.torch.utils as tu
 
 from garage.np.algos.off_policy_rl_algorithm import OffPolicyRLAlgorithm
 from garage.torch.algos import SAC
 from garage.envs.multi_task_metaworld_wrapper import MTEnvEvalWrapper
+
+from garage import log_performance
 
 class MTSAC(OffPolicyRLAlgorithm):
 
@@ -112,13 +114,16 @@ class MTSAC(OffPolicyRLAlgorithm):
             for _ in range(self.gradient_steps):
                 last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
                                               runner.step_path)
-            import ipdb; ipdb.set_trace()
             for task_number, name in enumerate(self.env.task_names_ordered):
-                with tabular.prefix(name + '/'):
-                    eval_env = self.eval_env_dict[name]
-                    self.evaluate_performance(
-                        runner.step_itr,
-                        self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env, task_number, self._num_tasks), num_trajs=5))
+                eval_env = self.eval_env_dict[name]
+                log_performance(
+                    runner.step_itr,
+                    self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
+                                                                     task_number,
+                                                                     self._num_tasks),
+                                                    num_trajs=5),
+                    discount=self.discount,
+                    prefix=name)
 
             self.log_statistics(policy_loss, qf1_loss, qf2_loss)
             tabular.record('TotalEnvSteps', runner.total_env_steps)
@@ -131,6 +136,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         """
         if self.replay_buffer.n_transitions_stored >= self.min_buffer_size:  # noqa: E501
             samples = self.replay_buffer.sample(self.buffer_batch_size)
+            samples = tu.np_to_pytorch_batch(samples)
             policy_loss, qf1_loss, qf2_loss = self.optimize_policy(itr, samples)
             self.update_targets()
 
@@ -244,3 +250,23 @@ class MTSAC(OffPolicyRLAlgorithm):
         tabular.record("qf_loss/{}".format("qf1_loss"), float(qf1_loss))
         tabular.record("qf_loss/{}".format("qf2_loss"), float(qf2_loss))
         tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
+
+    @property
+    def networks(self):
+        """Return all the networks within the model.
+        Returns:
+            list: A list of networks.
+        """
+        return [self.target_qf1, self.target_qf2] + [self.policy] + [
+            self.qf1, self.qf2
+        ]
+
+    def to(self, device=None):
+        """Put all the networks within the model on device.
+        Args:
+            device (str): ID of GPU or CPU.
+        """
+        if device is None:
+            device = tu.device
+        for net in self.networks:
+            net.to(device)

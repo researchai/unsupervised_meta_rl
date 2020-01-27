@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from garage.np.algos.off_policy_rl_algorithm import OffPolicyRLAlgorithm
 from garage.torch.utils import np_to_torch, torch_to_np
 from collections import deque
+from garage import log_performance
 
 class SAC(OffPolicyRLAlgorithm):
     """ A SAC Model in Torch.
@@ -125,9 +126,10 @@ class SAC(OffPolicyRLAlgorithm):
             for _ in range(self.gradient_steps):
                 last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
                                               runner.step_path)
-            self.evaluate_performance(
+            log_performance(
                 runner.step_itr,
-                self._obtain_evaluation_samples(runner.get_env_copy(), num_trajs=10))
+                self._obtain_evaluation_samples(runner.get_env_copy(), num_trajs=10),
+                discount=self.discount)
             self.log_statistics(policy_loss, qf1_loss, qf2_loss)
             tabular.record('TotalEnvSteps', runner.total_env_steps)
             runner.step_itr += 1

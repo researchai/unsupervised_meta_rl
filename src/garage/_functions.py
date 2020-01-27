@@ -26,6 +26,7 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         returns.append(discount_cumsum(trajectory.rewards, discount))
         undiscounted_returns.append(sum(trajectory.rewards))
         completion.append(float(trajectory.terminals.any()))
+        import ipdb; ipdb.set_trace()
         success.append(
             float(
                 getattr(trajectory.env_infos, 'success',
@@ -43,7 +44,7 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         tabular.record('MaxReturn', np.max(undiscounted_returns))
         tabular.record('MinReturn', np.min(undiscounted_returns))
         tabular.record('CompletionRate', np.mean(completion))
-        if np.mean(success) > 0:
-            tabular.record('SuccessRate', np.mean(success))
+        # if np.mean(success) > 0:
+        tabular.record('SuccessRate', np.mean(success))
 
     return undiscounted_returns
