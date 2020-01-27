@@ -17,26 +17,26 @@ import garage.torch.utils as tu
 
 
 params = dict(
-    num_epochs=2,
-    num_train_tasks=10,
-    num_test_tasks=3,
+    num_epochs=10,
+    num_train_tasks=100,
+    num_test_tasks=30,
     latent_size=5,
     net_size=300,
-    env_params=dict(n_tasks=13, ),
+    env_params=dict(n_tasks=130, ),
     algo_params=dict(
         meta_batch_size=16,
-        num_steps_per_epoch=5,
-        num_initial_steps=5,
+        num_steps_per_epoch=2000,
+        num_initial_steps=2000,
         num_tasks_sample=5,
-        num_steps_prior=4,
+        num_steps_prior=400,
         num_steps_posterior=0,
-        num_extra_rl_steps_posterior=6,
+        num_extra_rl_steps_posterior=600,
         num_evals=1,
-        num_steps_per_eval=6,
+        num_steps_per_eval=600,
         batch_size=256,
         embedding_batch_size=100,
         embedding_mini_batch_size=100,
-        max_path_length=2,
+        max_path_length=200,
         discount=0.99,
         soft_target_tau=0.005,
         policy_lr=3E-4,
@@ -51,7 +51,7 @@ params = dict(
         use_information_bottleneck=True,
         use_next_obs_in_context=False,
     ),
-    use_gpu=False,
+    use_gpu=True,
 )
 
 

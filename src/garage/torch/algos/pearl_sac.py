@@ -11,12 +11,14 @@ from dowel import logger, tabular
 import numpy as np
 import torch
 
+from garage.experiment.meta_evaluator import MetaEvaluator
+from garage.np.algos.meta_rl_algorithm import MetaRLAlgorithm
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
 from garage.sampler.pearl_sampler import PEARLSampler
 import garage.torch.utils as tu
 
 
-class PEARLSAC:
+class PEARLSAC(MetaRLAlgorithm):
     """A PEARL model based on https://arxiv.org/abs/1903.08254.
 
     PEARL, which stands for Probablistic Embeddings for Actor-Critic
@@ -95,6 +97,7 @@ class PEARLSAC:
             num_train_tasks,
             num_test_tasks,
             latent_dim,
+            test_env=None,
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
@@ -181,10 +184,18 @@ class PEARLSAC:
         )
 
         self._num_total_tasks = num_train_tasks + num_test_tasks
-        self._tasks = env.sample_tasks(self._num_total_tasks)
-        self._tasks_idx = range(self._num_total_tasks)
-        self._train_tasks_idx = list(self._tasks_idx[:num_train_tasks])
-        self._eval_tasks_idx = list(self._tasks_idx[-num_test_tasks:])
+        if test_env is None:
+            self.test_env = env
+            tasks = env.sample_tasks(self._num_total_tasks)
+            self._train_tasks = tasks[:num_train_tasks]
+            self._test_tasks = tasks[num_train_tasks:]
+        else:
+            self.test_env = test_env
+            self._train_tasks = env.sample_tasks(num_train_tasks)
+            self._test_tasks = self.test_env.sample_tasks(num_test_tasks)
+        
+        self._train_tasks_idx = range(num_train_tasks)
+        self._test_tasks_idx = range(num_test_tasks)
 
         # buffer for training RL update
         self.replay_buffer = MultiTaskReplayBuffer(
@@ -251,7 +262,7 @@ class PEARLSAC:
             if epoch == 0:
                 for idx in self._train_tasks_idx:
                     self.task_idx = idx
-                    self._task = self._tasks[idx]
+                    self._task = self._train_tasks[idx]
                     self.env.set_task(self._task)
                     self.env.reset()
                     self.obtain_samples(self._num_initial_steps, 1, np.inf)
@@ -260,7 +271,7 @@ class PEARLSAC:
             for _ in range(self._num_tasks_sample):
                 idx = np.random.randint(len(self._train_tasks_idx))
                 self.task_idx = idx
-                self._task = self._tasks[idx]
+                self._task = self._train_tasks[idx]
                 self.env.set_task(self._task)
                 self.env.reset()
                 self.enc_replay_buffer.task_buffers[idx].clear()
@@ -425,12 +436,12 @@ class PEARLSAC:
 
         # evaluate on a subset of train tasks
         indices = np.random.choice(self._train_tasks_idx,
-                                   len(self._eval_tasks_idx))
+                                   len(self._test_tasks_idx))
         # evaluate train tasks with posterior sampled from the training replay buffer
         train_returns = []
         for idx in indices:
             self.task_idx = idx
-            self._task = self._tasks[idx]
+            self._task = self._train_tasks[idx]
             self.env.set_task(self._task)
             self.env.reset()
             paths = []
@@ -450,10 +461,10 @@ class PEARLSAC:
         train_returns = np.mean(train_returns)
         # eval train tasks with on-policy data to match eval of test tasks
         avg_train_return, train_success_rate = self.get_average_returns(
-            indices)
+            indices, False)
         # eval test tasks
         avg_test_return, test_success_rate = self.get_average_returns(
-            self._eval_tasks_idx)
+            self._test_tasks_idx, True)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
@@ -474,7 +485,7 @@ class PEARLSAC:
         tabular.record('TotalTrainSteps', self._total_train_steps)
         tabular.record('TotalEnvSteps', self._total_env_steps)
 
-    def get_average_returns(self, indices):
+    def get_average_returns(self, indices, test):
         """Get average returns for specific tasks.
 
         Args:
@@ -491,7 +502,7 @@ class PEARLSAC:
         for idx in indices:
             returns = []
             for _ in range(self._num_evals):
-                paths = self.collect_paths(idx)
+                paths = self.collect_paths(idx, test)
                 num_paths += len(paths)
                 temp_returns = [
                     np.mean([sum(path['rewards'])]) for path in paths
@@ -616,7 +627,7 @@ class PEARLSAC:
         t = batch['terminals'][None, ...]
         return [o, a, r, no, t]
 
-    def collect_paths(self, idx):
+    def collect_paths(self, idx, test):
         """Collect paths for evaluation.
 
         Args:
@@ -627,9 +638,14 @@ class PEARLSAC:
 
         """
         self.task_idx = idx
-        self._task = self._tasks[idx]
-        self.env.set_task(self._task)
-        self.env.reset()
+        if test: 
+            self._task = self._test_tasks[idx]
+            self.test_env.set_task(self._task)
+            self.test_env.reset()
+        else:
+            self._task = self._train_tasks[idx]
+            self.env.set_task(self._task)
+            self.env.reset()
         self.policy.reset_belief()
         paths = []
         num_transitions = 0
@@ -670,6 +686,12 @@ class PEARLSAC:
         return self.policy.networks + [self.policy] + [
             self._qf1, self._qf2, self._vf, self.target_vf
         ]
+
+    def get_exploration_policy(self):
+        return self.policy
+
+    def adapt_policy(self, exploration_policy, exploration_trajectories):
+        pass
 
     def to(self, device=None):
         """Put all the networks within the model on device.
