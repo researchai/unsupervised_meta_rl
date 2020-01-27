@@ -22,11 +22,12 @@ import tests.helpers as Rh
 from garage.envs import RL2Env
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
+from garage.experiment.snapshotter import SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
 from garage.tf.algos import PPO as GaragePPO
 from garage.tf.algos import RL2
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianGRUPolicy
+from garage.tf.policies import GaussianLSTMPolicy
 from garage.sampler.rl2_sampler import RL2Sampler
 
 from maml_zoo.baselines.linear_baseline import LinearFeatureBaseline
@@ -39,16 +40,17 @@ from maml_zoo.samplers.rl2_sample_processor import RL2SampleProcessor
 from maml_zoo.policies.gaussian_rnn_policy import GaussianRNNPolicy
 from maml_zoo.logger import logger
 
+from metaworld.benchmarks import ML1
 import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 hyper_parameters = {
-    'meta_batch_size': 200,
+    'meta_batch_size': 50,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
-    'max_path_length': 100,
+    'max_path_length': 150,
     'n_itr': 500,
     'rollout_per_task': 10,
     'positive_adv': False,
@@ -56,8 +58,8 @@ hyper_parameters = {
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
-    'n_trials': 2,
-    'cell_type': 'gru'
+    'n_trials': 1,
+    'cell_type': 'lstm'
 }
 
 
@@ -67,12 +69,18 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     @pytest.mark.huge
     def test_benchmark_rl2(self):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
-        envs = [HalfCheetahVelEnv()]
+        # envs = [HalfCheetahVelEnv()]
+        envs = [ML1.get_train_tasks('push-v1')]
+        # envs = [ML1.get_train_tasks('reach-v1')]
+        # envs = [ML1.get_train_tasks('pick-place-v1')]
+        # env_id = 'HalfCheetahVelEnv'
+        env_id = 'ML1-push-v1'
+        # env_id = 'ML1-reach-v1'
+        # env_id = 'ML1-pick-place-v1'
 
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/rl2/%s/' % timestamp
         result_json = {}
-        env_id = 'HalfCheetahVelEnv'
         for env in envs:
             seeds = random.sample(range(100), hyper_parameters['n_trials'])
             task_dir = osp.join(benchmark_dir, env_id)
@@ -135,11 +143,13 @@ def run_garage(env, seed, log_dir):
 
     """
     deterministic.set_seed(seed)
-
+    snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
+                                     snapshot_mode='gap',
+                                     snapshot_gap=10)
     with LocalTFRunner(snapshot_config) as runner:
         env = RL2Env(env)
 
-        policy = GaussianGRUPolicy(
+        policy = GaussianLSTMPolicy(
             hidden_dim=hyper_parameters['hidden_sizes'][0],
             env_spec=env.spec,
             state_include_action=False)
@@ -186,7 +196,7 @@ def run_garage(env, seed, log_dir):
 def run_promp(env, seed, log_dir):
     deterministic.set_seed(seed)
     logger.configure(dir=log_dir, format_strs=['stdout', 'log', 'csv'],
-                     snapshot_mode='last_gap')
+                     snapshot_mode='gap', snapshot_gap=10)
 
     baseline = LinearFeatureBaseline()
     env = rl2env(env)
