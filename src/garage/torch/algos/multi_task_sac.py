@@ -111,7 +111,6 @@ class MTSAC(OffPolicyRLAlgorithm):
                                         rew=sample.reward,
                                         next_obs=sample.next_observation,
                                         done=sample.terminal)
-            import ipdb; ipdb.set_trace()
             for _ in range(self.gradient_steps):
                 last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
                                               runner.step_path)
@@ -144,7 +143,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         return 0, policy_loss, qf1_loss, qf2_loss
 
     def get_alpha(self, obs):
-        one_hots = torch.Tensor(obs[:, :self._num_tasks])
+        one_hots = obs[:, :self._num_tasks]
         alpha = self.log_alpha.detach().exp()
         return torch.mm(one_hots, alpha.unsqueeze(0).t()).squeeze()
 
@@ -152,7 +151,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         """
         implemented inside optimize_policy
         """
-        one_hots = torch.Tensor(obs[:, :self._num_tasks])
+        one_hots = obs[:, :self._num_tasks]
         log_alpha = torch.mm(one_hots, self.log_alpha.unsqueeze(0).t()).squeeze()
         alpha_loss = 0
         if self.use_automatic_entropy_tuning:
@@ -161,8 +160,8 @@ class MTSAC(OffPolicyRLAlgorithm):
 
     def actor_objective(self, obs, log_pi, new_actions):
         alpha = self.get_alpha(obs)
-        min_q_new_actions = torch.min(self.qf1(torch.Tensor(obs), torch.Tensor(new_actions)),
-                            self.qf2(torch.Tensor(obs), torch.Tensor(new_actions)))
+        min_q_new_actions = torch.min(self.qf1(obs, new_actions),
+                            self.qf2(obs, new_actions))
         policy_objective = ((alpha * log_pi) - min_q_new_actions.flatten()).mean()
         return policy_objective
 
@@ -176,20 +175,19 @@ class MTSAC(OffPolicyRLAlgorithm):
         terminals = samples["terminal"]
         next_obs = samples["next_observation"]
 
+        q1_pred = self.qf1(obs, actions)
+        q2_pred = self.qf2(obs, actions)
 
-        q1_pred = self.qf1(torch.Tensor(obs), torch.Tensor(actions))
-        q2_pred = self.qf2(torch.Tensor(obs), torch.Tensor(actions))
-
-        new_next_actions_dist = self.policy(torch.Tensor(next_obs))
+        new_next_actions_dist = self.policy(next_obs)
         new_next_actions_pre_tanh, new_next_actions = new_next_actions_dist.rsample_with_pre_tanh_value()
         new_log_pi = new_next_actions_dist.log_prob(value=new_next_actions, pre_tanh_value=new_next_actions_pre_tanh)
 
         target_q_values = torch.min(
-            self.target_qf1(torch.Tensor(next_obs), new_next_actions),
-            self.target_qf2(torch.Tensor(next_obs), new_next_actions)
+            self.target_qf1(next_obs, new_next_actions),
+            self.target_qf2(next_obs, new_next_actions)
         ).flatten() - (self.get_alpha(obs) * new_log_pi)
         with torch.no_grad():
-            q_target = torch.Tensor(rewards) + (1. - torch.Tensor(terminals)) * self.discount * target_q_values
+            q_target = rewards + (1. - terminals) * self.discount * target_q_values
         qf1_loss = F.mse_loss(q1_pred.flatten(), q_target)
         qf2_loss = F.mse_loss(q2_pred.flatten(), q_target)
 
@@ -226,8 +224,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
         self.qf2_optimizer.step()
-
-        action_dists = self.policy(torch.Tensor(obs))
+        action_dists = self.policy(obs)
         new_actions_pre_tanh, new_actions = action_dists.rsample_with_pre_tanh_value()
         log_pi = action_dists.log_prob(value=new_actions, pre_tanh_value=new_actions_pre_tanh) 
 
@@ -258,7 +255,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         Returns:
             list: A list of networks.
         """
-        return [self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2, self.log_alpha]
+        return [self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2]
 
     def to(self, device=None):
         """Put all the networks within the model on device.
@@ -269,3 +266,4 @@ class MTSAC(OffPolicyRLAlgorithm):
             device = tu.device
         for net in self.networks:
             net.to(device)
+        self.log_alpha = self.log_alpha.to(device)

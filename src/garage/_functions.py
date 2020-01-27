@@ -26,7 +26,6 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         returns.append(discount_cumsum(trajectory.rewards, discount))
         undiscounted_returns.append(sum(trajectory.rewards))
         completion.append(float(trajectory.terminals.any()))
-        import ipdb; ipdb.set_trace()
         success.append(
             float(
                 getattr(trajectory.env_infos, 'success',

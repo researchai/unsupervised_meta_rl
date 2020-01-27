@@ -29,7 +29,7 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
-@wrap_experiment(snapshot_mode='all')
+@wrap_experiment(snapshot_mode='last')
 def mt10_sac(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     runner = LocalRunner(ctxt)
