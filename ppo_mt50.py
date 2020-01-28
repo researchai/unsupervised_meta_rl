@@ -116,7 +116,7 @@ def ppo_mt10(ctxt=None, seed=1):
             env_spec=env.spec,
             policy=policy,
             baseline=baseline,
-            max_path_length=100,
+            max_path_length=150,
             discount=0.99,
             gae_lambda=0.95,
             lr_clip_range=0.2,

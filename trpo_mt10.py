@@ -60,6 +60,7 @@ def trpo_mt10(ctxt=None, seed=1):
                     baseline=baseline,
                     max_path_length=500,
                     discount=0.99,
+                    gae_lambda=0.97,
                     max_kl_step=0.01)
 
         runner.setup(algo, env)
