@@ -29,7 +29,7 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
-@wrap_experiment(snapshot_mode='last')
+@wrap_experiment(snapshot_mode='gap', snapshot_gap=26)
 def mt10_sac(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     runner = LocalRunner(ctxt)
@@ -62,6 +62,13 @@ def mt10_sac(ctxt=None, seed=1):
     replay_buffer = SACReplayBuffer(env_spec=env.spec,
                                        max_size=int(1e6))
     sampler_args = {'agent': policy, 'max_path_length': 150}
+
+    timesteps = 20000000
+    batch_size = int(150 * env.num_tasks)
+    num_evaluation_points = 500
+    epochs = timesteps // batch_size
+    epoch_cycles = epochs // num_evaluation_points
+    epochs = epochs // epoch_cycles
     sac = MTSAC(env=env,
                 eval_env_dict=MT10_envs_test,
                 env_spec=env.spec,
@@ -69,6 +76,7 @@ def mt10_sac(ctxt=None, seed=1):
                 qf1=qf1,
                 qf2=qf2,
                 gradient_steps_per_itr=150,
+                epoch_cycles=epoch_cycles,
                 use_automatic_entropy_tuning=True,
                 replay_buffer=replay_buffer,
                 min_buffer_size=1500,
@@ -80,6 +88,6 @@ def mt10_sac(ctxt=None, seed=1):
 
     runner.setup(algo=sac, env=env, sampler_cls=SimpleSampler, sampler_args=sampler_args)
 
-    runner.train(n_epochs=13000, batch_size=1500)
+    runner.train(n_epochs=epochs, batch_size=batch_size)
 
 mt10_sac(seed=532)

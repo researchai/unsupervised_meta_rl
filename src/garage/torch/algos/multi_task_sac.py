@@ -25,6 +25,7 @@ class MTSAC(OffPolicyRLAlgorithm):
                  qf2,
                  replay_buffer,
                  gradient_steps_per_itr,
+                 epoch_cycles,
                  alpha=None,
                  target_entropy=None,
                  initial_log_entropy=0.,
@@ -52,6 +53,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         self.qf_lr = qf_lr
         self.initial_log_entropy = initial_log_entropy
         self.gradient_steps = gradient_steps_per_itr
+        self.epoch_cycles = epoch_cycles
         super().__init__(env_spec=env_spec,
                          policy=policy,
                          qf=qf1,
@@ -101,35 +103,37 @@ class MTSAC(OffPolicyRLAlgorithm):
         last_return = None
 
         for _ in runner.step_epochs():
-            if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
-                batch_size = self.min_buffer_size
-            else:
-                batch_size = None
-            runner.step_path = runner.obtain_samples(runner.step_itr, batch_size)
-            for sample in runner.step_path:
-                self.replay_buffer.store(obs=sample.observation,
-                                        act=sample.action,
-                                        rew=sample.reward,
-                                        next_obs=sample.next_observation,
-                                        done=sample.terminal)
-            for _ in range(self.gradient_steps):
-                last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
-                                              runner.step_path)
+            for cycle in range(self.epoch_cycles):
+                if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
+                    batch_size = self.min_buffer_size
+                else:
+                    batch_size = None
+                runner.step_path = runner.obtain_samples(runner.step_itr, batch_size)
+                for sample in runner.step_path:
+                    self.replay_buffer.store(obs=sample.observation,
+                                            act=sample.action,
+                                            rew=sample.reward,
+                                            next_obs=sample.next_observation,
+                                            done=sample.terminal)
+                for _ in range(self.gradient_steps):
+                    last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
+                                                runner.step_path)
+            # evaluation
             for task_number, name in enumerate(self.env.task_names_ordered):
                 eval_env = self.eval_env_dict[name]
                 log_performance(
                     runner.step_itr,
                     self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
-                                                                     task_number,
-                                                                     self._num_tasks,
-                                                                     self.env._max_plain_dim),
+                                                                    task_number,
+                                                                    self._num_tasks,
+                                                                    self.env._max_plain_dim),
                                                     num_trajs=3),
                     discount=self.discount,
                     prefix=name)
 
-            self.log_statistics(policy_loss, qf1_loss, qf2_loss)
-            tabular.record('TotalEnvSteps', runner.total_env_steps)
-            runner.step_itr += 1
+                self.log_statistics(policy_loss, qf1_loss, qf2_loss)
+                tabular.record('TotalEnvSteps', runner.total_env_steps)
+        runner.step_itr += 1
 
         return last_return
 
