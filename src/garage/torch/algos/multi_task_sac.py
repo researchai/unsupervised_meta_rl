@@ -268,7 +268,6 @@ class MTSAC(OffPolicyRLAlgorithm):
             device = tu.device
         for net in self.networks:
             net.to(device)
-        self.log_alpha = self.log_alpha.to(device).requires_grad_()
-        import ipdb; ipdb.set_trace()
+        self.log_alpha = torch.tensor([self.initial_log_entropy] * self._num_tasks, dtype=torch.float).to(device).requires_grad_()
         self.alpha_optimizer = self.optimizer([self.log_alpha], lr=self.policy_lr)
 
