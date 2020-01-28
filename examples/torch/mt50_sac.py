@@ -31,7 +31,7 @@ from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
 @wrap_experiment(snapshot_mode='last', prefix='MT50_C014')
-def mt50_sac(ctxt=None, seed=532):
+def mt50_sac(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     runner = LocalRunner(ctxt)
     envs = MT50.get_train_tasks(sample_all=True)
@@ -64,18 +64,18 @@ def mt50_sac(ctxt=None, seed=532):
                 policy=policy,
                 qf1=qf1,
                 qf2=qf2,
-                gradient_steps_per_itr=150,
+                gradient_steps_per_itr=750,
                 use_automatic_entropy_tuning=True,
                 replay_buffer=replay_buffer,
-                min_buffer_size=150*50,
+                min_buffer_size=7500,
                 target_update_tau=5e-3,
                 discount=0.99,
-                buffer_batch_size=1280)
+                buffer_batch_size=6400)
     tu.set_gpu_mode(True)
     sac.to('cuda:0')
 
     runner.setup(algo=sac, env=env, sampler_cls=SimpleSampler, sampler_args=sampler_args)
 
-    runner.train(n_epochs=13000, batch_size=150*50)
+    runner.train(n_epochs=13000, batch_size=7500)
 
 mt50_sac(seed=532)

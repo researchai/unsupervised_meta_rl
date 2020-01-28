@@ -65,6 +65,7 @@ class MTSAC(OffPolicyRLAlgorithm):
                          smooth_return=smooth_return)
         self.reward_scale = reward_scale
         # use 2 target q networks
+        self.optimizer = optimizer
         self.target_qf1 = copy.deepcopy(self.qf1)
         self.target_qf2 = copy.deepcopy(self.qf2)
         self.policy_optimizer = optimizer(self.policy.parameters(),
@@ -120,8 +121,9 @@ class MTSAC(OffPolicyRLAlgorithm):
                     runner.step_itr,
                     self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
                                                                      task_number,
-                                                                     self._num_tasks),
-                                                    num_trajs=5),
+                                                                     self._num_tasks,
+                                                                     self.env._max_plain_dim),
+                                                    num_trajs=3),
                     discount=self.discount,
                     prefix=name)
 
@@ -266,4 +268,7 @@ class MTSAC(OffPolicyRLAlgorithm):
             device = tu.device
         for net in self.networks:
             net.to(device)
-        self.log_alpha = self.log_alpha.to(device)
+        self.log_alpha = self.log_alpha.to(device).requires_grad_()
+        import ipdb; ipdb.set_trace()
+        self.alpha_optimizer = self.optimizer([self.log_alpha], lr=self.policy_lr)
+

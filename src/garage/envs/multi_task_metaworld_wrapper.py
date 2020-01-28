@@ -26,7 +26,7 @@ class MTMetaWorldWrapper(MultiEnvWrapper):
             self._names.append(name)
             self._task_envs.append(env)
         super().__init__(self._task_envs, sample_strategy)
- 
+
 
     def _compute_env_one_hot(self, task_number):
         """Returns the one-hot encoding of task_number
@@ -53,7 +53,7 @@ class MTMetaWorldWrapper(MultiEnvWrapper):
 
 class MTEnvEvalWrapper(gym.Wrapper):
 
-    def __init__(self, env, task_number, num_tasks):
+    def __init__(self, env, task_number, num_tasks, max_env_shape):
         super().__init__(env)
         self._task_number = task_number
         self._num_tasks = num_tasks
@@ -62,6 +62,7 @@ class MTEnvEvalWrapper(gym.Wrapper):
         task_space = akro.Box(one_hot_lb, one_hot_ub)
         self.one_hot = np.zeros(task_space.shape)
         self.one_hot[task_number] = task_space.high[task_number]
+        self.max_env_shape = max_env_shape
 
     @property
     def task_space(self):
@@ -74,6 +75,15 @@ class MTEnvEvalWrapper(gym.Wrapper):
         one_hot_ub = np.ones(self.num_tasks)
         one_hot_lb = np.zeros(self.num_tasks)
         return akro.Box(one_hot_lb, one_hot_ub)
+
+    def _augment_observation(self, obs):
+        # optionally zero-pad observation
+        if np.prod(obs.shape) < self.max_env_shape:
+            zeros = np.zeros(
+                shape=(self.max_env_shape - np.prod(obs.shape),)
+            )
+            obs = np.concatenate([obs, zeros])
+        return obs
 
     @property
     def observation_space(self):
@@ -110,6 +120,7 @@ class MTEnvEvalWrapper(gym.Wrapper):
 
         """
         obs = self.env.reset(**kwargs)
+        obs = self._augment_observation(obs)
         oh_obs = self._obs_with_one_hot(obs)
         return oh_obs
 
@@ -127,6 +138,7 @@ class MTEnvEvalWrapper(gym.Wrapper):
 
         """
         obs, reward, done, info = self.env.step(action)
+        obs = self._augment_observation(obs)
         oh_obs = self._obs_with_one_hot(obs)
         info['task_id'] = self._task_number
         return oh_obs, reward, done, info
