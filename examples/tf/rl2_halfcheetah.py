@@ -35,13 +35,9 @@ def run_task(snapshot_config, *_):
         # env = RL2Env(env=HalfCheetahRandDirecEnv())
         # env = RL2Env(ML1.get_train_tasks('push-v1'))
 
-        # max_path_length = 150
-        # meta_batch_size = 40
-        # n_epochs = 500
-        # episode_per_task = 10
-        max_path_length = 100
-        meta_batch_size = 200
-        n_epochs = 200
+        max_path_length = 150
+        meta_batch_size = 50
+        n_epochs = 500
         episode_per_task = 10
         policy = GaussianLSTMPolicy(name='policy',
                                     hidden_dim=64,
@@ -65,8 +61,6 @@ def run_task(snapshot_config, *_):
                          entropy_method='max',
                          policy_ent_coeff=0.02,
                          center_adv=False)
-                         # lr_clip_range=0.2,
-                         # optimizer_args=dict(max_epochs=5))
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
