@@ -113,7 +113,9 @@ class LocalTFRunner(LocalRunner):
                      n_workers=psutil.cpu_count(logical=False),
                      max_path_length=None,
                      worker_class=DefaultWorker,
-                     sampler_args=None):
+                     sampler_args=None,
+                     policy=None,
+                     env=None):
         """Construct a Sampler from a Sampler class.
 
         Args:
@@ -137,7 +139,9 @@ class LocalTFRunner(LocalRunner):
             n_workers=n_workers,
             max_path_length=max_path_length,
             worker_class=TFWorkerClassWrapper(worker_class),
-            sampler_args=sampler_args)
+            sampler_args=sampler_args,
+            policy=policy,
+            env=env)
 
     def setup(self, algo, env, n_workers=psutil.cpu_count(logical=False), sampler_cls=None, worker_class=DefaultWorker, sampler_args=None):
         """Set up runner and sessions for algorithm and environment.

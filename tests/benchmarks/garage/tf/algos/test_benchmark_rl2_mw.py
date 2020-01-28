@@ -31,6 +31,7 @@ from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianLSTMPolicy
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
+from garage.sampler import RaySampler
 from garage.sampler.rl2_sampler import RL2Sampler
 from garage.sampler.rl2_worker import RL2Worker
 
@@ -62,7 +63,8 @@ hyper_parameters = {
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 500,
+    'n_itr': 50, # total it will run [n_itr * steps_per_epoch] for garage
+    'steps_per_epoch': 10,
     'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
@@ -70,11 +72,12 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'cell_type': 'gru'
+    'cell_type': 'gru',
+    'sampler_cls': RaySampler
 }
 
 # True if ML10, false if ML45
-ML10 = False
+ML10 = True
 
 class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
@@ -120,7 +123,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
             with tf.Graph().as_default():
                 env.reset()
-                garage_tf_csv = run_garage(env, envs, seed, garage_tf_dir)
+                garage_tf_csv = run_garage(env, envs, tasks, seed, garage_tf_dir)
 
             garage_tf_csvs.append(garage_tf_csv)
 
@@ -132,11 +135,6 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
             'MetaTest/AverageReturn',
             'MetaTest/SuccessRate'
         ]
-
-        plt_file1 = osp.join(benchmark_dir,
-                            '{}_benchmark_average_return.png'.format(env_id))
-        plt_file2 = osp.join(benchmark_dir,
-                            '{}_benchmark_success_rate.png'.format(env_id))
 
         for g_y in g_ys:
             plt_file = osp.join(benchmark_dir,
@@ -157,7 +155,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                        y_label=g_y)
 
 
-def run_garage(env, envs, seed, log_dir):
+def run_garage(env, envs, tasks, seed, log_dir):
     """Create garage Tensorflow PPO model and training.
 
     Args:
@@ -200,7 +198,10 @@ def run_garage(env, envs, seed, log_dir):
         algo = RL2(
             policy=policy,
             inner_algo=inner_algo,
-            max_path_length=hyper_parameters['max_path_length'])
+            max_path_length=hyper_parameters['max_path_length'],
+            meta_batch_size=hyper_parameters['meta_batch_size'],
+            task_sampler=tasks,
+            steps_per_epoch=hyper_parameters['steps_per_epoch'])
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
@@ -211,7 +212,7 @@ def run_garage(env, envs, seed, log_dir):
         runner.setup(
             algo,
             envs,
-            sampler_cls=LocalSampler,
+            sampler_cls=hyper_parameters['sampler_cls'],
             n_workers=hyper_parameters['meta_batch_size'],
             worker_class=RL2Worker)
 
@@ -235,8 +236,8 @@ def run_garage(env, envs, seed, log_dir):
         test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
         test_tasks.grow_pool(hyper_parameters['meta_batch_size'])
         runner.setup_meta_evaluator(test_task_sampler=test_tasks,
-                                    n_test_tasks=hyper_parameters['meta_batch_size'],
-                                    n_workers=hyper_parameters['meta_batch_size'])
+                                    sampler_cls=hyper_parameters['sampler_cls'],
+                                    n_test_tasks=1)
         #################
 
         runner.train(n_epochs=hyper_parameters['n_itr'],

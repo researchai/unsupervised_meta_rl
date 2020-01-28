@@ -29,43 +29,28 @@ class RL2Worker(DefaultWorker):
             *,  # Require passing by keyword, since everything's an int.
             seed,
             max_path_length,
-            worker_number):
+            worker_number,
+            n_paths_per_trial=2):
+        self._n_paths_per_trial = n_paths_per_trial
         super().__init__(seed=seed,
                          max_path_length=max_path_length,
                          worker_number=worker_number)
 
-    def collect_rollout(self):
-        """Collect the current rollout, clearing the internal buffer.
+    def start_rollout(self):
+        self._path_length = 0
+        self._prev_obs = self.env.reset()
+
+    def rollout(self):
+        """Sample a single rollout of the agent in the environment.
 
         Returns:
-            garage.TrajectoryBatch: A batch of the trajectories completed since
-                the last call to collect_rollout().
+            garage.TrajectoryBatch: The collected trajectory.
 
         """
-        observations = self._observations
-        self._observations = []
-        last_observations = self._last_observations
-        self._last_observations = []
-        actions = self._actions
-        self._actions = []
-        rewards = self._rewards
-        self._rewards = []
-        terminals = self._terminals
-        self._terminals = []
-        env_infos = self._env_infos
-        self._env_infos = defaultdict(list)
-        agent_infos = self._agent_infos
-        self._agent_infos = defaultdict(list)
-        for k, v in agent_infos.items():
-            agent_infos[k] = np.asarray(v)
-        agent_infos['batch_idx'] = np.full(len(observations), self._worker_number)
-        for k, v in env_infos.items():
-            env_infos[k] = np.asarray(v)
-        lengths = self._lengths
-        self._lengths = []
-        return TrajectoryBatch(self.env.spec, np.asarray(observations),
-                               np.asarray(last_observations),
-                               np.asarray(actions), np.asarray(rewards),
-                               np.asarray(terminals), dict(env_infos),
-                               dict(agent_infos), np.asarray(lengths,
-                                                             dtype='i'))
+        self.agent.reset()
+        for _ in range(self._n_paths_per_trial):
+            self.start_rollout()
+            while not self.step_rollout():
+                pass
+        self._agent_infos['batch_idx'] = np.full(len(self._rewards), self._worker_number)
+        return self.collect_rollout()

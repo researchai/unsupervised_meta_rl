@@ -158,7 +158,9 @@ class LocalRunner:
                      seed=None,
                      max_path_length=None,
                      worker_class=DefaultWorker,
-                     sampler_args=None):
+                     sampler_args=None,
+                     policy=None,
+                     env=None):
         """Construct a Sampler from a Sampler class.
 
         Args:
@@ -175,6 +177,10 @@ class LocalRunner:
             sampler_cls: An instance of the sampler class.
 
         """
+        if env is None:
+            env = self._env
+        if policy is None:
+            policy = self._algo.policy
         if max_path_length is None:
             max_path_length = self._algo.max_path_length
         if seed is None:
@@ -182,15 +188,15 @@ class LocalRunner:
         if sampler_args is None:
             sampler_args = {}
         if issubclass(sampler_cls, BaseSampler):
-            return sampler_cls(self._algo, self._env, **sampler_args)
+            return sampler_cls(self._algo, env, **sampler_args)
         else:
             return sampler_cls.from_worker_factory(WorkerFactory(
                 seed=seed,
                 max_path_length=max_path_length,
                 n_workers=n_workers,
                 worker_class=worker_class),
-                                                   agents=self._algo.policy,
-                                                   envs=self._env)
+                                                   agents=policy,
+                                                   envs=env)
 
     def setup(self, algo, env, n_workers, sampler_cls=None, worker_class=DefaultWorker, sampler_args=None):
         """Set up runner for algorithm and environment.
@@ -231,12 +237,12 @@ class LocalRunner:
                                      sampler_args=sampler_args,
                                      seed=get_seed())
 
-    def setup_meta_evaluator(self, test_task_sampler, n_test_tasks, n_workers):
+    def setup_meta_evaluator(self, sampler_cls, test_task_sampler, n_test_tasks):
         self._meta_eval = MetaEvaluator(self,
+            sampler_cls=sampler_cls,
             test_task_sampler=test_task_sampler,
             max_path_length=self._algo.max_path_length,
-            n_test_tasks=n_test_tasks,
-            n_workers=n_workers)
+            n_test_tasks=n_test_tasks)
 
     def _start_worker(self):
         """Start Plotter and Sampler workers."""
@@ -253,7 +259,7 @@ class LocalRunner:
         if self._plot:
             self._plotter.close()
 
-    def obtain_samples(self, itr, batch_size=None):
+    def obtain_samples(self, itr, batch_size=None, env_update=None):
         """Obtain one batch of samples.
 
         Args:
@@ -272,7 +278,8 @@ class LocalRunner:
         else:
             paths = self._sampler.obtain_samples(
                 itr, (batch_size or self._train_args.batch_size),
-                agent_update=self._algo.policy.get_param_values())
+                agent_update=self._algo.policy.get_param_values(),
+                env_update=env_update)
             paths = paths.to_trajectory_list()
 
         self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])

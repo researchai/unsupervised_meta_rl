@@ -23,7 +23,7 @@ class RL2(MetaRLAlgorithm):
 
     """
 
-    def __init__(self, policy, inner_algo, max_path_length):
+    def __init__(self, *, policy, inner_algo, max_path_length, meta_batch_size, task_sampler, steps_per_epoch=10):
         assert isinstance(inner_algo, garage.tf.algos.BatchPolopt)
         self._inner_algo = inner_algo
         self._max_path_length = max_path_length
@@ -31,6 +31,9 @@ class RL2(MetaRLAlgorithm):
         self._flatten_input = inner_algo.flatten_input
         self._policy = inner_algo.policy
         self._discount = inner_algo.discount
+        self._meta_batch_size = meta_batch_size
+        self._task_sampler = task_sampler
+        self._steps_per_epoch = steps_per_epoch
 
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
@@ -47,10 +50,12 @@ class RL2(MetaRLAlgorithm):
         last_return = None
 
         for _ in runner.step_epochs():
-            runner.step_path = runner.obtain_samples(runner.step_itr)
-            tabular.record('TotalEnvSteps', runner.total_env_steps)
-            last_return = self.train_once(runner.step_itr, runner.step_path)
-            runner.step_itr += 1
+            for _ in range(self._steps_per_epoch):
+                runner.step_path = runner.obtain_samples(runner.step_itr, 
+                    env_update=self._task_sampler.sample(self._meta_batch_size))
+                tabular.record('TotalEnvSteps', runner.total_env_steps)
+                last_return = self.train_once(runner.step_itr, runner.step_path)
+                runner.step_itr += 1
 
         return last_return
 
@@ -71,10 +76,23 @@ class RL2(MetaRLAlgorithm):
         return paths['average_return']
 
     def get_exploration_policy(self):
-        return self._policy
+        self._policy.reset()
+
+        class NoResetPolicy:
+
+            def __init__(self, policy):
+                self._policy = policy
+
+            def reset(self, *args, **kwargs):
+                pass
+
+            def get_action(self, obs):
+                return self._policy.get_action(obs)
+
+        return NoResetPolicy(self._policy)
 
     def adapt_policy(self, exploration_policy, exploration_trajectories):
-        return self._policy
+        return exploration_policy
 
     def _process_samples(self, itr, paths):
         # pylint: disable=too-many-statements
