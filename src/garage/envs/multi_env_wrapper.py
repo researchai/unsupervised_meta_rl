@@ -67,7 +67,7 @@ class MultiEnvWrapper(gym.Wrapper):
         for env in envs:
             if (env.observation_space.shape !=
                     self.env.observation_space.shape):
-                raise ValueError(
+                raise ValueError(str(env) + " //" + str(env.observation_space.shape) +  " vs " + str(self.env.observation_space.shape) +
                     'Observation space of all envs should be same.')
             if env.action_space.shape != self.env.action_space.shape:
                 raise ValueError('Action space of all envs should be same.')
