@@ -27,6 +27,7 @@ from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBase
 from garage.tf.algos import PPO as GaragePPO
 from garage.tf.algos import RL2
 from garage.tf.experiment import LocalTFRunner
+from garage.tf.policies import GaussianGRUPolicy
 from garage.tf.policies import GaussianLSTMPolicy
 from garage.sampler.rl2_sampler import RL2Sampler
 
@@ -58,10 +59,12 @@ hyper_parameters = {
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
-    'n_trials': 1,
-    'cell_type': 'lstm'
+    'n_trials': 3,
+    'cell_type': 'gru'
 }
 
+# If false, run ML else HalfCheetah
+ML = True
 
 class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
@@ -69,23 +72,35 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     @pytest.mark.huge
     def test_benchmark_rl2(self):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
-        # envs = [HalfCheetahVelEnv()]
-        envs = [ML1.get_train_tasks('push-v1')]
-        # envs = [ML1.get_train_tasks('reach-v1')]
-        # envs = [ML1.get_train_tasks('pick-place-v1')]
-        # env_id = 'HalfCheetahVelEnv'
-        env_id = 'ML1-push-v1'
-        # env_id = 'ML1-reach-v1'
-        # env_id = 'ML1-pick-place-v1'
+        if ML:
+            envs = [
+                ML1.get_train_tasks('push-v1'),
+                ML1.get_train_tasks('reach-v1'),
+                ML1.get_train_tasks('pick-place-v1')
+            ]
+            env_ids = ['ML1-push-v1', 'ML-reach-v1', 'ML1-pick-place-v1']
+            # envs = [ML1.get_train_tasks('push-v1')]
+            # env_ids = ['ML1-push-v1']
+            # envs = [ML1.get_train_tasks('reach-v1')]
+            # env_id = 'ML1-reach-v1'
+            # envs = [ML1.get_train_tasks('pick-place-v1')]
+            # env_id = 'ML1-pick-place-v1'
+        else:
+            envs = [HalfCheetahVelEnv(), HalfCheetahDirEnv()]
+            env_ids = ['HalfCheetahVelEnv', 'HalfCheetahDirEnv']
+            # envs = [HalfCheetahVelEnv()]
+            # env_ids = ['HalfCheetahVelEnv']
+            # envs = [HalfCheetahDirEnv()]
+            # env_ids = ['HalfCheetahDirEnv']
 
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/rl2/%s/' % timestamp
         result_json = {}
-        for env in envs:
+        for i, env in enumerate(envs):
             seeds = random.sample(range(100), hyper_parameters['n_trials'])
-            task_dir = osp.join(benchmark_dir, env_id)
+            task_dir = osp.join(benchmark_dir, env_ids[i])
             plt_file = osp.join(benchmark_dir,
-                                '{}_benchmark.png'.format(env_id))
+                                '{}_benchmark.png'.format(env_ids[i]))
             garage_tf_csvs = []
             promp_csvs = []
 
@@ -108,26 +123,45 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
             env.close()
 
-        g_x = 'TotalEnvSteps'
-        g_y = 'Evaluation/AverageReturn'
-        p_x = 'n_timesteps'
-        p_y = 'train-AverageReturn'
+            g_x = 'TotalEnvSteps'
+            g_y = 'Evaluation/AverageReturn'
+            g_y2 = 'SuccessRate'
+            p_x = 'n_timesteps'
+            p_y = 'train-AverageReturn'
+            p_y2 = 'train-SuccessRate'
 
 
-        Rh.relplot(g_csvs=garage_tf_csvs,
-                   b_csvs=promp_csvs,
-                   g_x=g_x,
-                   g_y=g_y,
-                   g_z='Garage',
-                   b_x=p_x,
-                   b_y=p_y,
-                   b_z='ProMP',
-                   trials=hyper_parameters['n_trials'],
-                   seeds=seeds,
-                   plt_file=plt_file,
-                   env_id=env_id,
-                   x_label=g_x,
-                   y_label=g_y)
+            Rh.relplot(g_csvs=garage_tf_csvs,
+                       b_csvs=promp_csvs,
+                       g_x=g_x,
+                       g_y=g_y,
+                       g_z='Garage',
+                       b_x=p_x,
+                       b_y=p_y,
+                       b_z='ProMP',
+                       trials=hyper_parameters['n_trials'],
+                       seeds=seeds,
+                       plt_file=plt_file,
+                       env_id=env_ids[i],
+                       x_label=g_x,
+                       y_label=g_y)
+            if ML:
+                plt_file2 = osp.join(benchmark_dir,
+                                '{}_benchmark_success_rate.png'.format(env_ids[i]))
+                Rh.relplot(g_csvs=garage_tf_csvs,
+                           b_csvs=promp_csvs,
+                           g_x=g_x,
+                           g_y=g_y2,
+                           g_z='Garage',
+                           b_x=p_x,
+                           b_y=p_y2,
+                           b_z='ProMP',
+                           trials=hyper_parameters['n_trials'],
+                           seeds=seeds,
+                           plt_file=plt_file2,
+                           env_id=env_ids[i],
+                           x_label=g_x,
+                           y_label=g_y2)
 
 
 def run_garage(env, seed, log_dir):
@@ -149,7 +183,7 @@ def run_garage(env, seed, log_dir):
     with LocalTFRunner(snapshot_config) as runner:
         env = RL2Env(env)
 
-        policy = GaussianLSTMPolicy(
+        policy = GaussianGRUPolicy(
             hidden_dim=hyper_parameters['hidden_sizes'][0],
             env_spec=env.spec,
             state_include_action=False)

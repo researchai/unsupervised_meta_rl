@@ -37,14 +37,15 @@ class MetaEvaluator:
                  max_path_length,
                  n_test_tasks=None,
                  n_exploration_traj=1,
-                 prefix='MetaTest'):
+                 prefix='MetaTest',
+                 n_workers=1):
         self._test_task_sampler = test_task_sampler
         if n_test_tasks is None:
             n_test_tasks = test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
         self._n_exploration_traj = n_exploration_traj
         self._test_sampler = runner.make_sampler(
-            LocalSampler, n_workers=1, max_path_length=max_path_length)
+            LocalSampler, n_workers=n_workers, max_path_length=max_path_length)
         self._eval_itr = 0
         self._prefix = prefix
 

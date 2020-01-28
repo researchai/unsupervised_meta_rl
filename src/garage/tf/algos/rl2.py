@@ -6,12 +6,12 @@ import collections
 import numpy as np
 import garage
 
-from garage.np.algos import RLAlgorithm
+from garage.np.algos import MetaRLAlgorithm
 from dowel import logger, tabular
 from garage.misc import tensor_utils as np_tensor_utils
 
 
-class RL2(RLAlgorithm):
+class RL2(MetaRLAlgorithm):
     """RL^2 .
 
     Args:
@@ -69,6 +69,12 @@ class RL2(RLAlgorithm):
         logger.log('Optimizing policy...')
         self._inner_algo.optimize_policy(itr, paths)
         return paths['average_return']
+
+    def get_exploration_policy(self):
+        return self._policy
+
+    def adapt_policy(self, exploration_policy, exploration_trajectories):
+        return self._policy
 
     def _process_samples(self, itr, paths):
         # pylint: disable=too-many-statements

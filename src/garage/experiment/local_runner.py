@@ -8,6 +8,7 @@ from dowel import logger, tabular
 import psutil
 
 from garage.experiment.deterministic import get_seed, set_seed
+from garage.experiment.meta_evaluator import MetaEvaluator
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
 from garage.sampler.base import BaseSampler
@@ -143,6 +144,7 @@ class LocalRunner:
         self._policy = None
         self._sampler = None
         self._plotter = None
+        self._meta_eval = None
 
         self._start_time = None
         self._itr_start_time = None
@@ -228,6 +230,13 @@ class LocalRunner:
         self._setup_args = SetupArgs(sampler_cls=sampler_cls,
                                      sampler_args=sampler_args,
                                      seed=get_seed())
+
+    def setup_meta_evaluator(self, test_task_sampler, n_test_tasks, n_workers):
+        self._meta_eval = MetaEvaluator(self,
+            test_task_sampler=test_task_sampler,
+            max_path_length=self._algo.max_path_length,
+            n_test_tasks=n_test_tasks,
+            n_workers=n_workers)
 
     def _start_worker(self):
         """Start Plotter and Sampler workers."""
@@ -447,6 +456,9 @@ class LocalRunner:
                 self._stats.last_path = save_path
                 self._stats.total_epoch = epoch
                 self._stats.total_itr = self.step_itr
+
+                if self._meta_eval is not None:
+                    self._meta_eval.evaluate(self._algo)
 
                 self.save(epoch)
                 self.log_diagnostics(self._train_args.pause_for_plot)
