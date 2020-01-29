@@ -37,7 +37,7 @@ MT10_envs = [TfEnv(normalize(MT10_envs_by_id[i], normalize_reward=True)) for i i
 
 
 @wrap_experiment
-def trpo_mt10(ctxt=None, seed=1):
+def trpo_ml1(ctxt=None, seed=1):
 
     """Run task."""
     set_seed(seed)

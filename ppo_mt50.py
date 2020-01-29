@@ -90,7 +90,7 @@ env_ids = ['reach-v1',
 MT50_envs = [TfEnv(normalize(MT50_envs_by_id[i], normalize_reward=True)) for i in env_ids]
 
 @wrap_experiment
-def ppo_mt10(ctxt=None, seed=1):
+def ppo_mt50(ctxt=None, seed=1):
 
     """Run task."""
     set_seed(seed)
