@@ -73,7 +73,7 @@ def ppo_mt10(ctxt=None, seed=1):
                 batch_size=32,
                 max_epochs=10,
                 tf_optimizer_args=dict(
-                    learning_rate=1e-3,
+                    learning_rate=3e-4,
                 ),
             ),
             stop_entropy_gradient=True,
