@@ -40,6 +40,7 @@ class MTSAC(OffPolicyRLAlgorithm):
                  reward_scale=1.0,
                  optimizer=torch.optim.Adam,
                  smooth_return=True,
+                 num_eval_paths=10,
                  input_include_goal=False):
         self.env = env
         self.eval_env_dict = eval_env_dict
@@ -54,6 +55,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         self.initial_log_entropy = initial_log_entropy
         self.gradient_steps = gradient_steps_per_itr
         self.epoch_cycles = epoch_cycles
+        self.num_eval_paths = num_eval_paths
         super().__init__(env_spec=env_spec,
                          policy=policy,
                          qf=qf1,
@@ -127,7 +129,7 @@ class MTSAC(OffPolicyRLAlgorithm):
                                                                     task_number,
                                                                     self._num_tasks,
                                                                     self.env._max_plain_dim),
-                                                    num_trajs=20),
+                                                    num_trajs=self.num_eval_paths),
                     discount=self.discount,
                     prefix=name)
 
