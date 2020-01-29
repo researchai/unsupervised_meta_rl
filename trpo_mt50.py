@@ -83,7 +83,7 @@ env_ids = ['reach-v1',
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT50_envs = [TfEnv(normalize(MT50_envs_by_id[i])) for i in env_ids]
+MT50_envs = [TfEnv(normalize(MT50_envs_by_id[i], normalize_reward=True)) for i in env_ids]
 
 
 @wrap_experiment
