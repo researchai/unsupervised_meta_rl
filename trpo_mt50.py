@@ -108,13 +108,13 @@ def trpo_mt10(ctxt=None, seed=1):
         algo = TRPO(env_spec=env.spec,
                     policy=policy,
                     baseline=baseline,
-                    max_path_length=500,
+                    max_path_length=150,
                     discount=0.99,
                     gae_lambda=0.97,
                     max_kl_step=0.01)
 
         runner.setup(algo, env)
-        runner.train(n_epochs=40, batch_size=len(MT50_envs)*10*150)
+        runner.train(n_epochs=1500, batch_size=len(MT50_envs)*10*150)
 
 
 seeds = random.sample(range(100), 1)

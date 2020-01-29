@@ -134,7 +134,7 @@ def ppo_mt10(ctxt=None, seed=1):
         )
 
         runner.setup(algo, env)
-        runner.train(n_epochs=4600, batch_size=len(MT50_envs)*10*150, plot=False)
+        runner.train(n_epochs=1500, batch_size=len(MT50_envs)*10*150, plot=False)
 
 
 seeds = random.sample(range(100), 1)
