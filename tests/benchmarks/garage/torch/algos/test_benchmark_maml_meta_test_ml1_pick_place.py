@@ -1,19 +1,22 @@
+from functools import partial
 import os
 import sys
 
 from dowel import logger, StdOutput, CsvOutput, tabular
 
-from garage.envs import HalfCheetahVelEnv
+from metaworld.benchmarks import ML1WithPinnedGoal
+
 from garage.experiment import MetaEvaluator, Snapshotter
 from garage.experiment import LocalRunner, SnapshotConfig
 from garage.experiment.task_sampler import SetTaskSampler
 
+
 meta_train_dirs = []
-max_path_length = 100
-rollout_per_task = 40
+max_path_length = 150
+rollout_per_task = 10
 meta_batch_size = 20
 
-meta_task_cls = HalfCheetahVelEnv
+meta_task_cls = partial(ML1WithPinnedGoal.get_test_tasks, 'pick-place-v1')
 
 
 def do_meta_test(meta_train_dir, meta_test_dir):
