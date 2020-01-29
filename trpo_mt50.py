@@ -119,4 +119,4 @@ def trpo_mt50(ctxt=None, seed=1):
 
 seeds = random.sample(range(100), 1)
 for seed in seeds:
-    trpo_mt10(seed=seed)
+    trpo_mt50(seed=seed)

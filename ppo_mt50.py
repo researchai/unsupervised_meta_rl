@@ -139,4 +139,4 @@ def ppo_mt50(ctxt=None, seed=1):
 
 seeds = random.sample(range(100), 1)
 for seed in seeds:
-    ppo_mt10(seed=seed)
+    ppo_mt50(seed=seed)
