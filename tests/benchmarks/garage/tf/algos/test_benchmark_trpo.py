@@ -51,7 +51,7 @@ hyper_parameters = {
     'n_epochs': 500,
     'n_trials': 10,
     'training_epochs': 3,
-    'learning_rate': 0.001
+    'learning_rate': 1e-3
 }
 
 class TestBenchmarkPPO:  # pylint: disable=too-few-public-methods
@@ -119,20 +119,31 @@ class TestBenchmarkPPO:  # pylint: disable=too-few-public-methods
             #     names=['baseline', 'garage-TensorFlow', 'garage-PyTorch'],
             # )
 
-            Rh.relplot(g_csvs=garage_tf_csvs,
-                       b_csvs=baselines_csvs,
-                       g_x='TotalEnvSteps',
-                       g_y='Evaluation/AverageReturn',
-                       g_z='Garage',
-                       b_x='TimestepsSoFar',
-                       b_y='EpRewMean',
-                       b_z='Openai/Baseline',
-                       trials=hyper_parameters['n_trials'],
-                       seeds=seeds,
-                       plt_file=plt_file,
-                       env_id=env_id,
-                       x_label='EnvTimeStep',
-                       y_label='Performance')
+            benchmark_helper.plot_average_over_trials_with_x(
+                [baselines_csvs, garage_tf_csvs],
+                ['EpRewMean', 'Evaluation/AverageReturn'],
+                ['TimestepsSoFar', 'TotalEnvSteps'],
+                plt_file=plt_file,
+                env_id=env_id,
+                x_label='EnvTimeStep',
+                y_label='Performance',
+                names=['baseline', 'garage-TensorFlow'],
+            )
+
+            # Rh.relplot(g_csvs=garage_tf_csvs,
+            #            b_csvs=baselines_csvs,
+            #            g_x='TotalEnvSteps',
+            #            g_y='Evaluation/AverageReturn',
+            #            g_z='Garage',
+            #            b_x='TimestepsSoFar',
+            #            b_y='EpRewMean',
+            #            b_z='Openai/Baseline',
+            #            trials=hyper_parameters['n_trials'],
+            #            seeds=seeds,
+            #            plt_file=plt_file,
+            #            env_id=env_id,
+            #            x_label='EnvTimeStep',
+            #            y_label='Performance')
 
             # result_json[env_id] = benchmark_helper.create_json(
             #     [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
@@ -227,14 +238,14 @@ def run_garage(env, seed, log_dir):
             regressor_args=dict(
                 hidden_sizes=hyper_parameters['hidden_sizes'],
                 use_trust_region=False,
-                optimizer=FirstOrderOptimizer,
-                optimizer_args=dict(
-                    batch_size=hyper_parameters['batch_size'],
-                    max_epochs=hyper_parameters['training_epochs'],
-                    tf_optimizer_args=dict(
-                        learning_rate=hyper_parameters['learning_rate'],
-                    ),
-                ),
+                # optimizer=FirstOrderOptimizer,
+                # optimizer_args=dict(
+                #     batch_size=hyper_parameters['batch_size'],
+                #     max_epochs=hyper_parameters['training_epochs'],
+                #     tf_optimizer_args=dict(
+                #         learning_rate=hyper_parameters['learning_rate'],
+                #     ),
+                # ),
             ),
         )
 

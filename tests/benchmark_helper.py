@@ -108,14 +108,13 @@ def plot_average_over_trials_with_x(csvs, ys, xs, plt_file, env_id, x_label,
     for trials, y, x, name in zip(csvs, ys, xs, names):
         y_vals = np.array([np.array(pd.read_csv(t)[y]) for t in trials])
         x_vals = [np.array(pd.read_csv(t)[x]) for t in trials]
-        for x_val in x_vals:
-            assert np.array_equal(x_val, x_vals[0])
+        x_mean = x_vals.mean()
         y_mean, y_std = y_vals.mean(axis=0), y_vals.std(axis=0)
 
         # pylint: disable=unsubscriptable-object
         plt.plot(x_vals[0], y_mean, label=name)
         # pylint: disable=unsubscriptable-object
-        plt.fill_between(x_vals[0], (y_mean - y_std),
+        plt.fill_between(x_mean, (y_mean - y_std),
                          (y_mean + y_std),
                          alpha=.1)
 

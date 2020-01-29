@@ -48,8 +48,8 @@ hyper_parameters = {
     'policy_ent_coeff': 0.0,
     'max_path_length': 100,
     'batch_size': 2048,
-    'n_epochs': 500,
-    'n_trials': 10,
+    'n_epochs': 10,
+    'n_trials': 1,
     'training_batch_size': 32,
     'training_epochs': 4,
 }
@@ -180,7 +180,7 @@ class TestBenchmarkPPO:
             #            y_label='Performance')
 
             benchmark_helper.plot_average_over_trials_with_x(
-                [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
+                [baselines_csvs, garage_tf_csvs],
                 ['eprewmean', 'Evaluation/AverageReturn'],
                 ['total_timesteps', 'TotalEnvSteps'],
                 plt_file=plt_file,

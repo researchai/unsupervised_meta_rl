@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""This is an example to train a task with PPO algorithm.
+"""
+This is an example to train a task with PPO algorithm.
 
 Here it creates InvertedDoublePendulum using gym. And uses a PPO with 1M
 steps.
@@ -9,38 +10,46 @@ Results:
     RiseTime: itr 40
 
 """
-import gym
-import tensorflow as tf
+import random
 
-from garage import wrap_experiment
+import tensorflow as tf
 from garage.envs import normalize
+from garage.envs.multi_env_wrapper import MultiEnvWrapper, round_robin_strategy
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianMLPPolicy
+from metaworld.envs.mujoco.env_dict import EASY_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT
+from garage import wrap_experiment
 
+MT10_envs_by_id = {
+    task: env(*EASY_MODE_ARGS_KWARGS[task]['args'],
+              **EASY_MODE_ARGS_KWARGS[task]['kwargs'])
+    for (task, env) in EASY_MODE_CLS_DICT.items()
+}
+
+env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 'drawer-close-v1', 'button-press-topdown-v1', 'ped-insert-side-v1', 'window-open-v1', 'window-close-v1']
+# env_ids = ['push-v1']
+# env_ids = ['reach-v1']
+# env_ids = ['pick-place-v1']
+
+MT10_envs = [TfEnv(normalize(MT10_envs_by_id[i])) for i in env_ids]
 
 @wrap_experiment
-def tf_ppo_pendulum(ctxt=None, seed=1):
-    """Train PPO with InvertedDoublePendulum-v2 environment.
+def ppo_mt10(ctxt=None, seed=1):
 
-    Args:
-        ctxt (garage.experiment.ExperimentContext): The experiment
-            configuration used by LocalRunner to create the snapshotter.
-        seed (int): Used to seed the random number generator to produce
-            determinism.
-
-    """
+    """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
+        env = MultiEnvWrapper(MT10_envs, env_ids, sample_strategy=round_robin_strategy)
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
             hidden_sizes=(64, 64),
-            hidden_nonlinearity=tf.nn.tanh,
+            hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=None,
         )
 
@@ -52,9 +61,6 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
             ),
         )
 
-        # NOTE: make sure when setting entropy_method to 'max', set
-        # center_adv to False and turn off policy gradient. See
-        # tf.algos.NPO for detailed documentation.
         algo = PPO(
             env_spec=env.spec,
             policy=policy,
@@ -66,7 +72,9 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
             optimizer_args=dict(
                 batch_size=32,
                 max_epochs=10,
-                learning_rate=1e-3,
+                tf_optimizer_args=dict(
+                    learning_rate=1e-3,
+                ),
             ),
             stop_entropy_gradient=True,
             entropy_method='max',
@@ -75,9 +83,9 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
         )
 
         runner.setup(algo, env)
-
-        runner.train(n_epochs=120, batch_size=4096, plot=False)
-
+        runner.train(n_epochs=4600, batch_size=len(MT10_envs)*10*150, plot=False)
 
 
-tf_ppo_pendulum(seed=1)
+seeds = random.sample(range(100), 1)
+for seed in seeds:
+    ppo_mt10(seed=seed)

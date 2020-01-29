@@ -41,7 +41,7 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         tabular.record('MaxReturn', np.max(undiscounted_returns))
         tabular.record('MinReturn', np.min(undiscounted_returns))
         tabular.record('CompletionRate', np.mean(completion))
-        if len(success) > 0:
-            tabular.record('SuccessRate', np.mean(success))
+        # if len(success) > 0:
+        tabular.record('SuccessRate', np.mean(success))
 
     return undiscounted_returns
