@@ -55,7 +55,9 @@ hyper_parameters = {
 
 
 class GarageHalfCheetahDirEnv(HalfCheetahVelEnv):
-    def log_diagnostics(self, path, prefix): pass
+
+    def log_diagnostics(self, path, prefix):
+        pass
 
 
 class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
@@ -82,7 +84,8 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
             promp_dir = trial_dir + '/promp'
 
             # Run garage algorithm
-            env = GarageEnv(normalize(HalfCheetahVelEnv(), expected_action_scale=10.))
+            env = GarageEnv(
+                normalize(HalfCheetahVelEnv(), expected_action_scale=10.))
             garage_csv = run_garage(env, seed, garage_dir)
 
             with tf.Graph().as_default():
@@ -102,8 +105,9 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
                 'Step_0-AverageReturn', 'Step_1-AverageReturn',
                 'Update_0/AverageReturn', 'Update_1/AverageReturn'
             ],
-            xs=['n_timesteps', 'n_timesteps', 'TotalEnvSteps',
-                'TotalEnvSteps'],
+            xs=[
+                'n_timesteps', 'n_timesteps', 'TotalEnvSteps', 'TotalEnvSteps'
+            ],
             plt_file=plt_file,
             env_id=env_id,
             x_label='TotalEnvSteps',
@@ -117,8 +121,9 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
             [promp_csvs, promp_csvs, garage_csvs, garage_csvs],
             seeds=seeds,
             trials=hyper_parameters['n_trials'],
-            xs=['n_timesteps', 'n_timesteps', 'TotalEnvSteps',
-                'TotalEnvSteps'],
+            xs=[
+                'n_timesteps', 'n_timesteps', 'TotalEnvSteps', 'TotalEnvSteps'
+            ],
             ys=[
                 'Step_0-AverageReturn', 'Step_1-AverageReturn',
                 'Update_0/AverageReturn', 'Update_1/AverageReturn'
@@ -152,16 +157,17 @@ def run_garage(env, seed, log_dir):
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-    algo = MAMLTRPO(env=env,
-                    policy=policy,
-                    baseline=baseline,
-                    max_path_length=hyper_parameters['max_path_length'],
-                    discount=hyper_parameters['discount'],
-                    gae_lambda=hyper_parameters['gae_lambda'],
-                    meta_batch_size=hyper_parameters['meta_batch_size'],
-                    inner_lr=hyper_parameters['inner_lr'],
-                    # max_kl_step=hyper_parameters['max_kl'],
-                    num_grad_updates=hyper_parameters['num_grad_update'])
+    algo = MAMLTRPO(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        max_path_length=hyper_parameters['max_path_length'],
+        discount=hyper_parameters['discount'],
+        gae_lambda=hyper_parameters['gae_lambda'],
+        meta_batch_size=hyper_parameters['meta_batch_size'],
+        inner_lr=hyper_parameters['inner_lr'],
+        # max_kl_step=hyper_parameters['max_kl'],
+        num_grad_updates=hyper_parameters['num_grad_update'])
 
     # Set up logger since we are not using run_experiment
     tabular_log_file = osp.join(log_dir, 'progress.csv')
