@@ -127,7 +127,7 @@ class MTSAC(OffPolicyRLAlgorithm):
                                                                     task_number,
                                                                     self._num_tasks,
                                                                     self.env._max_plain_dim),
-                                                    num_trajs=3),
+                                                    num_trajs=20),
                     discount=self.discount,
                     prefix=name)
 
