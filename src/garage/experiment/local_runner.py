@@ -3,6 +3,7 @@ import copy
 import os
 import pickle
 import time
+import warnings
 
 from dowel import logger, tabular
 import psutil
@@ -441,9 +442,11 @@ class LocalRunner:
                 self._stats.total_itr = self.step_itr
 
                 self.save(epoch)
-                self.log_diagnostics(self._train_args.pause_for_plot)
-                logger.dump_all(self.step_itr)
-                tabular.clear()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('error')
+                    self.log_diagnostics(self._train_args.pause_for_plot)
+                    logger.dump_all(self.step_itr)
+                    tabular.clear()
 
     def resume(self,
                n_epochs=None,
