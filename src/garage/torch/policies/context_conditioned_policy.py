@@ -114,7 +114,7 @@ class ContextConditionedPolicy(nn.Module):
 
         o, a, r, no, d, info = inputs
         o = tu.from_numpy(o[None, None, ...])
-        a = tu.from_numpy(a[None, None, ...])
+        a = tu.from_numpy(a[None, ...])
         r = tu.from_numpy(np.array([r])[None, None, ...])
         no = tu.from_numpy(no[None, None, ...])
 
@@ -188,11 +188,19 @@ class ContextConditionedPolicy(nn.Module):
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
-        policy_outputs = self._policy(in_, reparameterize=True, return_log_prob=True)
+        #policy_outputs = self._policy(in_, reparameterize=True, return_log_prob=True)
+        dist = self._policy(in_)
+        pre_tanh, actions = dist.rsample_with_pre_tanh_value()
+        log_pi = dist.log_prob(value=actions, pre_tanh_value=pre_tanh)
+        log_pi = log_pi.unsqueeze(1)
+        #import ipdb; ipdb.set_trace()
+        #log_pi = log_pi.sum()
+        mean = dist.mean.to('cpu').detach().numpy()
+        log_std = (dist.variance**.5).log().to('cpu').detach().numpy()
 
-        return policy_outputs, task_z
+        return (actions, mean, log_std, log_pi, pre_tanh), task_z
 
-    def get_action(self, obs, deterministic=False):
+    def get_action(self, obs):
         """Sample action from the policy, conditioned on the task embedding.
 
         Args:
@@ -208,7 +216,7 @@ class ContextConditionedPolicy(nn.Module):
         #obs = torch.unsqueeze(obs, 0)
         obs = tu.from_numpy(obs[None])
         obs_in = torch.cat([obs, z], dim=1)
-        out = self._policy.get_action(obs_in, deterministic=deterministic)
+        out = self._policy.get_action(obs_in)
         return out
 
     def compute_kl_div(self):

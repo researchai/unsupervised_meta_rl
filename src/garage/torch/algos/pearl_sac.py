@@ -393,10 +393,11 @@ class PEARLSAC(MetaRLAlgorithm):
         vf_loss.backward()
         self.vf_optimizer.step()
         self._update_target_network()
-
+        
         # optimize policy
         log_policy_target = min_q
         policy_loss = (log_pi - log_policy_target).mean()
+
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean**2).mean()
         std_reg_loss = self._policy_std_reg_coeff * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]

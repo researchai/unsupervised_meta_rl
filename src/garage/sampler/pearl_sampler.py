@@ -2,7 +2,6 @@
 """A sampler that does not perform serialization for sampling."""
 import numpy as np
 
-from garage.torch.policies import DeterministicWrapper
 from garage.sampler.utils import rollout
 
 
@@ -56,12 +55,12 @@ class PEARLSampler:
         paths = []
         n_steps_total = 0
         n_trajs = 0
-        policy = DeterministicWrapper(self.policy) if deterministic else self.policy
 
         while n_steps_total < max_samples and n_trajs < max_trajs:
             path = rollout(self.env,
                            self.policy,
                            max_path_length=self.max_path_length,
+                           deterministic=deterministic,
                            accum_context=accum_context)
 
             # save the latent context that generated this trajectory

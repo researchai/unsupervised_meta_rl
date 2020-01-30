@@ -8,5 +8,5 @@ from garage.experiment.snapshotter import SnapshotConfig, Snapshotter
 
 __all__ = [
     'run_experiment', 'to_local_command', 'variant', 'VariantGenerator',
-    'LocalRunner', 'Snapshotter', 'SnapshotConfig'
+    'LocalRunner', 'Snapshotter', 'SnapshotConfig', 'TaskSampler'
 ]

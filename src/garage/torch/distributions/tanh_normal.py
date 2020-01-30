@@ -31,7 +31,8 @@ class TanhNormal(torch.distributions.Distribution):
             pre_tanh_value (torch.Tensor): The value prior to having the tanh
                 function applied to it but after it has been sampled from the
                 normal distribution.
-            epsilon (float): Stabilization coefficient.
+            epsilon (float): Regularization constant. Making this value larger
+                makes the computation more stable but less precise.
 
         Note:
               when pre_tanh_value is None, an estimate is made of what the
@@ -56,7 +57,7 @@ class TanhNormal(torch.distributions.Distribution):
         return ret
 
     def sample(self, sample_shape=torch.Size()):
-        """Return a sample, sampled from this Tanh Normal Distribution.
+        """Return a sample, sampled from this TanhNormal Distribution.
 
         Args:
             sample_shape (list): Shape of the returned value.
@@ -65,14 +66,14 @@ class TanhNormal(torch.distributions.Distribution):
             Gradients `do not` pass through this operation.
 
         Returns:
-            torch.Tensor: Sample from this Tanh Normal distribution.
+            torch.Tensor: Sample from this TanhNormal distribution.
 
         """
         with torch.no_grad():
             return self.rsample(sample_shape=sample_shape)
 
     def rsample(self, sample_shape=torch.Size()):
-        """Return a sample, sampled from this Tanh Normal Distribution.
+        """Return a sample, sampled from this TanhNormal Distribution.
 
         Args:
             sample_shape (list): Shape of the returned value.
@@ -81,17 +82,17 @@ class TanhNormal(torch.distributions.Distribution):
             Gradients pass through this operation.
 
         Returns:
-            torch.Tensor: Sample from this Tanh Normal distribution.
+            torch.Tensor: Sample from this TanhNormal distribution.
 
         """
         z = self._normal.rsample(sample_shape)
         return torch.tanh(z)
 
     def rsample_with_pre_tanh_value(self, sample_shape=torch.Size()):
-        """Return a sample, sampled from this Tanh Normal distribution.
+        """Return a sample, sampled from this TanhNormal distribution.
 
-        Returns the sampled value before the Tanh transform is applied and the
-        sampled value with the Tanh transform applied to it.
+        Returns the sampled value before the tanh transform is applied and the
+        sampled value with the tanh transform applied to it.
 
         Args:
             sample_shape (list): shape of the return.
@@ -143,11 +144,11 @@ class TanhNormal(torch.distributions.Distribution):
 
     @classmethod
     def _from_distribution(cls, new_normal):
-        """Construct a new tanh distribution from a normal distribution.
+        """Construct a new TanhNormal distribution from a normal distribution.
 
         Args:
             new_normal (Independent(Normal)): underlying normal dist for
-                the new TanhNormal dist.
+                the new TanhNormal distribution.
 
         Returns:
             TanhNormal: A new distribution whose underlying normal dist
@@ -160,7 +161,7 @@ class TanhNormal(torch.distributions.Distribution):
         return new
 
     def expand(self, batch_shape, _instance=None):
-        """Returns a new TanhNormal dist.
+        """Returns a new TanhNormal distribution.
 
         (or populates an existing instance provided by a derived class) with
         batch dimensions expanded to `batch_shape`. This method calls
