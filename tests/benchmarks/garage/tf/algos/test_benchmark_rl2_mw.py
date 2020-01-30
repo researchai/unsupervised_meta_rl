@@ -75,6 +75,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
+    'n_test_tasks': 10 if ML10 else 45,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -242,7 +243,8 @@ def run_garage(env, envs, tasks, seed, log_dir):
         test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
         test_tasks.grow_pool(hyper_parameters['meta_batch_size'])
         runner.setup_meta_evaluator(test_task_sampler=test_tasks,
-                                    sampler_cls=hyper_parameters['sampler_cls'])
+                                    sampler_cls=hyper_parameters['sampler_cls'],
+                                    n_test_tasks=hyper_parameters['n_test_tasks'])
         #################
 
         runner.train(n_epochs=hyper_parameters['n_itr'],

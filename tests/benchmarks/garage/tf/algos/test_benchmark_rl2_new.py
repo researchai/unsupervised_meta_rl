@@ -66,6 +66,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
+    'n_test_tasks': 10,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -241,7 +242,8 @@ def run_garage(env, seed, log_dir):
                         n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
         runner.setup_meta_evaluator(test_task_sampler=task_samplers,
-                                    sampler_cls=hyper_parameters['sampler_cls'])
+                                    sampler_cls=hyper_parameters['sampler_cls'],
+                                    n_test_tasks=hyper_parameters['n_test_tasks'])
 
         runner.train(n_epochs=hyper_parameters['n_itr'],
             batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])
