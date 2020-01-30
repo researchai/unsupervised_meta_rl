@@ -86,7 +86,10 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
 
             if test_garage:
                 # Run garage algorithm
-                env = GarageEnv(normalize(meta_env, expected_action_scale=10.))
+                env = GarageEnv(
+                    normalize(meta_env,
+                              expected_action_scale=10.,
+                              normalize_reward=True))
                 garage_csv = run_garage(env, seed, garage_dir)
                 garage_csvs.append(garage_csv)
                 env.close()
