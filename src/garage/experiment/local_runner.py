@@ -194,7 +194,8 @@ class LocalRunner:
                 seed=seed,
                 max_path_length=max_path_length,
                 n_workers=n_workers,
-                worker_class=worker_class),
+                worker_class=worker_class,
+                **sampler_args),
                                                    agents=policy,
                                                    envs=env)
 
@@ -231,6 +232,7 @@ class LocalRunner:
             worker_class=worker_class,
             sampler_args=sampler_args)
 
+        self._use_all_worker = sampler_args['use_all_workers'] if 'use_all_workers' in sampler_args else False
         self._has_setup = True
 
         self._setup_args = SetupArgs(sampler_cls=sampler_cls,
@@ -276,12 +278,18 @@ class LocalRunner:
             paths = self._sampler.obtain_samples(
                 itr, (batch_size or self._train_args.batch_size))
         else:
-            paths = self._sampler.obtain_samples(
-                itr, (batch_size or self._train_args.batch_size),
-                agent_update=self._algo.policy.get_param_values(),
-                env_update=env_update)
-            paths = paths.to_trajectory_list()
+            if self._use_all_worker:
+                paths = self._sampler.obtain_exact_trajectories(
+                    n_traj_per_worker=1,
+                    agent_update=self._algo.policy.get_param_values(),
+                    env_update=env_update)
+            else:
+                paths = self._sampler.obtain_samples(
+                    itr, (batch_size or self._train_args.batch_size),
+                    agent_update=self._algo.policy.get_param_values(),
+                    env_update=env_update)
 
+            paths = paths.to_trajectory_list()
         self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
         return paths
 

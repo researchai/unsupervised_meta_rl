@@ -89,6 +89,9 @@ class RL2(MetaRLAlgorithm):
             def get_action(self, obs):
                 return self._policy.get_action(obs)
 
+            def get_param_values(self):
+                return self._policy.get_param_values()
+
         return NoResetPolicy(self._policy)
 
     def adapt_policy(self, exploration_policy, exploration_trajectories):

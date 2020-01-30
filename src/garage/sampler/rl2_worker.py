@@ -30,7 +30,8 @@ class RL2Worker(DefaultWorker):
             seed,
             max_path_length,
             worker_number,
-            n_paths_per_trial=2):
+            n_paths_per_trial=2,
+            **kwargs):
         self._n_paths_per_trial = n_paths_per_trial
         super().__init__(seed=seed,
                          max_path_length=max_path_length,

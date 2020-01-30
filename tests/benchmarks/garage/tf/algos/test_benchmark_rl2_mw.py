@@ -63,7 +63,7 @@ hyper_parameters = {
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 50, # total it will run [n_itr * steps_per_epoch] for garage
+    'n_itr': 200, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 10,
     'rollout_per_task': 10,
     'positive_adv': False,
@@ -73,7 +73,8 @@ hyper_parameters = {
     'optimizer_max_epochs': 5,
     'n_trials': 1,
     'cell_type': 'gru',
-    'sampler_cls': RaySampler
+    'sampler_cls': RaySampler,
+    'use_all_workers': True
 }
 
 # True if ML10, false if ML45
@@ -214,7 +215,10 @@ def run_garage(env, envs, tasks, seed, log_dir):
             envs,
             sampler_cls=hyper_parameters['sampler_cls'],
             n_workers=hyper_parameters['meta_batch_size'],
-            worker_class=RL2Worker)
+            worker_class=RL2Worker,
+            sampler_args=dict(
+                use_all_workers=hyper_parameters['use_all_workers'],
+                n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
         #################
         # meta evaluator

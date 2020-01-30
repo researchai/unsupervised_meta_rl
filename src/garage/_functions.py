@@ -27,7 +27,7 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         undiscounted_returns.append(sum(trajectory.rewards))
         completion.append(float(trajectory.terminals.any()))
         if 'success' in trajectory.env_infos:
-            success.append(trajectory.env_infos['success'].any())
+            success.append(trajectory.env_infos['success'][-1])
 
     average_discounted_return = np.mean([rtn[0] for rtn in returns])
 

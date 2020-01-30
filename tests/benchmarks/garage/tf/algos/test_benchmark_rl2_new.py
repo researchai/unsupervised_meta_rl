@@ -49,14 +49,14 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 hyper_parameters = {
-    'meta_batch_size': 50,
+    'meta_batch_size': 2,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 50, # total it will run [n_itr * steps_per_epoch] for garage
-    'steps_per_epoch': 10,
-    'rollout_per_task': 10,
+    'n_itr': 100, # total it will run [n_itr * steps_per_epoch] for garage
+    'steps_per_epoch': 2,
+    'rollout_per_task': 2,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
@@ -64,7 +64,8 @@ hyper_parameters = {
     'optimizer_max_epochs': 5,
     'n_trials': 1,
     'cell_type': 'gru',
-    'sampler_cls': RaySampler
+    'sampler_cls': RaySampler,
+    'use_all_workers': True
 }
 
 # If false, run ML else HalfCheetah
@@ -232,7 +233,10 @@ def run_garage(env, seed, log_dir):
                      env,
                      sampler_cls=hyper_parameters['sampler_cls'],
                      n_workers=hyper_parameters['meta_batch_size'],
-                     worker_class=RL2Worker)
+                     worker_class=RL2Worker,
+                     sampler_args=dict(
+                        use_all_workers=hyper_parameters['use_all_workers'],
+                        n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
         runner.setup_meta_evaluator(test_task_sampler=task_samplers,
                                     sampler_cls=hyper_parameters['sampler_cls'],
