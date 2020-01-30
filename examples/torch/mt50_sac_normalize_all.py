@@ -14,9 +14,10 @@ from torch.nn import functional as F  # NOQA
 from torch import nn as nn
 
 from garage import wrap_experiment
-from garage.envs import normalize_reward
-from metaworld.envs.mujoco.env_dict import EASY_MODE_ARGS_KWARGS
-from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT
+from garage.envs import normalize
+from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
+from metaworld.benchmarks import MT50
 from garage.envs import GarageEnv
 from garage.envs.multi_task_metaworld_wrapper import MTMetaWorldWrapper
 
@@ -29,20 +30,15 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
-@wrap_experiment(snapshot_mode='gap', snapshot_gap=25)
-def mt10_sac_reward_action(ctxt=None, seed=1):
+@wrap_experiment(snapshot_mode='none')
+def mt50_sac_normalize_all(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     runner = LocalRunner(ctxt)
-    MT10_envs_by_id = {}
-    MT10_envs_test = {}
-    for (task, env) in EASY_MODE_CLS_DICT.items():
-        MT10_envs_by_id[task] = GarageEnv(normalize_reward(env(*EASY_MODE_ARGS_KWARGS[task]['args'],
-                                    **EASY_MODE_ARGS_KWARGS[task]['kwargs'])))
-        # python 3.6 dicts are ordered
-        MT10_envs_test[task] = GarageEnv(env(*EASY_MODE_ARGS_KWARGS[task]['args'],
-                                    **EASY_MODE_ARGS_KWARGS[task]['kwargs']))
-
-    env = MTMetaWorldWrapper(MT10_envs_by_id)
+    envs = MT50.get_train_tasks(sample_all=True)
+    test_envs = MT50.get_test_tasks(sample_all=True)
+    MT50_envs_by_id = {name: GarageEnv(normalize(env, normalize_reward=True, normalize_obs=True, flatten_obs=False)) for (name,env) in zip (envs._task_names, envs._task_envs)}
+    MT50_envs_test = {name: GarageEnv(normalize(env, normalize_obs=True, flatten_obs=False)) for (name,env) in zip (test_envs._task_names, test_envs._task_envs)}
+    env = MTMetaWorldWrapper(MT50_envs_by_id)
 
     policy = TanhGaussianMLPPolicy2(env_spec=env.spec,
                                hidden_sizes=[400, 400, 400],
@@ -63,26 +59,26 @@ def mt10_sac_reward_action(ctxt=None, seed=1):
                                        max_size=int(1e6))
     sampler_args = {'agent': policy, 'max_path_length': 150}
 
-    timesteps = 20000000
+    timesteps = 100000000
     batch_size = int(150 * env.num_tasks)
     num_evaluation_points = 500
     epochs = timesteps // batch_size
     epoch_cycles = epochs // num_evaluation_points
     epochs = epochs // epoch_cycles
     sac = MTSAC(env=env,
-                eval_env_dict=MT10_envs_test,
+                eval_env_dict=MT50_envs_test,
                 env_spec=env.spec,
                 policy=policy,
                 qf1=qf1,
                 qf2=qf2,
-                gradient_steps_per_itr=150,
+                gradient_steps_per_itr=250,
                 epoch_cycles=epoch_cycles,
                 use_automatic_entropy_tuning=True,
                 replay_buffer=replay_buffer,
-                min_buffer_size=1500,
+                min_buffer_size=7500,
                 target_update_tau=5e-3,
                 discount=0.99,
-                buffer_batch_size=1280)
+                buffer_batch_size=6400)
     tu.set_gpu_mode(True)
     sac.to('cuda:0')
 
@@ -90,4 +86,4 @@ def mt10_sac_reward_action(ctxt=None, seed=1):
 
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
-mt10_sac(seed=532)
+mt50_sac_normalize_all(seed=532)

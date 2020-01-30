@@ -30,7 +30,7 @@ from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
 @wrap_experiment(snapshot_mode='gap', snapshot_gap=26)
-def mt10_sac(ctxt=None, seed=1):
+def mt10_sac_normalize_rewards(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     runner = LocalRunner(ctxt)
     MT10_envs_by_id = {}
@@ -90,4 +90,4 @@ def mt10_sac(ctxt=None, seed=1):
 
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
-mt10_sac(seed=532)
+mt10_sac_normalize_rewards(seed=532)
