@@ -126,6 +126,11 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 garage_tf_csvs.append(garage_tf_csv)
                 promp_csvs.append(promp_csv)
 
+            with open(osp.join(garage_tf_dir, 'parameters.txt'), 'w') as outfile:
+                hyper_parameters_copy = copy.deepcopy(hyper_parameters)
+                hyper_parameters_copy['sampler_cls'] = str(hyper_parameters_copy['sampler_cls'])
+                json.dump(hyper_parameters_copy, outfile)
+
             env.close()
 
             g_x = 'TotalEnvSteps'
