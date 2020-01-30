@@ -57,13 +57,16 @@ ML45_ENVS = HARD_MODE_CLS_DICT
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+# True if ML10, false if ML45
+ML10 = True
+
 hyper_parameters = {
     'meta_batch_size': 50,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 200, # total it will run [n_itr * steps_per_epoch] for garage
+    'n_itr': 100 if ML10 else 200, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 10,
     'rollout_per_task': 10,
     'positive_adv': False,
@@ -76,9 +79,6 @@ hyper_parameters = {
     'sampler_cls': RaySampler,
     'use_all_workers': True
 }
-
-# True if ML10, false if ML45
-ML10 = True
 
 class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
@@ -132,7 +132,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
         g_x = 'TotalEnvSteps'
         g_ys = [
             'Evaluation/AverageReturn',
-            'SuccessRate',
+            'Evaluation/SuccessRate',
             'MetaTest/AverageReturn',
             'MetaTest/SuccessRate'
         ]
@@ -206,6 +206,8 @@ def run_garage(env, envs, tasks, seed, log_dir):
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
+        text_log_file = osp.join(log_dir, 'debug.log')
+        dowel_logger.add_output(dowel.TextOutput(text_log_file))
         dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
         dowel_logger.add_output(dowel.StdOutput())
         dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
@@ -240,8 +242,7 @@ def run_garage(env, envs, tasks, seed, log_dir):
         test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
         test_tasks.grow_pool(hyper_parameters['meta_batch_size'])
         runner.setup_meta_evaluator(test_task_sampler=test_tasks,
-                                    sampler_cls=hyper_parameters['sampler_cls'],
-                                    n_test_tasks=1)
+                                    sampler_cls=hyper_parameters['sampler_cls'])
         #################
 
         runner.train(n_epochs=hyper_parameters['n_itr'],

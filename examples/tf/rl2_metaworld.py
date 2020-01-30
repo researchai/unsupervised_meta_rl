@@ -91,8 +91,7 @@ def run_task(snapshot_config, *_):
         ]
         test_tasks = task_sampler.EnvPoolSampler(ML10_test_envs)
         runner.setup_meta_evaluator(test_task_sampler=test_tasks,
-                                    sampler_cls=LocalSampler,
-                                    n_test_tasks=1)
+                                    sampler_cls=LocalSampler)
 
 
         runner.train(n_epochs=n_epochs,

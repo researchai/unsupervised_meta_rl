@@ -73,10 +73,8 @@ class RLAlgorithm(abc.ABC):
 
         undiscounted_returns = [sum(reward) for reward in batch['rewards']]
         if 'success' in batch['env_infos']:
-            success_rate = sum(
-                [successes[-1]
-                 for successes in batch['env_infos']['success']]) * 1.0 / len(batch['env_infos']['success'])
-            tabular.record('SuccessRate', success_rate)
+            success_rate = np.mean([success.any() for success in batch['env_infos']['success']])
+            tabular.record('Evaluation/SuccessRate', success_rate)
 
         tabular.record('Iteration', itr)
         tabular.record('Evaluation/NumTrajs', len(returns))

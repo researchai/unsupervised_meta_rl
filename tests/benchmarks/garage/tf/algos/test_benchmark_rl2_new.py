@@ -48,15 +48,18 @@ import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+# If false, run ML else HalfCheetah
+ML = True
+
 hyper_parameters = {
-    'meta_batch_size': 2,
+    'meta_batch_size': 50,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 100, # total it will run [n_itr * steps_per_epoch] for garage
-    'steps_per_epoch': 2,
-    'rollout_per_task': 2,
+    'n_itr': 100 if ML else 50, # total it will run [n_itr * steps_per_epoch] for garage
+    'steps_per_epoch': 10,
+    'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
@@ -67,9 +70,6 @@ hyper_parameters = {
     'sampler_cls': RaySampler,
     'use_all_workers': True
 }
-
-# If false, run ML else HalfCheetah
-ML = True
 
 def _prepare_meta_env(env):
     if ML:
@@ -133,7 +133,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
             if ML:
                 g_ys = [
                     'Evaluation/AverageReturn',
-                    'SuccessRate',
+                    'Evaluation/SuccessRate',
                     'MetaTest/AverageReturn',
                     'MetaTest/SuccessRate'
                 ]
@@ -225,6 +225,8 @@ def run_garage(env, seed, log_dir):
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
+        text_log_file = osp.join(log_dir, 'debug.log')
+        dowel_logger.add_output(dowel.TextOutput(text_log_file))
         dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
         dowel_logger.add_output(dowel.StdOutput())
         dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
@@ -239,8 +241,7 @@ def run_garage(env, seed, log_dir):
                         n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
         runner.setup_meta_evaluator(test_task_sampler=task_samplers,
-                                    sampler_cls=hyper_parameters['sampler_cls'],
-                                    n_test_tasks=1)
+                                    sampler_cls=hyper_parameters['sampler_cls'])
 
         runner.train(n_epochs=hyper_parameters['n_itr'],
             batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])

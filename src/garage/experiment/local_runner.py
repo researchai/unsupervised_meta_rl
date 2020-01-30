@@ -239,7 +239,7 @@ class LocalRunner:
                                      sampler_args=sampler_args,
                                      seed=get_seed())
 
-    def setup_meta_evaluator(self, sampler_cls, test_task_sampler, n_test_tasks):
+    def setup_meta_evaluator(self, sampler_cls, test_task_sampler, n_test_tasks=None):
         self._meta_eval = MetaEvaluator(self,
             sampler_cls=sampler_cls,
             test_task_sampler=test_task_sampler,
