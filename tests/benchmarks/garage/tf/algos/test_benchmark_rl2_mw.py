@@ -9,6 +9,8 @@ import datetime
 import os.path as osp
 import random
 import numpy as np
+import json
+import copy
 
 import dowel
 from dowel import logger as dowel_logger
@@ -66,7 +68,7 @@ hyper_parameters = {
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 100 if ML10 else 200, # total it will run [n_itr * steps_per_epoch] for garage
+    'n_itr': 150, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 10,
     'rollout_per_task': 10,
     'positive_adv': False,
@@ -75,7 +77,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 10 if ML10 else 45,
+    'n_test_tasks': 10,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -129,6 +131,10 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
             garage_tf_csvs.append(garage_tf_csv)
 
+        with open(osp.join(garage_tf_dir, 'parameters.txt'), 'w') as outfile:
+            hyper_parameters_copy = copy.deepcopy(hyper_parameters)
+            hyper_parameters_copy['sampler_cls'] = str(hyper_parameters_copy['sampler_cls'])
+            json.dump(hyper_parameters_copy, outfile)
 
         g_x = 'TotalEnvSteps'
         g_ys = [
@@ -171,8 +177,8 @@ def run_garage(env, envs, tasks, seed, log_dir):
     """
     deterministic.set_seed(seed)
     snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
-                                     snapshot_mode='gap',
-                                     snapshot_gap=10)
+                                     snapshot_mode='all',
+                                     snapshot_gap=1)
     with LocalTFRunner(snapshot_config) as runner:
         policy = GaussianGRUPolicy(
             hidden_dim=hyper_parameters['hidden_sizes'][0],
@@ -241,7 +247,7 @@ def run_garage(env, envs, tasks, seed, log_dir):
                 for (task, env) in ML45_ENVS['test'].items()
             ]
         test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
-        test_tasks.grow_pool(hyper_parameters['meta_batch_size'])
+        test_tasks.grow_pool(hyper_parameters['n_test_tasks'])
         runner.setup_meta_evaluator(test_task_sampler=test_tasks,
                                     sampler_cls=hyper_parameters['sampler_cls'],
                                     n_test_tasks=hyper_parameters['n_test_tasks'])

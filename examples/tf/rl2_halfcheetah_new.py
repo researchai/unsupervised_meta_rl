@@ -42,7 +42,7 @@ def run_task(snapshot_config, *_):
         n_epochs = 500
         episode_per_task = 10
 
-        tasks = task_sampler.EnvPoolSampler([RL2Env(env)])
+        tasks = task_sampler.EnvPoolSampler([env])
         tasks.grow_pool(meta_batch_size)
         # tasks = task_sampler.SetTaskSampler(lambda: env))
         
