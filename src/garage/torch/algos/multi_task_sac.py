@@ -11,6 +11,7 @@ import garage.torch.utils as tu
 from garage.np.algos.off_policy_rl_algorithm import OffPolicyRLAlgorithm
 from garage.torch.algos import SAC
 from garage.envs.multi_task_metaworld_wrapper import MTEnvEvalWrapper
+from collections import deque
 
 from garage import log_performance
 
@@ -90,6 +91,10 @@ class MTSAC(OffPolicyRLAlgorithm):
         else:
             self.alpha = [alpha] * self._num_tasks
 
+        self.episode_rewards = deque(maxlen=30)
+        self.epoch_median_success_rate = []
+        self.epoch_mean_success_rate = []
+
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
 
@@ -120,21 +125,34 @@ class MTSAC(OffPolicyRLAlgorithm):
                 for _ in range(self.gradient_steps):
                     last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
                                                 runner.step_path)
+                if cycle == self.epoch_cycles - 1:
+                    self.episode_rewards.append(sum([sample.reward for sample in runner.step_path]))
+
             # evaluation
+            epoch_local_success_rate = []
             for task_number, name in enumerate(self.env.task_names_ordered):
                 eval_env = self.eval_env_dict[name]
-                log_performance(
-                    runner.step_itr,
-                    self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
-                                                                    task_number,
-                                                                    self._num_tasks,
-                                                                    self.env._max_plain_dim),
-                                                    num_trajs=self.num_eval_paths),
-                    discount=self.discount,
-                    prefix=name)
+                _ , avg_success_rate = log_performance(
+                                    runner.step_itr,
+                                    self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
+                                                                                     task_number,
+                                                                                     self._num_tasks,
+                                                                                     self.env._max_plain_dim),
+                                                                    num_trajs=self.num_eval_paths),
+                                    discount=self.discount,
+                                    prefix=name)
 
-                self.log_statistics(policy_loss, qf1_loss, qf2_loss)
-                tabular.record('TotalEnvSteps', runner.total_env_steps)
+            epoch_local_success_rate.append(avg_success_rate)
+            self.epoch_mean_success_rate.append(np.mean(epoch_local_success_rate))
+            self.epoch_median_success_rate.append(np.median(epoch_local_success_rate))
+
+            tabular.record('local/Mean_SuccessRate', self.epoch_mean_success_rate[-1])
+            tabular.record('local/Median_SuccessRate', self.epoch_median_success_rate[-1])
+            tabular.record('local/Max_Median_SuccessRate', np.max(self.epoch_median_success_rate))
+            tabular.record('local/Max_Mean_SuccessRate', np.max(self.epoch_mean_success_rate))
+
+            self.log_statistics(policy_loss, qf1_loss, qf2_loss)
+            tabular.record('TotalEnvSteps', runner.total_env_steps)
         runner.step_itr += 1
 
         return last_return
@@ -256,6 +274,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         tabular.record("qf_loss/{}".format("qf1_loss"), float(qf1_loss))
         tabular.record("qf_loss/{}".format("qf2_loss"), float(qf2_loss))
         tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
+        tabular.record("local/normalized_avg_return", np.mean(self.episode_rewards))
 
     @property
     def networks(self):
