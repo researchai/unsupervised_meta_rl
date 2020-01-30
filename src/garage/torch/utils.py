@@ -95,8 +95,8 @@ def set_gpu_mode(mode, gpu_id=0):
     _gpu_id = gpu_id
     _use_gpu = mode
     device = torch.device(('cuda:'+ str(_gpu_id)) if _use_gpu else 'cpu')
-    if _use_gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(_gpu_id)
+    # if _use_gpu:
+    #     os.environ['CUDA_VISIBLE_DEVICES'] = str(_gpu_id)
 
 
 def from_numpy(*args, **kwargs):
