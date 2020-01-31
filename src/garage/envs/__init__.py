@@ -10,7 +10,9 @@ from garage.envs.normalized_env import normalize
 from garage.envs.normalized_reward_env import normalize_reward
 from garage.envs.point_env import PointEnv
 
+from garage.envs.ml1_wrapper import ML1WithPinnedGoal
 __all__ = [
     'GarageEnv', 'Step', 'EnvSpec', 'GridWorldEnv', 'HalfCheetahDirEnv',
-    'HalfCheetahVelEnv', 'normalize', 'normalize_reward', 'PointEnv'
+    'HalfCheetahVelEnv', 'normalize', 'normalize_reward', 'PointEnv',
+    'ML1WithPinnedGoal',
 ]
