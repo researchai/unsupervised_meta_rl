@@ -269,9 +269,9 @@ def run_promp(env, seed, log_dir):
 
 def worker(variant):
     variant_str = '-'.join(['{}_{}'.format(k, v) for k, v in variant.items()])
-    if 'hidden_size' in variant:
-        hidden_size = variant['hidden_size']
-        variant['hidden_size'] = [hidden_size, hidden_size]
+    if 'hidden_sizes' in variant:
+        hidden_sizes = variant['hidden_sizes']
+        variant['hidden_size'] = [hidden_sizes, hidden_sizes]
     hyper_parameters.update(variant)
 
     test_cls = TestBenchmarkMAML()
