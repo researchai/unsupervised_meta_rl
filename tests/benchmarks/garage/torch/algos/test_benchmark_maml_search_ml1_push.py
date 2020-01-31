@@ -53,7 +53,7 @@ hyper_parameters = {
     'max_path_length': 150,
     'fast_batch_size': 10,  # num of rollouts per task
     'meta_batch_size': 20,  # num of tasks
-    'n_epochs': 300,
+    'n_epochs': 1,
     # 'n_epochs': 1,
     'n_trials': 1,
     'num_grad_update': 1,
@@ -281,6 +281,7 @@ def worker(variant):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('who', nargs='?')
+    parser.add_argument('--parallel', action='store_true', default=False)
 
     known_args, unknown_args = parser.parse_known_args()
 
@@ -295,10 +296,10 @@ if __name__ == '__main__':
         test_garage = args.who in ('both', 'garage')
         test_promp = args.who in ('both', 'promp')
 
-    n_variants = len(vars(args)) - 1
+    n_variants = len(vars(args)) - 2
     variants = [{
         k: int(v) if v.is_integer() else v
-    } for k, v in vars(args).items() if k is not 'who']
+    } for k, v in vars(args).items() if k not in ('who', 'parallel')]
 
     children = []
     for variant in variants:
@@ -307,7 +308,11 @@ if __name__ == '__main__':
             worker(variant)
             exit()
         else:
-            children.append(pid)
+            if args.parallel:
+                children.append(pid)
+            else:
+                os.waitpid(pid, 0)
 
-    for child in children:
-        os.waitpid(child, 0)
+    if args.parallel:
+        for child in children:
+            os.waitpid(child, 0)
