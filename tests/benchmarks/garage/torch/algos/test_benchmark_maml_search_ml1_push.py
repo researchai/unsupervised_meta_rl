@@ -53,7 +53,7 @@ hyper_parameters = {
     'max_path_length': 150,
     'fast_batch_size': 10,  # num of rollouts per task
     'meta_batch_size': 20,  # num of tasks
-    'n_epochs': 1,
+    'n_epochs': 300,
     # 'n_epochs': 1,
     'n_trials': 1,
     'num_grad_update': 1,
@@ -300,6 +300,9 @@ if __name__ == '__main__':
     variants = [{
         k: int(v) if v.is_integer() else v
     } for k, v in vars(args).items() if k not in ('who', 'parallel')]
+
+    for key in variants:
+        assert key in hyper_parameters
 
     children = []
     for variant in variants:
