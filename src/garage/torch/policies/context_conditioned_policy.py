@@ -114,7 +114,7 @@ class ContextConditionedPolicy(nn.Module):
 
         o, a, r, no, d, info = inputs
         o = tu.from_numpy(o[None, None, ...])
-        a = tu.from_numpy(a[None, ...])
+        a = tu.from_numpy(a[None, None, ...])
         r = tu.from_numpy(np.array([r])[None, None, ...])
         no = tu.from_numpy(no[None, None, ...])
 
@@ -216,8 +216,11 @@ class ContextConditionedPolicy(nn.Module):
         #obs = torch.unsqueeze(obs, 0)
         obs = tu.from_numpy(obs[None])
         obs_in = torch.cat([obs, z], dim=1)
-        out = self._policy.get_action(obs_in)
-        return out
+        action, info = self._policy.get_action(obs_in)
+        action = np.squeeze(action, axis=0)
+        info['mean'] = np.squeeze(info['mean'], axis=0)
+        #import ipdb; ipdb.set_trace()
+        return action, info
 
     def compute_kl_div(self):
         """Compute KL( q(z|c) || p(z) ).

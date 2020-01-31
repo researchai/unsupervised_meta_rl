@@ -25,14 +25,14 @@ from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
-    TanhGaussianMLPPolicy
+    TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
 from tests import benchmark_helper
 import tests.helpers as Rh
 
 # hyperparams for baselines and garage
 params = dict(
-    num_epochs=250,
+    num_epochs=400,
     num_train_tasks=50,
     num_test_tasks=10,
     latent_size=7, # dimension of the latent context vector
@@ -97,19 +97,14 @@ class TestBenchmarkPEARL:
             plt_file = osp.join(benchmark_dir,
                                 '{}_benchmark.png'.format(env_id))
             garage_csvs = []
-            pearl_csvs = []
 
             for trial in range(params['n_trials']):
                 seed = seeds[trial]
                 trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
                 garage_dir = trial_dir + '/garage'
-                #pearl_dir = trial_dir + '/pearl'
 
                 garage_csv = run_garage(env, seed, garage_dir)
-                #pearl_csv = run_pearl(env, seed, garage_dir)
-
                 garage_csvs.append(garage_csv)
-                #pearl_csvs.append(pearl_csv)
             
             env.close()
 
@@ -147,10 +142,9 @@ def run_garage(env, seed, log_dir):
     '''
     deterministic.set_seed(seed)
     env = GarageEnv(normalize(env))
-    path = os.path.join(os.getcwd(), 'data/local/experiment')
-    snapshot_config = SnapshotConfig(snapshot_dir=path,
+    snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
                                      snapshot_mode='gap',
-                                     snapshot_gap=50)
+                                     snapshot_gap=10)
     runner = LocalRunner(snapshot_config)
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -170,12 +164,12 @@ def run_garage(env, seed, log_dir):
 
     space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
     space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
-    qf_env = EnvSpec(space_a, space_b)
+    augmented_env = EnvSpec(space_a, space_b)
 
-    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+    qf1 = ContinuousMLPQFunction(env_spec=augmented_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
-    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+    qf2 = ContinuousMLPQFunction(env_spec=augmented_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
     obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
@@ -185,12 +179,9 @@ def run_garage(env, seed, log_dir):
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    policy = TanhGaussianMLPPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
-        action_dim=action_dim,
-    )
+    policy = TanhGaussianMLPPolicy2(
+        env_spec=augmented_env,
+        hidden_sizes=[net_size, net_size, net_size])
 
     context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=latent_dim,

@@ -439,6 +439,7 @@ class PEARLSAC(MetaRLAlgorithm):
         indices = np.random.choice(self._train_tasks_idx,
                                    len(self._test_tasks_idx))
         # evaluate train tasks with posterior sampled from the training replay buffer
+        """
         train_returns = []
         for idx in indices:
             self.task_idx = idx
@@ -463,19 +464,20 @@ class PEARLSAC(MetaRLAlgorithm):
         # eval train tasks with on-policy data to match eval of test tasks
         avg_train_return, train_success_rate = self.get_average_returns(
             indices, False)
+        """
         # eval test tasks
         avg_test_return, test_success_rate = self.get_average_returns(
             self._test_tasks_idx, True)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
-        self._eval_statistics['ZTrainAverageReturn'] = train_returns
-        self._eval_statistics['TrainAverageReturn'] = avg_train_return
-        self._eval_statistics['TestAverageReturn'] = avg_test_return
-        if train_success_rate is not None:
-            self._eval_statistics['TrainSuccessRate'] = train_success_rate
+        #self._eval_statistics['ZTrainAverageReturn'] = train_returns
+        #self._eval_statistics['TrainAverageReturn'] = avg_train_return
+        self._eval_statistics['AverageReturn'] = avg_test_return
+        #if train_success_rate is not None:
+        #    self._eval_statistics['TrainSuccessRate'] = train_success_rate
         if test_success_rate is not None:
-            self._eval_statistics['TestSuccessRate'] = test_success_rate
+            self._eval_statistics['SuccessRate'] = test_success_rate
 
         # record values
         for key, value in self._eval_statistics.items():
@@ -511,13 +513,12 @@ class PEARLSAC(MetaRLAlgorithm):
                 returns.append(temp_returns)
                 # calculate success rate for metaworld tasks
                 if 'success' in paths[0]['env_infos']:
-                    success = sum(
-                        [path['env_infos']['success'][-1] for path in paths])
-                    final_success.append(success)
+                    for path in paths:
+                        final_success.append(path['env_infos']['success'].any())
 
             final_returns.append(np.mean([a[-1] for a in returns]))
         if final_success:
-            success_rate = sum(final_success) * 100.0 / num_paths
+            success_rate = np.mean(final_success)
         else:
             success_rate = None
         return np.mean(final_returns), success_rate

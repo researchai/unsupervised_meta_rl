@@ -66,14 +66,17 @@ def plot_average_over_trials(csvs, ys, plt_file, env_id, x_label, y_label,
     """
     assert all(len(x) == len(csvs[0]) for x in csvs)
 
+    csv = pd.read_csv(csvs[0][0])
+
     for trials, y, name in zip(csvs, ys, names):
         y_vals = np.array([np.array(pd.read_csv(t)[y]) for t in trials])
         y_mean, y_std = y_vals.mean(axis=0), y_vals.std(axis=0)
 
         # pylint: disable=unsubscriptable-object
-        plt.plot(list(range(y_vals.shape[-1])), y_mean, label=name)
+        #plt.plot(list(range(y_vals.shape[-1])), y_mean, label=name)
+        plt.plot(csv['TotalEnvSteps'], y_mean, label=name)
         # pylint: disable=unsubscriptable-object
-        plt.fill_between(list(range(y_vals.shape[-1])), (y_mean - y_std),
+        plt.fill_between(csv['TotalEnvSteps'], (y_mean - y_std),
                          (y_mean + y_std),
                          alpha=.1)
 

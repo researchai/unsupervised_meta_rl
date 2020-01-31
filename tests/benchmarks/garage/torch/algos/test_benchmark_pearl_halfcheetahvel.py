@@ -18,14 +18,14 @@ from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
+from garage.experiment.snapshotter import SnapshotConfig
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
-from garage.torch.embeddings import RecurrentEncoder, MLPEncoder
+from garage.torch.embeddings import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
-    TanhGaussianMLPPolicy
+    TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
-from tests.fixtures import snapshot_config
 from tests import benchmark_helper
 import tests.helpers as Rh
 
@@ -95,29 +95,24 @@ class TestBenchmarkPEARL:
             plt_file = osp.join(benchmark_dir,
                                 '{}_benchmark.png'.format(env_id))
             garage_csvs = []
-            pearl_csvs = []
 
             for trial in range(params['n_trials']):
                 seed = seeds[trial]
                 trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
                 garage_dir = trial_dir + '/garage'
-                #pearl_dir = trial_dir + '/pearl'
 
                 garage_csv = run_garage(env, seed, garage_dir)
-                #pearl_csv = run_pearl(env, seed, garage_dir)
-
                 garage_csvs.append(garage_csv)
-                #pearl_csvs.append(pearl_csv)
             
             env.close()
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['TestAverageReturn'],
+                ys=['AverageReturn'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
-                y_label='TestTaskAverageReturn',
+                y_label='AverageReturn',
                 names=['garage_pearl'],
             )
 
@@ -127,7 +122,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['TestAverageReturn'],
+                ys=['AverageReturn'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 
@@ -145,6 +140,9 @@ def run_garage(env, seed, log_dir):
     '''
     deterministic.set_seed(seed)
     env = normalize(env)
+    snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
+                                     snapshot_mode='gap',
+                                     snapshot_gap=10)
     runner = LocalRunner(snapshot_config)
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -155,40 +153,43 @@ def run_garage(env, seed, log_dir):
     encoder_in_dim = 2 * obs_dim + action_dim + reward_dim \
         if params['algo_params']['use_next_obs_in_context'] \
             else obs_dim + action_dim + reward_dim
-    encoder_out_dim = latent_dim * 2 if params['algo_params']['use_information_bottleneck'] else latent_dim
+    encoder_out_dim = latent_dim * 2 \
+        if params['algo_params']['use_information_bottleneck'] \
+            else latent_dim
     net_size = params['net_size']
-    recurrent = params['algo_params']['recurrent']
-    encoder_model = RecurrentEncoder if recurrent else MLPEncoder
 
-    context_encoder = encoder_model(input_dim=encoder_in_dim,
+    context_encoder = MLPEncoder(input_dim=encoder_in_dim,
                                     output_dim=encoder_out_dim,
                                     hidden_sizes=[200, 200, 200])
 
-    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
+    space_a = akro.Box(low=-1,
+                       high=1,
+                       shape=(obs_dim + latent_dim, ),
+                       dtype=np.float32)
     space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
-    qf_env = EnvSpec(space_a, space_b)
+    augmented_env = EnvSpec(space_a, space_b)
 
-    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+    qf1 = ContinuousMLPQFunction(env_spec=augmented_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
-    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+    qf2 = ContinuousMLPQFunction(env_spec=augmented_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
     obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
-    action_space = akro.Box(low=-1, high=1, shape=(latent_dim, ), dtype=np.float32)
+    action_space = akro.Box(low=-1,
+                            high=1,
+                            shape=(latent_dim, ),
+                            dtype=np.float32)
     vf_env = EnvSpec(obs_space, action_space)
 
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    policy = TanhGaussianMLPPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
-        action_dim=action_dim,
-    )
+    policy = TanhGaussianMLPPolicy2(
+        env_spec=augmented_env,
+        hidden_sizes=[net_size, net_size, net_size])
 
-    agent = ContextConditionedPolicy(
+    context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=latent_dim,
         context_encoder=context_encoder,
         policy=policy,
@@ -196,17 +197,18 @@ def run_garage(env, seed, log_dir):
         use_next_obs=params['algo_params']['use_next_obs_in_context'],
     )
 
-    pearlsac = PEARLSAC(
-        env=env,
-        num_train_tasks=params['num_train_tasks'],
-        num_test_tasks=params['num_test_tasks'],
-        nets=[agent, qf1, qf2, vf],
-        latent_dim=latent_dim,
-        **params['algo_params']
-    )
+    pearlsac = PEARLSAC(env=env,
+                        policy=context_conditioned_policy,
+                        qf1=qf1,
+                        qf2=qf2,
+                        vf=vf,
+                        num_train_tasks=params['num_train_tasks'],
+                        num_test_tasks=params['num_test_tasks'],
+                        latent_dim=latent_dim,
+                        **params['algo_params'])
 
     tu.set_gpu_mode(params['use_gpu'])
-    if params['use_gpu'] == True: 
+    if params['use_gpu']:
         pearlsac.to()
 
     # Set up logger since we are not using run_experiment

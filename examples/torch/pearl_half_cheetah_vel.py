@@ -12,12 +12,12 @@ from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
-    TanhGaussianMLPPolicy
+    TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
 
 
 params = dict(
-    num_epochs=10,
+    num_epochs=300,
     num_train_tasks=100,
     num_test_tasks=30,
     latent_size=5,
@@ -109,12 +109,9 @@ def run_task(snapshot_config, *_):
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    policy = TanhGaussianMLPPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
-        action_dim=action_dim,
-    )
+    policy = TanhGaussianMLPPolicy2(
+        env_spec=qf_env,
+        hidden_sizes=[net_size, net_size, net_size])
 
     context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=latent_dim,
