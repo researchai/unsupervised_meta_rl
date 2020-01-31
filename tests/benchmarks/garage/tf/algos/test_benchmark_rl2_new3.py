@@ -51,7 +51,7 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # If false, run ML else HalfCheetah
-ML = True
+ML = False
 
 hyper_parameters = {
     'meta_batch_size': 50,
@@ -121,12 +121,12 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                     env.reset()
                     garage_tf_csv = run_garage(env, seed, garage_tf_dir)
 
-                with tf.Graph().as_default():
-                    env.reset()
-                    promp_csv = run_promp(env, seed, promp_dir)
+                # with tf.Graph().as_default():
+                #     env.reset()
+                #     promp_csv = run_promp(env, seed, promp_dir)
 
                 garage_tf_csvs.append(garage_tf_csv)
-                promp_csvs.append(promp_csv)
+                # promp_csvs.append(promp_csv)
 
             with open(osp.join(garage_tf_dir, 'parameters.txt'), 'w') as outfile:
                 hyper_parameters_copy = copy.deepcopy(hyper_parameters)
@@ -136,7 +136,6 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
             env.close()
 
             g_x = 'TotalEnvSteps'
-            p_x = 'n_timesteps'
 
             if ML:
                 g_ys = [
@@ -145,34 +144,24 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                     'MetaTest/AverageReturn',
                     'MetaTest/SuccessRate'
                 ]
-                p_ys = [
-                    'train-AverageReturn',
-                    'train-SuccessRate',
-                    None,
-                    None
-                ]
             else:
                 g_ys = [
                     'Evaluation/AverageReturn',
                     'MetaTest/AverageReturn'
                 ]
-                p_ys = [
-                    'train-AverageReturn',
-                    None
-                ]
 
 
-            for g_y, p_y in zip(g_ys, p_ys):
+            for g_y in g_ys:
                 plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
+                            '{}_benchmark_fit_individial_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
                 Rh.relplot(g_csvs=garage_tf_csvs,
-                           b_csvs=promp_csvs,
+                           b_csvs=None,
                            g_x=g_x,
                            g_y=g_y,
                            g_z='Garage',
-                           b_x=p_x,
-                           b_y=p_y,
-                           b_z='ProMP',
+                           b_x=None,
+                           b_y=None,
+                           b_z=None,
                            trials=hyper_parameters['n_trials'],
                            seeds=seeds,
                            plt_file=plt_file,
@@ -220,7 +209,8 @@ def run_garage(env, seed, log_dir):
                 tf_optimizer_args=dict(
                     learning_rate=hyper_parameters['optimizer_lr'],
                 ),
-            )
+            ),
+            center_adv_across_batch=False
         )
 
         algo = RL2(
@@ -258,58 +248,3 @@ def run_garage(env, seed, log_dir):
         dowel_logger.remove_all()
 
         return tabular_log_file
-
-
-def run_promp(env, seed, log_dir):
-    deterministic.set_seed(seed)
-    logger.configure(dir=log_dir, format_strs=['stdout', 'log', 'csv'],
-                     snapshot_mode='gap', snapshot_gap=hyper_parameters['steps_per_epoch'])
-
-    baseline = LinearFeatureBaseline()
-    env = rl2env(env)
-    obs_dim = np.prod(env.observation_space.shape) + np.prod(env.action_space.shape) + 1 + 1
-    policy = GaussianRNNPolicy(
-            name="meta-policy",
-            obs_dim=obs_dim,
-            action_dim=np.prod(env.action_space.shape),
-            meta_batch_size=hyper_parameters['meta_batch_size'],
-            hidden_sizes=hyper_parameters['hidden_sizes'],
-            cell_type=hyper_parameters['cell_type']
-        )
-
-    sampler = MAMLSampler(
-        env=env,
-        policy=policy,
-        rollouts_per_meta_task=hyper_parameters['rollout_per_task'],
-        meta_batch_size=hyper_parameters['meta_batch_size'],
-        max_path_length=hyper_parameters['max_path_length'],
-        parallel=True,
-        envs_per_task=1,
-    )
-
-    sample_processor = RL2SampleProcessor(
-        baseline=baseline,
-        discount=hyper_parameters['discount'],
-        gae_lambda=hyper_parameters['gae_lambda'],
-        normalize_adv=hyper_parameters['normalize_adv'],
-        positive_adv=hyper_parameters['positive_adv'],
-    )
-
-    algo = PPO(
-        policy=policy,
-        learning_rate=hyper_parameters['optimizer_lr'],
-        max_epochs=hyper_parameters['optimizer_max_epochs'],
-        clip_eps=hyper_parameters['lr_clip_range']
-    )
-
-    trainer = Trainer(
-        algo=algo,
-        policy=policy,
-        env=env,
-        sampler=sampler,
-        sample_processor=sample_processor,
-        n_itr=hyper_parameters['n_itr'] * hyper_parameters['steps_per_epoch'],
-    )
-    trainer.train()
-
-    return osp.join(log_dir, 'progress.csv')

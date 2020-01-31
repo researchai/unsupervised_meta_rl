@@ -253,7 +253,7 @@ def compute_advantages(discount,
     return advantages
 
 
-def compute_advantages_meta_learn(discount,
+def compute_advantages_individual(discount,
                                   gae_lambda,
                                   max_len,
                                   episode_per_task,
@@ -310,7 +310,7 @@ def compute_advantages_meta_learn(discount,
         deltas_pad = tf.expand_dims(deltas_shift, axis=2)
         adv = tf.nn.conv1d(
             deltas_pad, advantage_filter, stride=1, padding='VALID')
-    return adv, deltas_shift, advantage_filter
+    return adv
 
 def center_advs(advs, axes, eps, offset=0, scale=1, name=None):
     """ Normalize the advs tensor """
@@ -352,7 +352,7 @@ def discounted_returns(discount, max_len, rewards, name=None):
     return returns
 
 
-def discounted_returns_meta_learn(discount, max_len, episode_per_task, rewards):
+def discounted_returns_individual(discount, max_len, episode_per_task, rewards):
     individual_path_length = max_len // episode_per_task
     gamma = tf.constant(
         float(discount), dtype=tf.float32, shape=[individual_path_length, 1, 1])

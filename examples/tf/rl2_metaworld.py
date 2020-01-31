@@ -5,7 +5,7 @@ from garage.experiment import task_sampler
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
-from garage.tf.algos import PPO
+from garage.tf.algos import RL2PPO
 from garage.tf.algos import RL2
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
@@ -18,9 +18,7 @@ from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
 ML10_ENVS = MEDIUM_MODE_CLS_DICT
 
-# from metaworld.benchmarks import ML1
 import os
-
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
@@ -38,6 +36,8 @@ def run_task(snapshot_config, *_):
         meta_batch_size = 50
         n_epochs = 500
         episode_per_task = 10
+        steps_per_epoch = 1
+        n_test_tasks = 1
 
         ML10_train_envs = [
             RL2Env(env(*ML10_ARGS['train'][task]['args'],
@@ -55,7 +55,7 @@ def run_task(snapshot_config, *_):
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = PPO(env_spec=env.spec,
+        inner_algo = RL2PPO(env_spec=env.spec,
                          policy=policy,
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
@@ -76,7 +76,7 @@ def run_task(snapshot_config, *_):
                    max_path_length=max_path_length,
                    meta_batch_size=meta_batch_size,
                    task_sampler=tasks,
-                   steps_per_epoch=10)
+                   steps_per_epoch=steps_per_epoch)
 
         runner.setup(algo,
                      envs,
@@ -91,7 +91,8 @@ def run_task(snapshot_config, *_):
         ]
         test_tasks = task_sampler.EnvPoolSampler(ML10_test_envs)
         runner.setup_meta_evaluator(test_task_sampler=test_tasks,
-                                    sampler_cls=LocalSampler)
+                                    sampler_cls=LocalSampler,
+                                    n_test_tasks=n_test_tasks)
 
 
         runner.train(n_epochs=n_epochs,

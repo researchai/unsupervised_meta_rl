@@ -5,8 +5,9 @@ from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import run_experiment
 from garage.experiment import task_sampler
 from garage.np.baselines import LinearFeatureBaseline
-from garage.tf.algos import PPO
 from garage.tf.algos import RL2
+from garage.tf.algos import RL2PPO
+from garage.tf.algos import RL2PPO2
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
@@ -17,7 +18,6 @@ from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
 
 from metaworld.benchmarks import ML1
-from metaworld.benchmarks import ML10
 import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -34,13 +34,14 @@ def run_task(snapshot_config, *_):
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
         env = RL2Env(env=HalfCheetahVelEnv())
-        # env2 = RL2Env(env=HalfCheetahRandVelEnv())
-        # env = RL2Env(env=HalfCheetahRandDirecEnv())
+        # env2 = RL2Env(env=HalfCheetahDirEnv())
         # env = RL2Env(ML1.get_train_tasks('push-v1'))
         max_path_length = 150
-        meta_batch_size = 50
-        n_epochs = 500
-        episode_per_task = 10
+        meta_batch_size = 2
+        n_epochs = 2
+        episode_per_task = 2
+        steps_per_epoch = 1
+        n_test_tasks = 1
 
         tasks = task_sampler.EnvPoolSampler([env])
         tasks.grow_pool(meta_batch_size)
@@ -54,7 +55,7 @@ def run_task(snapshot_config, *_):
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = PPO(env_spec=env.spec,
+        inner_algo = RL2PPO2(env_spec=env.spec,
                          policy=policy,
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
@@ -68,14 +69,16 @@ def run_task(snapshot_config, *_):
                          stop_entropy_gradient=True,
                          entropy_method='max',
                          policy_ent_coeff=0.02,
-                         center_adv=False)
+                         center_adv=False,
+                         meta_batch_size=meta_batch_size,
+                         episode_per_task=episode_per_task)
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
                    max_path_length=max_path_length,
                    meta_batch_size=meta_batch_size,
                    task_sampler=tasks,
-                   steps_per_epoch=10)
+                   steps_per_epoch=steps_per_epoch)
 
         runner.setup(algo,
                      env,
@@ -85,7 +88,7 @@ def run_task(snapshot_config, *_):
 
         runner.setup_meta_evaluator(test_task_sampler=tasks,
                                     sampler_cls=LocalSampler,
-                                    n_test_tasks=1)
+                                    n_test_tasks=n_test_tasks)
 
         runner.train(n_epochs=n_epochs,
                      batch_size=episode_per_task * max_path_length *

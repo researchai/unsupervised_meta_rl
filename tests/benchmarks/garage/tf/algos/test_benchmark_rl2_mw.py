@@ -27,14 +27,12 @@ from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import task_sampler
 from garage.experiment.snapshotter import SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
-from garage.tf.algos import PPO as GaragePPO
 from garage.tf.algos import RL2
+from garage.tf.algos import RL2PPO
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianLSTMPolicy
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
-from garage.sampler.rl2_sampler import RL2Sampler
 from garage.sampler.rl2_worker import RL2Worker
 
 from maml_zoo.baselines.linear_baseline import LinearFeatureBaseline
@@ -77,7 +75,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 10,
+    'n_test_tasks': 20 if ML else 50,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -187,7 +185,7 @@ def run_garage(env, envs, tasks, seed, log_dir):
 
         baseline = GarageLinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = GaragePPO(
+        inner_algo = RL2PPO(
             env_spec=env.spec,
             policy=policy,
             baseline=baseline,

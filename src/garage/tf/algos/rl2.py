@@ -178,6 +178,7 @@ class RL2(MetaRLAlgorithm):
                                  actions=actions,
                                  rewards=rewards,
                                  valids=valids,
+                                 lengths=lengths,
                                  baselines=np.zeros_like(rewards),
                                  agent_infos=agent_infos,
                                  env_infos=env_infos,

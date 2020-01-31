@@ -10,10 +10,10 @@ from garage.tf.misc.tensor_utils import center_advs
 from garage.tf.misc.tensor_utils import center_advs_local
 from garage.tf.misc.tensor_utils import compile_function
 from garage.tf.misc.tensor_utils import compute_advantages
-from garage.tf.misc.tensor_utils import compute_advantages_meta_learn
+from garage.tf.misc.tensor_utils import compute_advantages_individual
 from garage.tf.misc.tensor_utils import concat_tensor_list
 from garage.tf.misc.tensor_utils import discounted_returns
-from garage.tf.misc.tensor_utils import discounted_returns_meta_learn
+from garage.tf.misc.tensor_utils import discounted_returns_individual
 from garage.tf.misc.tensor_utils import filter_valids
 from garage.tf.misc.tensor_utils import filter_valids_dict
 from garage.tf.misc.tensor_utils import flatten_batch

@@ -5,8 +5,9 @@ from garage.experiment.experiment import wrap_experiment
 from garage.experiment.local_runner import LocalRunner
 from garage.experiment.snapshotter import SnapshotConfig, Snapshotter
 from garage.experiment.task_sampler import TaskSampler
+from garage.experiment.meta_evaluator import MetaEvaluator
 
 __all__ = [
     'run_experiment', 'to_local_command', 'wrap_experiment', 'LocalRunner',
-    'Snapshotter', 'SnapshotConfig', 'TaskSampler'
+    'Snapshotter', 'SnapshotConfig', 'TaskSampler', 'MetaEvaluator'
 ]
