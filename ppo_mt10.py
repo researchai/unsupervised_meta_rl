@@ -36,7 +36,7 @@ env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT10_envs = [TfEnv(normalize_reward(MT10_envs_by_id[i])) for i in env_ids]
+MT10_envs = [TfEnv(MT10_envs_by_id[i]) for i in env_ids]
 
 @wrap_experiment
 def ppo_mt10(ctxt=None, seed=1):
