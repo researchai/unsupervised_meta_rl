@@ -204,7 +204,7 @@ def run_garage(env, seed, log_dir):
         **params['algo_params']
     )
 
-    tu.set_gpu_mode(params['use_gpu'])
+    tu.set_gpu_mode(params['use_gpu'], gpu_id=2)
     if params['use_gpu'] == True: 
         pearlsac.to()
 

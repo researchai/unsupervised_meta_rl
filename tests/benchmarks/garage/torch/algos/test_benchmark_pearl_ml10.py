@@ -142,8 +142,8 @@ def run_garage(env, seed, log_dir, test_env=None):
     :return:
     '''
     deterministic.set_seed(seed)
-    env = normalize(env, normalize_reward=True)
-    test_env = normalize(test_env, normalize_reward=True)
+    env = GarageEnv(normalize(env))
+    test_env = GarageEnv(normalize(test_env))
     snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
                                      snapshot_mode='gap',
                                      snapshot_gap=10)
@@ -206,7 +206,7 @@ def run_garage(env, seed, log_dir, test_env=None):
         **params['algo_params']
     )
 
-    tu.set_gpu_mode(params['use_gpu'])
+    tu.set_gpu_mode(params['use_gpu'], gpu_id=1)
     if params['use_gpu'] == True: 
         pearlsac.to()
 
