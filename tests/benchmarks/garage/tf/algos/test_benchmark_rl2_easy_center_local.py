@@ -182,7 +182,7 @@ def run_garage(env, seed, log_dir):
         env, task_samplers = _prepare_meta_env(env)
 
         policy = GaussianGRUPolicy(
-            hidden_dim=hyper_parameters['hidden_sizes'][0],
+            hidden_dims=hyper_parameters['hidden_sizes'],
             env_spec=env.spec,
             state_include_action=False)
 

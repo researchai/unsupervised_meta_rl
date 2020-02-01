@@ -3,7 +3,7 @@ import tensorflow as tf
 
 
 def gru(name,
-        gru_cell,
+        gru_cells,
         all_input_var,
         step_input_var,
         step_hidden_var,
@@ -35,8 +35,11 @@ def gru(name,
 
     """
     with tf.compat.v1.variable_scope(name):
-        hidden_dim = gru_cell.units
-        output, [hidden] = gru_cell(step_input_var, states=[step_hidden_var])
+        hidden_dim = gru_cells[0].units
+        output = step_input_var
+        hidden = step_hidden_var
+        for gru_cell in gru_cells:
+            output, [hidden] = gru_cell(output, states=[hidden])
         output = output_nonlinearity_layer(output)
 
         hidden_init_var = tf.compat.v1.get_variable(
@@ -50,7 +53,9 @@ def gru(name,
             hidden_init_var, shape=[tf.shape(all_input_var)[0], hidden_dim])
 
         def step(hprev, x):
-            _, [h] = gru_cell(x, states=[hprev])
+            h = hprev
+            for gru_cell in gru_cells:
+                x, [h] = gru_cell(x, states=[h])
             return h
 
         shuffled_input = tf.transpose(all_input_var, (1, 0, 2))

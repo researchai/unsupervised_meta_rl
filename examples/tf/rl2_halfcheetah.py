@@ -47,7 +47,7 @@ def run_task(snapshot_config, *_):
         
         env_spec = tasks.sample(1)[0]().spec
         policy = GaussianGRUPolicy(name='policy',
-                                    hidden_dim=64,
+                                    hidden_dims=[64, 64],
                                     env_spec=env_spec,
                                     state_include_action=False)
 

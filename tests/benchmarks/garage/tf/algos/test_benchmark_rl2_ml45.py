@@ -58,11 +58,11 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # True if ML10, false if ML45
-ML10 = True
+ML10 = False
 
 hyper_parameters = {
     'meta_batch_size': 50,
-    'hidden_sizes': [64],
+    'hidden_sizes': [200, 200, 200],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
@@ -179,7 +179,7 @@ def run_garage(env, envs, tasks, seed, log_dir):
                                      snapshot_gap=1)
     with LocalTFRunner(snapshot_config) as runner:
         policy = GaussianGRUPolicy(
-            hidden_dim=hyper_parameters['hidden_sizes'][0],
+            hidden_dims=hyper_parameters['hidden_sizes'],
             env_spec=env.spec,
             state_include_action=False)
 

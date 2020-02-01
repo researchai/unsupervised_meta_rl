@@ -145,7 +145,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
             for g_y in g_ys:
                 plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark_center_local_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
+                            '{}_benchmark_individual_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
                 Rh.relplot(g_csvs=garage_tf_csvs,
                            b_csvs=None,
                            g_x=g_x,
@@ -182,7 +182,7 @@ def run_garage(env, seed, log_dir):
         env, task_samplers = _prepare_meta_env(env)
 
         policy = GaussianGRUPolicy(
-            hidden_dim=hyper_parameters['hidden_sizes'][0],
+            hidden_dims=hyper_parameters['hidden_sizes'],
             env_spec=env.spec,
             state_include_action=False)
 

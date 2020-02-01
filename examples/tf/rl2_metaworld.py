@@ -49,7 +49,7 @@ def run_task(snapshot_config, *_):
         envs = tasks.sample(meta_batch_size)
         env = envs[0]()
         policy = GaussianGRUPolicy(name='policy',
-                                   hidden_dim=64,
+                                   hidden_dims=[64],
                                    env_spec=env.spec,
                                    state_include_action=False)
 
