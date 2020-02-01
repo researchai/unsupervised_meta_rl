@@ -11,7 +11,7 @@ from dowel import logger, tabular
 import numpy as np
 import torch
 
-from garage.experiment.meta_evaluator import MetaEvaluator
+from garage.misc.tensor_utils import discount_cumsum
 from garage.np.algos.meta_rl_algorithm import MetaRLAlgorithm
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
 from garage.sampler.pearl_sampler import PEARLSampler
@@ -466,25 +466,24 @@ class PEARLSAC(MetaRLAlgorithm):
             indices, False)
         """
         # eval test tasks
-        avg_test_return, test_success_rate = self.get_average_returns(
-            self._test_tasks_idx, True)
+        self.get_average_returns(self._test_tasks_idx, True)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
         #self._eval_statistics['ZTrainAverageReturn'] = train_returns
         #self._eval_statistics['TrainAverageReturn'] = avg_train_return
-        self._eval_statistics['AverageReturn'] = avg_test_return
+        #self._eval_statistics['AverageReturn'] = avg_test_return
         #if train_success_rate is not None:
         #    self._eval_statistics['TrainSuccessRate'] = train_success_rate
-        if test_success_rate is not None:
-            self._eval_statistics['SuccessRate'] = test_success_rate
+        #if test_success_rate is not None:
+        #    self._eval_statistics['SuccessRate'] = test_success_rate
 
         # record values
         for key, value in self._eval_statistics.items():
             tabular.record(key, value)
         self._eval_statistics = None
 
-        tabular.record('Epoch', epoch)
+        tabular.record('Iteration', epoch)
         tabular.record('TotalTrainSteps', self._total_train_steps)
         tabular.record('TotalEnvSteps', self._total_env_steps)
 
@@ -499,29 +498,30 @@ class PEARLSAC(MetaRLAlgorithm):
             float: Success rate.
 
         """
-        final_returns = []
-        final_success = []
-        num_paths = 0
+        discounted_returns = []
+        undiscounted_returns = []
+        completion = []
+        success = []
         for idx in indices:
-            returns = []
             for _ in range(self._num_evals):
                 paths = self.collect_paths(idx, test)
-                num_paths += len(paths)
-                temp_returns = [
-                    np.mean([sum(path['rewards'])]) for path in paths
-                ]
-                returns.append(temp_returns)
+                discounted_returns.append(discount_cumsum(paths[-1]['rewards'], self._discount))
+                undiscounted_returns.append(sum(paths[-1]['rewards']))
+                completion.append(float(paths[-1]['terminals'].any()))
                 # calculate success rate for metaworld tasks
-                if 'success' in paths[0]['env_infos']:
-                    for path in paths:
-                        final_success.append(path['env_infos']['success'].any())
+                if 'success' in paths[-1]['env_infos']:
+                    success.append(paths[-1]['env_infos']['success'].any())
 
-            final_returns.append(np.mean([a[-1] for a in returns]))
-        if final_success:
-            success_rate = np.mean(final_success)
-        else:
-            success_rate = None
-        return np.mean(final_returns), success_rate
+        avg_discounted_return = np.mean([rtn[0] for rtn in discounted_returns])
+        tabular.record('NumTrajs', len(discounted_returns))
+        tabular.record('AverageDiscountedReturn', avg_discounted_return)
+        tabular.record('AverageReturn', np.mean(undiscounted_returns))
+        tabular.record('StdReturn', np.std(undiscounted_returns))
+        tabular.record('MaxReturn', np.max(undiscounted_returns))
+        tabular.record('MinReturn', np.min(undiscounted_returns))
+        tabular.record('CompletionRate', np.mean(completion))
+        if success:
+            tabular.record('SuccessRate', np.mean(success))
 
     def obtain_samples(self,
                        num_samples,

@@ -51,8 +51,8 @@ params = dict(
         num_evals=5, # number of independent evals
         num_steps_per_eval=450,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
-        embedding_batch_size=100, # number of transitions in the context batch
-        embedding_mini_batch_size=100, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
+        embedding_batch_size=64, # number of transitions in the context batch
+        embedding_mini_batch_size=64, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
         max_path_length=150, # max path length for this environment
         discount=0.99, # RL discount factor
         soft_target_tau=0.005, # for SAC target network update
@@ -111,11 +111,11 @@ class TestBenchmarkPEARL:
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['TestAverageReturn'],
+                ys=['AverageReturn'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
-                y_label='TestTaskAverageReturn',
+                y_label='AverageReturn',
                 names=['garage_pearl'],
             )
 
@@ -125,7 +125,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['TestAverageReturn'],
+                ys=['AverageReturn'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 

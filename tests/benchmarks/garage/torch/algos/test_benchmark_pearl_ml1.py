@@ -18,16 +18,15 @@ from metaworld.benchmarks import ML1
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
-from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner, run_experiment
+from garage.experiment.snapshotter import SnapshotConfig
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
-    TanhGaussianMLPPolicy
+    TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
-from tests.fixtures import snapshot_config
 from tests import benchmark_helper
 import tests.helpers as Rh
 
@@ -70,7 +69,7 @@ params = dict(
         use_next_obs_in_context=False, # use next obs if it is useful in distinguishing tasks
     ),
     n_trials=3,
-    use_gpu=False,
+    use_gpu=True,
 )
 
 
@@ -101,29 +100,24 @@ class TestBenchmarkPEARL:
             plt_file = osp.join(benchmark_dir,
                                 '{}_benchmark.png'.format(env_id))
             garage_csvs = []
-            pearl_csvs = []
 
             for trial in range(params['n_trials']):
                 seed = seeds[trial]
                 trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
                 garage_dir = trial_dir + '/garage'
-                #pearl_dir = trial_dir + '/pearl'
 
                 garage_csv = run_garage(env, seed, garage_dir)
-                #pearl_csv = run_pearl(env, seed, garage_dir)
-
                 garage_csvs.append(garage_csv)
-                #pearl_csvs.append(pearl_csv)
             
             env.close()
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['TestAverageReturn'],
+                ys=['AverageReturn'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
-                y_label='TestTaskAverageReturn',
+                y_label='AverageReturn',
                 names=['garage_pearl'],
             )
 
@@ -133,7 +127,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['TestAverageReturn'],
+                ys=['AverageReturn'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 
@@ -151,6 +145,9 @@ def run_garage(env, seed, log_dir):
     '''
     deterministic.set_seed(seed)
     env = GarageEnv(normalize(env))
+    snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
+                                     snapshot_mode='gap',
+                                     snapshot_gap=10)
     runner = LocalRunner(snapshot_config)
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -170,12 +167,12 @@ def run_garage(env, seed, log_dir):
 
     space_a = akro.Box(low=-1, high=1, shape=(obs_dim+latent_dim, ), dtype=np.float32)
     space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
-    qf_env = EnvSpec(space_a, space_b)
+    augmented_env = EnvSpec(space_a, space_b)
 
-    qf1 = ContinuousMLPQFunction(env_spec=qf_env,
+    qf1 = ContinuousMLPQFunction(env_spec=augmented_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
-    qf2 = ContinuousMLPQFunction(env_spec=qf_env,
+    qf2 = ContinuousMLPQFunction(env_spec=augmented_env,
                                  hidden_sizes=[net_size, net_size, net_size])
 
     obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
@@ -185,12 +182,9 @@ def run_garage(env, seed, log_dir):
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    policy = TanhGaussianMLPPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
-        action_dim=action_dim,
-    )
+    policy = TanhGaussianMLPPolicy2(
+        env_spec=augmented_env,
+        hidden_sizes=[net_size, net_size, net_size])
 
     context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=latent_dim,

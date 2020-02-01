@@ -32,7 +32,7 @@ import tests.helpers as Rh
 
 # hyperparams for baselines and garage
 params = dict(
-    num_epochs=250,
+    num_epochs=1000,
     num_train_tasks=10,
     num_test_tasks=5,
     latent_size=7, # dimension of the latent context vector
@@ -51,8 +51,8 @@ params = dict(
         num_evals=5, # number of independent evals
         num_steps_per_eval=450,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
-        embedding_batch_size=100, # number of transitions in the context batch
-        embedding_mini_batch_size=100, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
+        embedding_batch_size=64, # number of transitions in the context batch
+        embedding_mini_batch_size=64, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
         max_path_length=150, # max path length for this environment
         discount=0.99, # RL discount factor
         soft_target_tau=0.005, # for SAC target network update
@@ -98,7 +98,6 @@ class TestBenchmarkPEARL:
             plt_file = osp.join(benchmark_dir,
                                 '{}_benchmark.png'.format(env_id))
             garage_csvs = []
-            pearl_csvs = []
 
             for trial in range(params['n_trials']):
                 seed = seeds[trial]
@@ -112,11 +111,11 @@ class TestBenchmarkPEARL:
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['TestSuccessRate'],
+                ys=['SuccessRate'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
-                y_label='TestSuccessRate',
+                y_label='SuccessRate',
                 names=['garage_pearl'],
             )
 
@@ -126,7 +125,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['TestSuccessRate'],
+                ys=['SuccessRate'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 

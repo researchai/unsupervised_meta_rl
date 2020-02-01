@@ -32,13 +32,13 @@ import tests.helpers as Rh
 
 # hyperparams for baselines and garage
 params = dict(
-    num_epochs=500,
-    num_train_tasks=10,
+    num_epochs=1000,
+    num_train_tasks=45,
     num_test_tasks=5,
     latent_size=7, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     env_params=dict(
-        n_tasks=15, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
+        n_tasks=50, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
     ),
     algo_params=dict(
         meta_batch_size=16, # number of tasks to average the gradient across
@@ -51,8 +51,8 @@ params = dict(
         num_evals=5, # number of independent evals
         num_steps_per_eval=450,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
-        embedding_batch_size=100, # number of transitions in the context batch
-        embedding_mini_batch_size=100, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
+        embedding_batch_size=64, # number of transitions in the context batch
+        embedding_mini_batch_size=64, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
         max_path_length=150, # max path length for this environment
         discount=0.99, # RL discount factor
         soft_target_tau=0.005, # for SAC target network update
@@ -111,11 +111,11 @@ class TestBenchmarkPEARL:
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['TestAverageReturn'],
+                ys=['SuccessRate'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
-                y_label='TestTaskAverageReturn',
+                y_label='SuccessRate',
                 names=['garage_pearl'],
             )
 
@@ -125,7 +125,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['TestAverageReturn'],
+                ys=['SuccessRate'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 
