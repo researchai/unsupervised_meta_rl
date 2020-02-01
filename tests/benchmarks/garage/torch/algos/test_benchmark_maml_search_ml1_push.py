@@ -282,6 +282,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('who', nargs='?')
     parser.add_argument('--parallel', action='store_true', default=False)
+    parser.add_argument('--combined', action='store_true', default=True)
 
     known_args, unknown_args = parser.parse_known_args()
 
@@ -297,14 +298,19 @@ if __name__ == '__main__':
         test_promp = args.who in ('both', 'promp')
 
     parallel = args.parallel
+    combined = args.combined
     args = vars(args)
     del args['who']
     del args['parallel']
+    del args['combined']
 
     n_variants = len(args)
-    variants = [{
-        k: int(v) if v.is_integer() else v
-    } for k, v in args.items() if k not in ('who', 'parallel')]
+    if combined:
+        variants = [args]
+    else:
+        variants = [{
+            k: int(v) if v.is_integer() else v
+        } for k, v in args.items() if k not in ('who', 'parallel')]
 
     for key in args:
         assert key in hyper_parameters or key in ('who', 'parallel')
