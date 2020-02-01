@@ -8,6 +8,8 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import RL2
 from garage.tf.algos import RL2PPO
 from garage.tf.algos import RL2PPO2
+from garage.tf.algos import RL2PPO3
+from garage.tf.algos import RL2PPO4
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
@@ -43,9 +45,9 @@ def run_task(snapshot_config, *_):
         steps_per_epoch = 1
         n_test_tasks = 1
 
-        tasks = task_sampler.EnvPoolSampler([env])
-        tasks.grow_pool(meta_batch_size)
-        # tasks = task_sampler.SetTaskSampler(lambda: env))
+        # tasks = task_sampler.EnvPoolSampler([env])
+        # tasks.grow_pool(meta_batch_size)
+        tasks = task_sampler.SetTaskSampler(lambda: RL2Env(env=HalfCheetahVelEnv()))
         
         env = tasks.sample(1)[0]()
         policy = GaussianGRUPolicy(name='policy',
@@ -55,7 +57,7 @@ def run_task(snapshot_config, *_):
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = RL2PPO2(env_spec=env.spec,
+        inner_algo = RL2PPO(env_spec=env.spec,
                          policy=policy,
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
@@ -66,12 +68,50 @@ def run_task(snapshot_config, *_):
                             batch_size=32,
                             max_epochs=10,
                          ),
-                         stop_entropy_gradient=True,
-                         entropy_method='max',
-                         policy_ent_coeff=0.02,
-                         center_adv=False,
-                         meta_batch_size=meta_batch_size,
-                         episode_per_task=episode_per_task)
+                         stop_entropy_gradient=True)
+        # inner_algo = RL2PPO2(env_spec=env.spec,
+        #                  policy=policy,
+        #                  baseline=baseline,
+        #                  max_path_length=max_path_length * episode_per_task,
+        #                  discount=0.99,
+        #                  gae_lambda=0.95,
+        #                  lr_clip_range=0.2,
+        #                  optimizer_args=dict(
+        #                     batch_size=32,
+        #                     max_epochs=10,
+        #                  ),
+        #                  stop_entropy_gradient=True,
+        #                  meta_batch_size=meta_batch_size,
+        #                  )
+        # inner_algo = RL2PPO3(env_spec=env.spec,
+        #                  policy=policy,
+        #                  baseline=baseline,
+        #                  max_path_length=max_path_length * episode_per_task,
+        #                  discount=0.99,
+        #                  gae_lambda=0.95,
+        #                  lr_clip_range=0.2,
+        #                  optimizer_args=dict(
+        #                     batch_size=32,
+        #                     max_epochs=10,
+        #                  ),
+        #                  stop_entropy_gradient=True,
+        #                  episode_per_task=episode_per_task
+        #                  )
+        # inner_algo = RL2PPO4(env_spec=env.spec,
+        #                  policy=policy,
+        #                  baseline=baseline,
+        #                  max_path_length=max_path_length * episode_per_task,
+        #                  discount=0.99,
+        #                  gae_lambda=0.95,
+        #                  lr_clip_range=0.2,
+        #                  optimizer_args=dict(
+        #                     batch_size=32,
+        #                     max_epochs=10,
+        #                  ),
+        #                  stop_entropy_gradient=True,
+        #                  meta_batch_size=meta_batch_size,
+        #                  episode_per_task=episode_per_task
+        #                  )
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
@@ -81,7 +121,7 @@ def run_task(snapshot_config, *_):
                    steps_per_epoch=steps_per_epoch)
 
         runner.setup(algo,
-                     env,
+                     tasks.sample(meta_batch_size),
                      sampler_cls=LocalSampler,
                      n_workers=meta_batch_size,
                      worker_class=RL2Worker)

@@ -22,7 +22,9 @@ class RL2NPO(NPO):
         # Augment reward from baselines
         rewards_tensor = self._f_rewards(*policy_opt_input_values)
         returns_tensor = self._f_returns(*policy_opt_input_values)
-
+        returns_tensor = np.squeeze(returns_tensor, -1)
+        adv = self._f_adv(*policy_opt_input_values)
+        
         paths = samples_data['paths']
         valids = samples_data['valids']
 
@@ -33,7 +35,7 @@ class RL2NPO(NPO):
             path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
             path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
             self.baseline.fit([path])
-            baseline = self.baseline.predict(path).squeeze(-1)
+            baseline = self.baseline.predict(path)
             baselines.append(baseline)
 
         baselines = np_tensor_utils.pad_tensor_n(baselines, self.max_path_length)

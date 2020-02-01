@@ -75,7 +75,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 20 if ML else 50,
+    'n_test_tasks': 20 if ML10 else 50,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True

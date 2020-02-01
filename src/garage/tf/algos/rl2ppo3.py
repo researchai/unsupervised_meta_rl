@@ -1,19 +1,20 @@
 """Natural Policy Gradient Optimization."""
-from dowel import logger
+from dowel import logger, tabular
 import numpy as np
-import copy
+import tensorflow as tf
 
 from garage.misc import tensor_utils as np_tensor_utils
-from garage.tf.algos import NPO
+from garage.tf.algos import RL2NPO3
+from garage.tf.optimizers import FirstOrderOptimizer
 
 
-class RL2NPO2(NPO):
+class RL2PPO3(RL2NPO3):
     """Natural Policy Gradient Optimization used in RL2."""
     def __init__(self,
                  env_spec,
                  policy,
                  baseline,
-                 meta_batch_size,
+                 episode_per_task,
                  scope=None,
                  max_path_length=500,
                  discount=0.99,
@@ -21,7 +22,7 @@ class RL2NPO2(NPO):
                  center_adv=True,
                  positive_adv=False,
                  fixed_horizon=False,
-                 pg_loss='surrogate',
+                 pg_loss='surrogate_clip',
                  lr_clip_range=0.01,
                  max_kl_step=0.01,
                  optimizer=None,
@@ -33,13 +34,16 @@ class RL2NPO2(NPO):
                  entropy_method='no_entropy',
                  flatten_input=True,
                  center_adv_across_batch=True,
-                 name='NPO'):
-        self._meta_batch_size = meta_batch_size
-        self._baselines = [copy.deepcopy(baseline) for _ in range(meta_batch_size)]
+                 name='PPO'):
+        if optimizer is None:
+            optimizer = FirstOrderOptimizer
+            if optimizer_args is None:
+                optimizer_args = dict()
         super().__init__(env_spec=env_spec,
                          policy=policy,
                          baseline=baseline,
                          scope=scope,
+                         episode_per_task=episode_per_task,
                          max_path_length=max_path_length,
                          discount=discount,
                          gae_lambda=gae_lambda,
@@ -56,46 +60,6 @@ class RL2NPO2(NPO):
                          use_neg_logli_entropy=use_neg_logli_entropy,
                          stop_entropy_gradient=stop_entropy_gradient,
                          entropy_method=entropy_method,
+                         flatten_input=flatten_input,
                          center_adv_across_batch=center_adv_across_batch,
-                         flatten_input=flatten_input)
-
-    def _fit_baseline_first(self, samples_data):
-        """Update baselines from samples and get baseline prediction.
-
-        Args:
-            samples_data (dict): Processed sample data.
-                See process_samples() for details.
-
-        """
-        # Get baseline prediction
-        paths = samples_data['paths']
-        baselines = []
-        for ind, path in enumerate(paths):
-            baseline = self._baselines[ind].predict(path)
-            baselines.append(baseline)
-
-        baselines = np_tensor_utils.pad_tensor_n(baselines, self.max_path_length)
-        samples_data['baselines'] = baselines
-
-    def _fit_baseline_after(self, samples_data):
-        """Update baselines from samples.
-        Args:
-            samples_data (dict): Processed sample data.
-                See process_samples() for details.
-        """
-        policy_opt_input_values = self._policy_opt_input_values(samples_data)
-
-        # Augment reward from baselines
-        rewards_tensor = self._f_rewards(*policy_opt_input_values)
-        returns_tensor = self._f_returns(*policy_opt_input_values)
-        returns_tensor = np.squeeze(returns_tensor, -1)
-        adv = self._f_adv(*policy_opt_input_values)
-
-        paths = samples_data['paths']
-        valids = samples_data['valids']
-        # Fit baseline
-        logger.log('Fitting baseline...')
-        for ind, path in enumerate(paths):
-            path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
-            path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
-            self._baselines[ind].fit([path])
+                         name=name)

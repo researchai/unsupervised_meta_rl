@@ -33,29 +33,27 @@ def run_task(snapshot_config, *_):
 
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        env = RL2Env(env=HalfCheetahVelEnv())
-        # env2 = RL2Env(env=HalfCheetahDirEnv())
         # env = RL2Env(ML1.get_train_tasks('push-v1'))
         max_path_length = 150
-        meta_batch_size = 2
+        meta_batch_size = 10
         n_epochs = 2
         episode_per_task = 2
         steps_per_epoch = 1
         n_test_tasks = 1
 
-        tasks = task_sampler.EnvPoolSampler([env])
-        tasks.grow_pool(meta_batch_size)
-        # tasks = task_sampler.SetTaskSampler(lambda: env))
+        # tasks = task_sampler.EnvPoolSampler([env])
+        # tasks.grow_pool(meta_batch_size)
+        tasks = task_sampler.SetTaskSampler(lambda: RL2Env(env=HalfCheetahVelEnv()))
         
-        env = tasks.sample(1)[0]()
+        env_spec = tasks.sample(1)[0]().spec
         policy = GaussianGRUPolicy(name='policy',
                                     hidden_dim=64,
-                                    env_spec=env.spec,
+                                    env_spec=env_spec,
                                     state_include_action=False)
 
-        baseline = LinearFeatureBaseline(env_spec=env.spec)
+        baseline = LinearFeatureBaseline(env_spec=env_spec)
 
-        inner_algo = RL2PPO(env_spec=env.spec,
+        inner_algo = RL2PPO(env_spec=env_spec,
                          policy=policy,
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
@@ -66,10 +64,7 @@ def run_task(snapshot_config, *_):
                             batch_size=32,
                             max_epochs=10,
                          ),
-                         stop_entropy_gradient=True,
-                         entropy_method='max',
-                         policy_ent_coeff=0.02,
-                         center_adv=False)
+                         stop_entropy_gradient=True)
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
@@ -79,7 +74,7 @@ def run_task(snapshot_config, *_):
                    steps_per_epoch=steps_per_epoch)
 
         runner.setup(algo,
-                     env,
+                     tasks.sample(meta_batch_size),
                      sampler_cls=LocalSampler,
                      n_workers=meta_batch_size,
                      worker_class=RL2Worker)

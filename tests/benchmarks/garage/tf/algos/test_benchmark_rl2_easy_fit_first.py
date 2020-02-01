@@ -28,7 +28,7 @@ from garage.experiment import task_sampler
 from garage.experiment.snapshotter import SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
 from garage.tf.algos import RL2
-from garage.tf.algos import RL2PPO2
+from garage.tf.algos import RL2PPO
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
@@ -51,7 +51,7 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # If false, run ML else HalfCheetah
-ML = False
+ML = True
 
 hyper_parameters = {
     'meta_batch_size': 50,
@@ -79,7 +79,7 @@ def _prepare_meta_env(env):
         task_samplers = task_sampler.EnvPoolSampler([RL2Env(env)])
         task_samplers.grow_pool(hyper_parameters['meta_batch_size'])
     else:
-        task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(env))
+        task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(env()))
     return task_samplers.sample(1)[0](), task_samplers
 
 class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
@@ -92,13 +92,13 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
             envs = [ML1.get_train_tasks('push-v1')]
             env_ids = ['ML1-push-v1']
             # envs = [ML1.get_train_tasks('reach-v1')]
-            # env_id = 'ML1-reach-v1'
+            # env_ids = 'ML1-reach-v1'
             # envs = [ML1.get_train_tasks('pick-place-v1')]
-            # env_id = 'ML1-pick-place-v1'
+            # env_ids = 'ML1-pick-place-v1'
         else:
-            envs = [HalfCheetahVelEnv()]
+            envs = [HalfCheetahVelEnv]
             env_ids = ['HalfCheetahVelEnv']
-            # envs = [HalfCheetahDirEnv()]
+            # envs = [HalfCheetahDirEnv]
             # env_ids = ['HalfCheetahDirEnv']
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/rl2/%s/' % timestamp
@@ -118,22 +118,14 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 promp_dir = trial_dir + '/promp'
 
                 with tf.Graph().as_default():
-                    env.reset()
                     garage_tf_csv = run_garage(env, seed, garage_tf_dir)
 
-                # with tf.Graph().as_default():
-                #     env.reset()
-                #     promp_csv = run_promp(env, seed, promp_dir)
-
                 garage_tf_csvs.append(garage_tf_csv)
-                # promp_csvs.append(promp_csv)
 
             with open(osp.join(garage_tf_dir, 'parameters.txt'), 'w') as outfile:
                 hyper_parameters_copy = copy.deepcopy(hyper_parameters)
                 hyper_parameters_copy['sampler_cls'] = str(hyper_parameters_copy['sampler_cls'])
                 json.dump(hyper_parameters_copy, outfile)
-
-            env.close()
 
             g_x = 'TotalEnvSteps'
 
@@ -153,7 +145,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
             for g_y in g_ys:
                 plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark_fit_individial_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
+                            '{}_benchmark_fit_first_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
                 Rh.relplot(g_csvs=garage_tf_csvs,
                            b_csvs=None,
                            g_x=g_x,
@@ -196,7 +188,7 @@ def run_garage(env, seed, log_dir):
 
         baseline = GarageLinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = RL2PPO2(
+        inner_algo = RL2PPO(
             env_spec=env.spec,
             policy=policy,
             baseline=baseline,
@@ -209,9 +201,7 @@ def run_garage(env, seed, log_dir):
                 tf_optimizer_args=dict(
                     learning_rate=hyper_parameters['optimizer_lr'],
                 ),
-            ),
-            meta_batch_size=hyper_parameters['meta_batch_size'],
-            episode_per_task=hyper_parameters['rollout_per_task']
+            )
         )
 
         algo = RL2(
@@ -231,7 +221,7 @@ def run_garage(env, seed, log_dir):
         dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
 
         runner.setup(algo,
-                     env,
+                     task_samplers.sample(hyper_parameters['meta_batch_size']),
                      sampler_cls=hyper_parameters['sampler_cls'],
                      n_workers=hyper_parameters['meta_batch_size'],
                      worker_class=RL2Worker,

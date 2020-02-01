@@ -5,15 +5,18 @@ import copy
 
 from garage.misc import tensor_utils as np_tensor_utils
 from garage.tf.algos import NPO
+from garage.tf.misc.tensor_utils import compute_advantages_individual
+from garage.tf.misc.tensor_utils import discounted_returns_individual
+from garage.tf.misc.tensor_utils import split_paths
 
 
-class RL2NPO2(NPO):
+class RL2NPO3(NPO):
     """Natural Policy Gradient Optimization used in RL2."""
     def __init__(self,
                  env_spec,
                  policy,
                  baseline,
-                 meta_batch_size,
+                 episode_per_task,
                  scope=None,
                  max_path_length=500,
                  discount=0.99,
@@ -34,8 +37,7 @@ class RL2NPO2(NPO):
                  flatten_input=True,
                  center_adv_across_batch=True,
                  name='NPO'):
-        self._meta_batch_size = meta_batch_size
-        self._baselines = [copy.deepcopy(baseline) for _ in range(meta_batch_size)]
+        self._episode_per_task = episode_per_task
         super().__init__(env_spec=env_spec,
                          policy=policy,
                          baseline=baseline,
@@ -67,11 +69,23 @@ class RL2NPO2(NPO):
                 See process_samples() for details.
 
         """
-        # Get baseline prediction
+        policy_opt_input_values = self._policy_opt_input_values(samples_data)
+
+        # Augment reward from baselines
+        rewards_tensor = self._f_rewards(*policy_opt_input_values)
+        returns_tensor = self._f_returns(*policy_opt_input_values)
+        adv = self._f_adv(*policy_opt_input_values)
+
         paths = samples_data['paths']
+        valids = samples_data['valids']
+        lengths = samples_data['lengths']
         baselines = []
         for ind, path in enumerate(paths):
-            baseline = self._baselines[ind].predict(path)
+            path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
+            path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
+            split_path = split_paths(path, lengths[ind])
+            self.baseline.fit(split_path)
+            baseline = np.concatenate([self.baseline.predict(path) for path in split_path])
             baselines.append(baseline)
 
         baselines = np_tensor_utils.pad_tensor_n(baselines, self.max_path_length)
@@ -83,19 +97,19 @@ class RL2NPO2(NPO):
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
         """
-        policy_opt_input_values = self._policy_opt_input_values(samples_data)
+        pass
 
-        # Augment reward from baselines
-        rewards_tensor = self._f_rewards(*policy_opt_input_values)
-        returns_tensor = self._f_returns(*policy_opt_input_values)
-        returns_tensor = np.squeeze(returns_tensor, -1)
-        adv = self._f_adv(*policy_opt_input_values)
+    def _get_advantages(self, baseline_var, reward_var, name):
+        return compute_advantages_individual(self.discount,
+                                             self.gae_lambda,
+                                             self.max_path_length,
+                                             self._episode_per_task,
+                                             baseline_var,
+                                             reward_var,
+                                             name=name)
 
-        paths = samples_data['paths']
-        valids = samples_data['valids']
-        # Fit baseline
-        logger.log('Fitting baseline...')
-        for ind, path in enumerate(paths):
-            path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
-            path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
-            self._baselines[ind].fit([path])
+    def _get_discounted_returns(self, rewards):
+        return discounted_returns_individual(self.discount,
+                                             self.max_path_length,
+                                             self._episode_per_task,
+                                             rewards)

@@ -528,6 +528,11 @@ class NPO(BatchPolopt):
                                                returns,
                                                log_name='f_returns')
 
+            self._f_adv = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                               adv,
+                                               log_name='f_returns')
+
             return loss, pol_mean_kl
 
     def _get_advantages(self, baseline_var, reward_var, name):
@@ -704,6 +709,7 @@ class NPO(BatchPolopt):
         del data['_f_policy_kl']
         del data['_f_rewards']
         del data['_f_returns']
+        del data['_f_adv']
         return data
 
     def __setstate__(self, state):
