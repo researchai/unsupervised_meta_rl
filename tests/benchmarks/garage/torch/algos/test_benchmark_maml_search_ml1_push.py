@@ -282,7 +282,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('who', nargs='?')
     parser.add_argument('--parallel', action='store_true', default=False)
-    parser.add_argument('--combined', action='store_true', default=True)
+    parser.add_argument('--combined', action='store_true', default=False)
 
     known_args, unknown_args = parser.parse_known_args()
 
@@ -306,14 +306,16 @@ if __name__ == '__main__':
 
     n_variants = len(args)
     if combined:
-        variants = [args]
+        variants = [{
+            k: int(v) if v.is_integer() else v for k, v in args.items()
+        }]
     else:
         variants = [{
             k: int(v) if v.is_integer() else v
-        } for k, v in args.items() if k not in ('who', 'parallel')]
+        } for k, v in args.items()]
 
     for key in args:
-        assert key in hyper_parameters or key in ('who', 'parallel')
+        assert key in hyper_parameters, "{} is not a hyperparameter".format(key)
 
     children = []
     for variant in variants:
