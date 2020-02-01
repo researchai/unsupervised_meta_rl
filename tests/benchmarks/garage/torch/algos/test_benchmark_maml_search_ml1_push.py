@@ -296,13 +296,18 @@ if __name__ == '__main__':
         test_garage = args.who in ('both', 'garage')
         test_promp = args.who in ('both', 'promp')
 
-    n_variants = len(vars(args)) - 2
+    parallel = args.parallel
+    args = vars(args)
+    del args['who']
+    del args['parallel']
+
+    n_variants = len(args)
     variants = [{
         k: int(v) if v.is_integer() else v
-    } for k, v in vars(args).items() if k not in ('who', 'parallel')]
+    } for k, v in args.items() if k not in ('who', 'parallel')]
 
-    for key in variants:
-        assert key in hyper_parameters
+    for key in args:
+        assert key in hyper_parameters or key in ('who', 'parallel')
 
     children = []
     for variant in variants:
@@ -311,11 +316,11 @@ if __name__ == '__main__':
             worker(variant)
             exit()
         else:
-            if args.parallel:
+            if parallel:
                 children.append(pid)
             else:
                 os.waitpid(pid, 0)
 
-    if args.parallel:
+    if parallel:
         for child in children:
             os.waitpid(child, 0)
