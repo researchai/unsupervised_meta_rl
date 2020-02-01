@@ -271,7 +271,7 @@ def worker(variant):
     variant_str = '-'.join(['{}_{}'.format(k, v) for k, v in variant.items()])
     if 'hidden_sizes' in variant:
         hidden_sizes = variant['hidden_sizes']
-        variant['hidden_size'] = [hidden_sizes, hidden_sizes]
+        variant['hidden_sizes'] = [hidden_sizes, hidden_sizes]
     hyper_parameters.update(variant)
 
     test_cls = TestBenchmarkMAML()
