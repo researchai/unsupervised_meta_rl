@@ -13,8 +13,9 @@ Results:
 import random
 
 import tensorflow as tf
-from garage.envs import normalize
+from garage.envs import normalize, GarageEnv
 from garage.envs.multi_env_wrapper import MultiEnvWrapper, round_robin_strategy
+from garage.envs.multi_task_metaworld_wrapper import MTMetaWorldWrapper
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
@@ -32,11 +33,11 @@ MT10_envs_by_id = {
 }
 
 # env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 'drawer-close-v1', 'button-press-topdown-v1', 'ped-insert-side-v1', 'window-open-v1', 'window-close-v1']
-env_ids = ['push-v1']
+# env_ids = ['push-v1']
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT10_envs = [TfEnv(normalize(MT10_envs_by_id[i], normalize_reward=True)) for i in env_ids]
+# ML1_envs = [TfEnv(normalize(MT10_envs_by_id[i], normalize_reward=True)) for i in env_ids]
 
 @wrap_experiment
 def ppo_ml1(ctxt=None, seed=1):
@@ -44,7 +45,8 @@ def ppo_ml1(ctxt=None, seed=1):
     """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        env = MultiEnvWrapper(MT10_envs, env_ids, sample_strategy=round_robin_strategy)
+        Ml1_reach_envs = get_ML1_envs_test("reach-v1")
+        env = MTMetaWorldWrapper(Ml1_reach_envs)
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
@@ -83,7 +85,18 @@ def ppo_ml1(ctxt=None, seed=1):
         )
 
         runner.setup(algo, env)
-        runner.train(n_epochs=2000, batch_size=len(MT10_envs)*10*150, plot=False)
+        runner.train(n_epochs=2000, batch_size=4096, plot=False)
+
+
+def get_ML1_envs_test(name):
+    bench = ML1WithPinnedGoal.get_train_tasks(name)
+    tasks = [{'task': 0, 'goal': i} for i in range(50)]
+    ret = {}
+    for task in tasks:
+        new_bench = bench.clone(bench)
+        new_bench.set_task(task)
+        ret[("goal"+str(task['goal']))] = GarageEnv((new_bench.active_env))
+    return ret
 
 
 seeds = random.sample(range(100), 1)
