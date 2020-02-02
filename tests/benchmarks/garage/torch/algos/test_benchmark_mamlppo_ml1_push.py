@@ -67,7 +67,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
     def test_benchmark_maml(self):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-        benchmark_dir = './data/local/benchmarks/maml-ml1-push/%s/' % timestamp
+        benchmark_dir = './data/local/benchmarks/mamlppo-ml1-push/%s/' % timestamp
         result_json = {}
         env_id = 'ML1-Push'
         meta_env = ML1WithPinnedGoal.get_train_tasks('push-v1')
@@ -237,12 +237,10 @@ def run_promp(env, seed, log_dir):
         normalize_adv=True,
     )
 
-    algo = PPOMAML(
-        policy=policy,
-        inner_lr=hyper_parameters['inner_lr'],
-        meta_batch_size=hyper_parameters['meta_batch_size'],
-        num_inner_grad_steps=hyper_parameters['num_grad_update']
-    )
+    algo = PPOMAML(policy=policy,
+                   inner_lr=hyper_parameters['inner_lr'],
+                   meta_batch_size=hyper_parameters['meta_batch_size'],
+                   num_inner_grad_steps=hyper_parameters['num_grad_update'])
 
     trainer = Trainer(
         algo=algo,
