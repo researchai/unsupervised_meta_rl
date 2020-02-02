@@ -77,5 +77,14 @@ class TestMAML:
         adapt_policy = self.algo.get_exploration_policy()
         trajs = sampler.obtain_samples(0, 100, adapt_policy)
         self.algo.adapt_policy(adapt_policy, trajs)
+
         # Old policy should remain untouched
         self.policy.apply(partial(test_params, 0.1))
+
+        # Adapted policy should not be identical to old policy
+        for v1, v2 in zip(adapt_policy.parameters(), self.policy.parameters()):
+            if v1.data.ne(v2.data).sum() > 0:
+                break
+        else:
+            pytest.fail("Parameters of adapted policy should not be "
+                        "identical to the old policy.")

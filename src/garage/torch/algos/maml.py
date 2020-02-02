@@ -439,13 +439,15 @@ class MAML(MetaRLAlgorithm):
         """
         old_policy, self._policy = self._policy, exploration_policy
         self._inner_algo.policy = exploration_policy
+        self._inner_optimizer.module = exploration_policy
 
         paths = exploration_trajectories.to_trajectory_list()
         batch_samples = self._process_samples(0, paths)
 
         self._adapt(0, batch_samples, set_grad=False)
 
-        self._policy = self._inner_algo.policy = old_policy
+        self._policy = old_policy
+        self._inner_algo.policy = self._inner_optimizer.module = old_policy
         return exploration_policy
 
 
