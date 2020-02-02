@@ -302,6 +302,8 @@ class ExperimentTemplate:
         self.prefix = prefix
         self.snapshot_mode = snapshot_mode
         self.snapshot_gap = snapshot_gap
+        if self.function is not None:
+            functools.update_wrapper(self, self.function)
 
     def _make_context(self, *args, **kwargs):
         """Make a context from the template information and variant args.
