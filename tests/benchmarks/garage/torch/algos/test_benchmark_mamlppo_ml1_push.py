@@ -5,10 +5,11 @@ until it's done. So we introduced tests.wrappers.AutoStopEnv wrapper to set
 done=True when it reaches max_path_length. We also need to change the
 garage.tf.samplers.BatchSampler to smooth the reward curve.
 """
+import argparse
 import datetime
+import os
 import os.path as osp
 import random
-import sys
 
 import numpy as np
 import dowel
@@ -64,10 +65,11 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
 
     @pytest.mark.huge
-    def test_benchmark_maml(self):  # pylint: disable=no-self-use
+    def test_benchmark_maml(self, log_suffix):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-        benchmark_dir = './data/local/benchmarks/mamlppo-ml1-push/%s/' % timestamp
+        benchmark_dir = './data/local/benchmarks/maml-ml1-push/%s-%s/' \
+                        % (timestamp, log_suffix)
         result_json = {}
         env_id = 'ML1-Push'
         meta_env = ML1WithPinnedGoal.get_train_tasks('push-v1')
@@ -259,10 +261,70 @@ def run_promp(env, seed, log_dir):
     return tabular_log_file
 
 
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        test_garage = sys.argv[1] in ('both', 'garage')
-        test_promp = sys.argv[1] in ('both', 'promp')
+
+def worker(variant):
+    variant_str = '-'.join(['{}_{}'.format(k, v) for k, v in variant.items()])
+    if 'hidden_sizes' in variant:
+        hidden_sizes = variant['hidden_sizes']
+        variant['hidden_sizes'] = [hidden_sizes, hidden_sizes]
+    hyper_parameters.update(variant)
 
     test_cls = TestBenchmarkMAML()
-    test_cls.test_benchmark_maml()
+    test_cls.test_benchmark_maml(variant_str)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('who', nargs='?')
+    parser.add_argument('--parallel', action='store_true', default=False)
+    parser.add_argument('--combined', action='store_true', default=False)
+
+    known_args, unknown_args = parser.parse_known_args()
+
+    for arg in unknown_args:
+        if arg.startswith('--'):
+            parser.add_argument(arg, type=float)
+
+    args = parser.parse_args()
+    print(args)
+
+    if args.who:
+        test_garage = args.who in ('both', 'garage')
+        test_promp = args.who in ('both', 'promp')
+
+    parallel = args.parallel
+    combined = args.combined
+    args = vars(args)
+    del args['who']
+    del args['parallel']
+    del args['combined']
+
+    n_variants = len(args)
+    if combined:
+        variants = [{
+            k: int(v) if v.is_integer() else v for k, v in args.items()
+        }]
+    else:
+        variants = [{
+            k: int(v) if v.is_integer() else v
+        } for k, v in args.items()]
+
+    for key in args:
+        assert key in hyper_parameters, "{} is not a hyperparameter".format(key)
+
+    children = []
+    for variant in variants:
+        pid = os.fork()
+        if pid == 0:
+            worker(variant)
+            exit()
+        else:
+            if parallel:
+                children.append(pid)
+            else:
+                os.waitpid(pid, 0)
+
+    if parallel:
+        for child in children:
+            os.waitpid(child, 0)
+
