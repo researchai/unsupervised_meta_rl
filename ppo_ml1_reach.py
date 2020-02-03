@@ -13,31 +13,34 @@ Results:
 import random
 
 import tensorflow as tf
-from garage.envs import normalize, GarageEnv
+from garage import wrap_experiment
+from garage.envs import GarageEnv
 from garage.envs.ml1_wrapper import ML1WithPinnedGoal
 from garage.envs.multi_env_wrapper import MultiEnvWrapper, round_robin_strategy
-from garage.envs.multi_task_metaworld_wrapper import MTMetaWorldWrapper
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
-from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianMLPPolicy
 from metaworld.envs.mujoco.env_dict import EASY_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT
-from garage import wrap_experiment
 
+MT10_envs_by_id = {
+    task: env(*EASY_MODE_ARGS_KWARGS[task]['args'],
+              **EASY_MODE_ARGS_KWARGS[task]['kwargs'])
+    for (task, env) in EASY_MODE_CLS_DICT.items()
+}
 
 @wrap_experiment
-def ppo_ml1_reach(ctxt=None, seed=1):
+def ppo_ml1_pick_place(ctxt=None, seed=1):
 
     env_id = "reach-v1"
 
     """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        Ml1_reach_envs = get_ML1_envs_test(env_id)
-        env = MTMetaWorldWrapper(Ml1_reach_envs, [env_id] * len(Ml1_reach_envs))
+        ret_envs, ret_names = get_ML1_envs_test(env_id)
+        env = MultiEnvWrapper(ret_envs, ret_names, sample_strategy=round_robin_strategy)
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
@@ -76,20 +79,23 @@ def ppo_ml1_reach(ctxt=None, seed=1):
         )
 
         runner.setup(algo, env)
-        runner.train(n_epochs=99999, batch_size=4096, plot=False)
+        runner.train(n_epochs=999999, batch_size=4096, plot=False)
 
 
 def get_ML1_envs_test(name):
     bench = ML1WithPinnedGoal.get_train_tasks(name)
     tasks = [{'task': 0, 'goal': i} for i in range(50)]
-    ret = {}
+    ret = dict()
+    ret_envs = []
+    ret_names = []
     for task in tasks:
         new_bench = bench.clone(bench)
         new_bench.set_task(task)
-        ret[("goal"+str(task['goal']))] = GarageEnv((new_bench.active_env))
-    return ret
+        ret_names.append(("goal"+str(task['goal'])))
+        ret_envs.append(GarageEnv((new_bench.active_env)))
+    return ret_envs, ret_names
 
 
 seeds = random.sample(range(100), 1)
 for seed in seeds:
-    ppo_ml1_reach(seed=seed)
+    ppo_ml1_pick_place(seed=seed)

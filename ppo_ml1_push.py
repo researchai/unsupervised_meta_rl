@@ -34,7 +34,7 @@ MT10_envs_by_id = {
 @wrap_experiment
 def ppo_ml1_pick_place(ctxt=None, seed=1):
 
-    env_id = "pick-place-v1"
+    env_id = "push-v1"
 
     """Run task."""
     set_seed(seed)

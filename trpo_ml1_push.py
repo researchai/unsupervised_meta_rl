@@ -12,13 +12,12 @@ Results:
 """
 import random
 
-import tensorflow as tf
 from garage import wrap_experiment
 from garage.envs import GarageEnv
 from garage.envs.ml1_wrapper import ML1WithPinnedGoal
 from garage.envs.multi_env_wrapper import MultiEnvWrapper, round_robin_strategy
 from garage.experiment.deterministic import set_seed
-from garage.tf.algos import PPO
+from garage.tf.algos import TRPO
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianMLPPolicy
@@ -34,7 +33,7 @@ MT10_envs_by_id = {
 @wrap_experiment
 def ppo_ml1_pick_place(ctxt=None, seed=1):
 
-    env_id = "pick-place-v1"
+    env_id = "push-v1"
 
     """Run task."""
     set_seed(seed)
@@ -42,41 +41,24 @@ def ppo_ml1_pick_place(ctxt=None, seed=1):
         ret_envs, ret_names = get_ML1_envs_test(env_id)
         env = MultiEnvWrapper(ret_envs, ret_names, sample_strategy=round_robin_strategy)
 
-        policy = GaussianMLPPolicy(
-            env_spec=env.spec,
-            hidden_sizes=(64, 64),
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=None,
-        )
+        policy = GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=(64, 64))
 
+        # baseline = LinearFeatureBaseline(env_spec=env.spec)
         baseline = GaussianMLPBaseline(
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(64, 64),
-                use_trust_region=True,
+                use_trust_region=False,
             ),
         )
 
-        algo = PPO(
-            env_spec=env.spec,
-            policy=policy,
-            baseline=baseline,
-            max_path_length=150,
-            discount=0.99,
-            gae_lambda=0.95,
-            lr_clip_range=0.2,
-            optimizer_args=dict(
-                batch_size=32,
-                max_epochs=10,
-                tf_optimizer_args=dict(
-                    learning_rate=3e-4,
-                ),
-            ),
-            stop_entropy_gradient=True,
-            entropy_method='max',
-            policy_ent_coeff=0.002,
-            center_adv=False,
-        )
+        algo = TRPO(env_spec=env.spec,
+                    policy=policy,
+                    baseline=baseline,
+                    max_path_length=150,
+                    discount=0.99,
+                    gae_lambda=0.97,
+                    max_kl_step=0.01)
 
         runner.setup(algo, env)
         runner.train(n_epochs=999999, batch_size=4096, plot=False)
