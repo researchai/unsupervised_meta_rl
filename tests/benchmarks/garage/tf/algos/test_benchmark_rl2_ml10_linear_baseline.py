@@ -22,6 +22,7 @@ from tests.fixtures import snapshot_config
 import tests.helpers as Rh
 
 from garage.envs import RL2Env
+from garage.envs import normalize_reward
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import task_sampler
@@ -50,6 +51,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # True if ML10, false if ML45
 ML10 = True
+is_normalizing_reward = True
 
 hyper_parameters = {
     'meta_batch_size': 50,
@@ -68,7 +70,7 @@ hyper_parameters = {
     'n_trials': 1,
     'n_test_tasks': 5,
     'cell_type': 'gru',
-    'sampler_cls': RaySampler,
+    'sampler_cls': LocalSampler,
     'use_all_workers': True
 }
 
@@ -95,6 +97,8 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                     **ML45_ARGS['train'][task]['kwargs']), max_obs_dim)
                 for (task, env) in ML45_ENVS['train'].items()
             ]
+        import ipdb; ipdb.set_trace()
+
         tasks = task_sampler.EnvPoolSampler(ML_train_envs)
         tasks.grow_pool(hyper_parameters['meta_batch_size'])
         envs = tasks.sample(hyper_parameters['meta_batch_size'])

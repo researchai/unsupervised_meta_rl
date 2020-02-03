@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 
 import tests.helpers as Rh
 
+from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
+
 def plot_garage_vs_promp_multiple_trial():
 	g_x = 'TotalEnvSteps'
 	g_y = 'Evaluation/AverageReturn'
@@ -77,7 +82,8 @@ def plot_garage_variation(b_dir, b_trial, b_name, meta_train=True):
 	           env_id='HalfCheetahVel')
 
 # plot_garage_vs_promp_multiple_trial()
-plot_garage_variation(b_dir='RL2PPO-garage-HalfCheetahDir_individual', b_trial='trial_1_seed_38', b_name='garage-individual', meta_train=False)
+# plot_garage_variation(b_dir='RL2PPO-garage-HalfCheetahDir_individual', b_trial='trial_1_seed_38', b_name='garage-individual', meta_train=False)
 # plot_garage_variation(b_dir='halfcheetahvel-individual', b_trial='trial_1_seed_68', b_name='garage-individual-path', meta_train=False)
 # plot_garage_variation(b_dir='halfcheetahvel-individual', b_trial='trial_1_seed_68', b_name='garage-individual-path', meta_train=False)
-
+import ipdb; ipdb.set_trace()
+x = 1
