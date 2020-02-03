@@ -4,6 +4,7 @@ import tensorflow as tf
 
 def gru(name,
         gru_cells,
+        gru_layers,
         all_input_var,
         step_input_var,
         step_hidden_var,
@@ -49,18 +50,23 @@ def gru(name,
             trainable=hidden_state_init_trainable,
             dtype=tf.float32)
 
-        hidden_init_var_b = tf.broadcast_to(
-            hidden_init_var, shape=[tf.shape(all_input_var)[0], hidden_dim])
+        outputs = all_input_var
+        for gru_layer in gru_layers:
+            outputs = gru_layer(outputs)
+        outputs = output_nonlinearity_layer(outputs)
+        
+        # hidden_init_var_b = tf.broadcast_to(
+        #     hidden_init_var, shape=[tf.shape(all_input_var)[0], hidden_dim])
 
-        def step(hprev, x):
-            h = hprev
-            for gru_cell in gru_cells:
-                x, [h] = gru_cell(x, states=[h])
-            return h
+        # def step(hprev, x):
+        #     h = hprev
+        #     for gru_cell in gru_cells:
+        #         x, [h] = gru_cell(x, states=[h])
+        #     return h
 
-        shuffled_input = tf.transpose(all_input_var, (1, 0, 2))
-        hs = tf.scan(step, elems=shuffled_input, initializer=hidden_init_var_b)
-        hs = tf.transpose(hs, (1, 0, 2))
-        outputs = output_nonlinearity_layer(hs)
+        # shuffled_input = tf.transpose(all_input_var, (1, 0, 2))
+        # hs = tf.scan(step, elems=shuffled_input, initializer=hidden_init_var_b)
+        # hs = tf.transpose(hs, (1, 0, 2))
+        # outputs = output_nonlinearity_layer(hs)
 
     return outputs, output, hidden, hidden_init_var

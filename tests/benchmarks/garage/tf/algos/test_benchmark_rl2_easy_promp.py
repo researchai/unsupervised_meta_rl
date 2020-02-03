@@ -82,17 +82,26 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     def test_benchmark_rl2(self):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         if ML:
-            envs = [ML1.get_train_tasks('push-v1')]
-            env_ids = ['ML1-push-v1']
-            # envs = [ML1.get_train_tasks('reach-v1')]
-            # env_ids = 'ML1-reach-v1'
-            # envs = [ML1.get_train_tasks('pick-place-v1')]
-            # env_ids = 'ML1-pick-place-v1'
+            if env_ind == 2:
+                envs = [ML1.get_train_tasks('push-v1')]
+                env_ids = ['ML1-push-v1']
+            elif env_ind == 3:
+                envs = [ML1.get_train_tasks('reach-v1')]
+                env_ids = 'ML1-reach-v1'
+            elif env_ind == 4:
+                envs = [ML1.get_train_tasks('pick-place-v1')]
+                env_ids = 'ML1-pick-place-v1'
+            else:
+                raise ValueError("Env index is wrong")
         else:
-            envs = [HalfCheetahVelEnv]
-            env_ids = ['HalfCheetahVelEnv']
-            # envs = [HalfCheetahDirEnv]
-            # env_ids = ['HalfCheetahDirEnv']
+            if env_ind == 0:
+                envs = [HalfCheetahVelEnv]
+                env_ids = ['HalfCheetahVelEnv']
+            elif env_ind == 1:
+                envs = [HalfCheetahDirEnv]
+                env_ids = ['HalfCheetahDirEnv']
+            else:
+                raise ValueError("Env index is wrong")
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/rl2/%s/' % timestamp
         result_json = {}
