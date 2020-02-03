@@ -61,7 +61,11 @@ def trpo_mt10(ctxt=None, seed=1):
                     max_path_length=150,
                     discount=0.99,
                     gae_lambda=0.97,
-                    max_kl_step=0.01)
+                    max_kl_step=0.01,
+                    stop_entropy_gradient=True,
+                    entropy_method='max',
+                    policy_ent_coeff=0.002,
+                    center_adv=False,)
 
         runner.setup(algo, env)
         runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150)
