@@ -132,17 +132,18 @@ class MTSAC(OffPolicyRLAlgorithm):
             epoch_local_success_rate = []
             for task_number, name in enumerate(self.env.task_names_ordered):
                 eval_env = self.eval_env_dict[name]
-                _ , avg_success_rate = log_performance(
-                                    runner.step_itr,
-                                    self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
-                                                                                     task_number,
-                                                                                     self._num_tasks,
-                                                                                     self.env._max_plain_dim),
-                                                                    num_trajs=self.num_eval_paths),
-                                    discount=self.discount,
-                                    prefix=name)
+                _, avg_success_rate = log_performance(
+                                        runner.step_itr,
+                                        self._obtain_evaluation_samples(MTEnvEvalWrapper(eval_env,
+                                                                                         task_number,
+                                                                                         self._num_tasks,
+                                                                                         self.env._max_plain_dim),
+                                                                        num_trajs=self.num_eval_paths),
+                                        discount=self.discount,
+                                        prefix=name)
 
-            epoch_local_success_rate.append(avg_success_rate)
+                epoch_local_success_rate.append(avg_success_rate)
+            assert len(epoch_local_success_rate) == self._num_tasks
             self.epoch_mean_success_rate.append(np.mean(epoch_local_success_rate))
             self.epoch_median_success_rate.append(np.median(epoch_local_success_rate))
 
@@ -169,9 +170,22 @@ class MTSAC(OffPolicyRLAlgorithm):
         return 0, policy_loss, qf1_loss, qf2_loss
 
     def get_alpha(self, obs):
-        one_hots = obs[:, :self._num_tasks]
-        alpha = self.log_alpha.detach().exp()
-        return torch.mm(one_hots, alpha.unsqueeze(0).t()).squeeze()
+        with torch.no_grad():
+            one_hots = obs[:, :self._num_tasks]
+            alpha = self.log_alpha.detach().exp()
+            ret = torch.mm(one_hots, alpha.unsqueeze(0).t()).squeeze()
+            assert ret.size() == torch.Size([self.buffer_batch_size])
+            # test works when self.log_alpha inited to [1,2,3,4,5,6,7,8,9,10]
+            # for index, i in enumerate(ret):
+            #     index_one_hot = (one_hots[index] == 1).nonzero().flatten().item()
+            #     try:
+            #         assert (index_one_hot + 1) == int(i.log().item())
+            #     except:
+            #         import ipdb; ipdb.set_trace()
+            #         curr_alpha = float(index_one_hot + 1)
+            #         c_alpha = (i.log().item)
+            # import ipdb; ipdb.set_trace()
+            return ret
 
     def temperature_objective(self, obs, log_pi):
         """
@@ -181,7 +195,9 @@ class MTSAC(OffPolicyRLAlgorithm):
         log_alpha = torch.mm(one_hots, self.log_alpha.unsqueeze(0).t()).squeeze()
         alpha_loss = 0
         if self.use_automatic_entropy_tuning:
-            alpha_loss = ((log_pi.detach() + self.target_entropy) * -log_alpha).mean()
+            alpha_loss = (-log_alpha * (log_pi.detach() + self.target_entropy))
+            assert alpha_loss.size() == torch.Size([self.buffer_batch_size])
+            alpha_loss = alpha_loss.mean()
         return alpha_loss
 
     def actor_objective(self, obs, log_pi, new_actions):
@@ -238,7 +254,6 @@ class MTSAC(OffPolicyRLAlgorithm):
         Returns:
             None
         """
-
         obs = samples["observation"]
 
         qf1_loss, qf2_loss = self.critic_objective(samples)
@@ -269,12 +284,14 @@ class MTSAC(OffPolicyRLAlgorithm):
         return policy_loss, qf1_loss, qf2_loss
 
     def log_statistics(self, policy_loss, qf1_loss, qf2_loss):
-        tabular.record("alpha", torch.exp(self.log_alpha.detach()).mean().item())
+        tabular.record("alpha", self.log_alpha.detach().exp().mean().item())
         tabular.record("policy_loss", policy_loss.item())
         tabular.record("qf_loss/{}".format("qf1_loss"), float(qf1_loss))
         tabular.record("qf_loss/{}".format("qf2_loss"), float(qf2_loss))
         tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
         tabular.record("local/normalized_avg_return", np.mean(self.episode_rewards))
+        for index, alpha in enumerate(self.log_alpha):
+            tabular.record("local/alpha_{i}".format(i=index), float((alpha).detach().exp().item()))
 
     @property
     def networks(self):
