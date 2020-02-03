@@ -68,7 +68,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
     def test_benchmark_maml(self, log_suffix):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-        benchmark_dir = './data/local/benchmarks/maml-ml1-push/%s-%s/' \
+        benchmark_dir = './data/local/benchmarks/mamlppo-ml1-push/%s-%s/' \
                         % (timestamp, log_suffix)
         result_json = {}
         env_id = 'ML1-Push'
