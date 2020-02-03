@@ -31,7 +31,7 @@ MT10_envs_by_id = {
 }
 
 @wrap_experiment
-def ppo_ml1_pick_place(ctxt=None, seed=1):
+def trpo_ml1_pick_place(ctxt=None, seed=1):
 
     env_id = "reach-v1"
 
@@ -80,4 +80,4 @@ def get_ML1_envs_test(name):
 
 seeds = random.sample(range(100), 1)
 for seed in seeds:
-    ppo_ml1_pick_place(seed=seed)
+    trpo_ml1_pick_place(seed=seed)
