@@ -6,7 +6,7 @@ from dowel import tabular
 import numpy as np
 import torch
 
-from garage import log_performance as log_one_update_performance
+from garage import log_multitask_performance as log_one_update_performance
 from garage import TrajectoryBatch
 from garage.misc import tensor_utils
 from garage.np.algos import MetaRLAlgorithm
@@ -89,11 +89,11 @@ class MAML(MetaRLAlgorithm):
 
         return last_return
 
-    def train_once(self, itr, all_samples, all_params):
+    def train_once(self, runner, all_samples, all_params):
         """Train the algorithm once.
 
         Args:
-            itr (int): Iteration number.
+            runner (garage.experiment.LocalRunner): The experiment runner.
             all_samples (list[list[MAMLTrajectoryBatch]]): A two
                 dimensional list of MAMLTrajectoryBatch of size
                 [meta_batch_size * (num_grad_updates + 1)]
@@ -105,6 +105,7 @@ class MAML(MetaRLAlgorithm):
             float: Average return.
 
         """
+        itr = runner.step_itr
         old_theta = dict(self._policy.named_parameters())
 
         kl_before = self._compute_kl_constraint(itr,
@@ -391,7 +392,8 @@ class MAML(MetaRLAlgorithm):
                         for path in task_paths[i].paths
                     ]),
                 discount=self._inner_algo.discount,
-                prefix='Evaluation/Training/Update_{}'.format(i))
+                task_names=self._env.task_names
+            )
 
             if i == self._num_grad_updates:
                 rtns.append(rtn)

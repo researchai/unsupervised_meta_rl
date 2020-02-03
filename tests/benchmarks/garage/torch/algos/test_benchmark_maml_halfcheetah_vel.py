@@ -84,8 +84,8 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
             promp_dir = trial_dir + '/promp'
 
             # Run garage algorithm
-            env = GarageEnv(
-                normalize(HalfCheetahVelEnv(), expected_action_scale=10.))
+            env = GarageEnv(normalize(HalfCheetahVelEnv(),
+                                      expected_action_scale=10.))
             garage_csv = run_garage(env, seed, garage_dir)
 
             with tf.Graph().as_default():

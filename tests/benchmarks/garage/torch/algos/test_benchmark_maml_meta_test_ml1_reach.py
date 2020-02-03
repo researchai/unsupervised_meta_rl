@@ -6,6 +6,7 @@ from dowel import logger, StdOutput, CsvOutput, tabular
 
 from metaworld.benchmarks import ML1WithPinnedGoal
 
+from garage.envs.TaskIdWrapper import TaskIdWrapper
 from garage.experiment import MetaEvaluator, Snapshotter
 from garage.experiment import LocalRunner, SnapshotConfig
 from garage.experiment.task_sampler import SetTaskSampler
