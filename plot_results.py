@@ -12,11 +12,11 @@ def plot_garage_vs_promp_multiple_trial():
 
 	env_id = 'HalfCheetahDirEnv'
 	a = 'garage'
-	a_names = ['halfcheetahdir-fit-first-1', 'halfcheetahdir-fit-first-2', 'halfcheetahdir-fit-first-3']
+	a_names = ['RL2PPO-garage-HalfCheetahDir_0', 'RL2PPO-garage-HalfCheetahDir_1', 'RL2PPO-garage-HalfCheetahDir_2']
 	a_trials = ['trial_1_seed_57', 'trial_1_seed_81', 'trial_1_seed_74']
 	b = 'promp'
-	b_names = ['halfcheetahdir-promp-fit-first-1', 'halfcheetahdir-promp-fit-first-2', 'halfcheetahdir-promp-fit-first-3']
-	b_trials = ['trial_1_seed_14', 'trial_2_seed_95', 'trial_3_seed_16']
+	b_names = ['RL2PPO-ProMP-HalfCheetahDir_0', 'RL2PPO-ProMP-HalfCheetahDir_1', 'RL2PPO-ProMP-HalfCheetahDir_2']
+	b_trials = ['trial_1_seed_81', 'trial_1_seed_10', 'trial_1_seed_58']
 
 	garage_tf_csvs = [
 		'/Users/wongtsankwong/Desktop/garage_results/{}/{}/{}/{}/progress.csv'.format(
@@ -39,7 +39,7 @@ def plot_garage_vs_promp_multiple_trial():
 	           trials=3,
 	           seeds=[0,0,0],
 	           plt_file=plt_file,
-	           env_id='HalfCheetahVel over 3 seeds')
+	           env_id='HalfCheetahDir over 3 seeds')
 
 def plot_garage_variation(b_dir, b_trial, b_name, meta_train=True):
 	g_x = 'TotalEnvSteps'
@@ -48,10 +48,10 @@ def plot_garage_variation(b_dir, b_trial, b_name, meta_train=True):
 	else:
 		g_y = 'MetaTest/AverageReturn'
 
-	env_id = 'HalfCheetahVelEnv'
+	env_id = 'HalfCheetahDirEnv'
 	a = 'garage'
-	a_names = ['halfcheetahvel-fit-first-1', 'halfcheetahvel-fit-first-2', 'halfcheetahvel-fit-first-3']
-	a_trials = ['trial_1_seed_81', 'trial_1_seed_98', 'trial_1_seed_82']
+	a_names = ['RL2PPO-garage-HalfCheetahDir_0', 'RL2PPO-garage-HalfCheetahDir_1', 'RL2PPO-garage-HalfCheetahDir_2']
+	a_trials = ['trial_1_seed_57', 'trial_1_seed_81', 'trial_1_seed_74']
 
 	garage_tf_csvs = [
 		'/Users/wongtsankwong/Desktop/garage_results/{}/{}/{}/{}/progress.csv'.format(
@@ -76,8 +76,8 @@ def plot_garage_variation(b_dir, b_trial, b_name, meta_train=True):
 	           plt_file=plt_file,
 	           env_id='HalfCheetahVel')
 
-plot_garage_vs_promp_multiple_trial()
-# plot_garage_variation(b_dir='halfcheetahvel-fit-after', b_trial='trial_1_seed_46', b_name='garage-fit-after', meta_train=False)
+# plot_garage_vs_promp_multiple_trial()
+plot_garage_variation(b_dir='RL2PPO-garage-HalfCheetahDir_individual', b_trial='trial_1_seed_38', b_name='garage-individual', meta_train=False)
 # plot_garage_variation(b_dir='halfcheetahvel-individual', b_trial='trial_1_seed_68', b_name='garage-individual-path', meta_train=False)
 # plot_garage_variation(b_dir='halfcheetahvel-individual', b_trial='trial_1_seed_68', b_name='garage-individual-path', meta_train=False)
 

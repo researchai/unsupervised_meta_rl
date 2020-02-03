@@ -261,7 +261,7 @@ class LocalRunner:
         if self._plot:
             self._plotter.close()
 
-    def obtain_samples(self, itr, batch_size=None, env_update=None):
+    def obtain_samples(self, itr, batch_size=None, agent_update=None, env_update=None):
         """Obtain one batch of samples.
 
         Args:
@@ -278,15 +278,17 @@ class LocalRunner:
             paths = self._sampler.obtain_samples(
                 itr, (batch_size or self._train_args.batch_size))
         else:
+            if agent_update is None:
+                agent_update = self._algo.policy.get_param_values()
             if self._use_all_worker:
                 paths = self._sampler.obtain_exact_trajectories(
                     n_traj_per_worker=1,
-                    agent_update=self._algo.policy.get_param_values(),
+                    agent_update=agent_update,
                     env_update=env_update)
             else:
                 paths = self._sampler.obtain_samples(
                     itr, (batch_size or self._train_args.batch_size),
-                    agent_update=self._algo.policy.get_param_values(),
+                    agent_update=agent_update,
                     env_update=env_update)
 
             paths = paths.to_trajectory_list()
