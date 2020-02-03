@@ -10,10 +10,12 @@ from garage.tf.regressors.gaussian_cnn_regressor import GaussianCNNRegressor
 from garage.tf.regressors.gaussian_cnn_regressor_model import (
     GaussianCNNRegressorModel)
 from garage.tf.regressors.gaussian_mlp_regressor import GaussianMLPRegressor
+from garage.tf.regressors.gaussian_gru_regressor import GaussianGRURegressor
 
 __all__ = [
     'BernoulliMLPRegressor', 'CategoricalMLPRegressor',
     'ContinuousMLPRegressor', 'GaussianCNNRegressor',
-    'GaussianCNNRegressorModel', 'GaussianMLPRegressor', 'Regressor',
+    'GaussianCNNRegressorModel', 'GaussianGRURegressor',
+    'GaussianMLPRegressor', 'Regressor',
     'StochasticRegressor'
 ]

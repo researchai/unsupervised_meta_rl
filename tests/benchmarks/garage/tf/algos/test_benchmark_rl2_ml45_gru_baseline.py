@@ -26,7 +26,7 @@ from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import task_sampler
 from garage.experiment.snapshotter import SnapshotConfig
-from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
+from garage.tf.baselines import GaussianGRUBaseline
 from garage.tf.algos import RL2
 from garage.tf.algos import RL2PPO
 from garage.tf.experiment import LocalTFRunner
@@ -35,20 +35,11 @@ from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
 
-from maml_zoo.baselines.linear_baseline import LinearFeatureBaseline
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_direc import HalfCheetahRandDirecEnv
-from maml_zoo.envs.rl2_env import rl2env
-from maml_zoo.algos.ppo import PPO
-from maml_zoo.trainer import Trainer
-from maml_zoo.samplers.maml_sampler import MAMLSampler
-from maml_zoo.samplers.rl2_sample_processor import RL2SampleProcessor
-from maml_zoo.policies.gaussian_rnn_policy import GaussianRNNPolicy
-from maml_zoo.logger import logger
-
 from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
+
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
 ML10_ENVS = MEDIUM_MODE_CLS_DICT
 ML45_ARGS = HARD_MODE_ARGS_KWARGS
@@ -75,7 +66,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 20 if ML10 else 50,
+    'n_test_tasks': 5,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -156,9 +147,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                        trials=hyper_parameters['n_trials'],
                        seeds=seeds,
                        plt_file=plt_file,
-                       env_id=env_id,
-                       x_label=g_x,
-                       y_label=g_y)
+                       env_id=env_id)
 
 
 def run_garage(env, envs, tasks, seed, log_dir):
@@ -183,7 +172,12 @@ def run_garage(env, envs, tasks, seed, log_dir):
             env_spec=env.spec,
             state_include_action=False)
 
-        baseline = GarageLinearFeatureBaseline(env_spec=env.spec)
+        baseline = GaussianGRUBaseline(
+            env_spec=env.spec,
+            regressor_args=dict(
+                hidden_dims=hyper_parameters['hidden_sizes'],
+                use_trust_region=False
+            ))
 
         inner_algo = RL2PPO(
             env_spec=env.spec,

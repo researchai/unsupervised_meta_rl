@@ -35,23 +35,18 @@ from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
 
-from maml_zoo.baselines.linear_baseline import LinearFeatureBaseline
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_direc import HalfCheetahRandDirecEnv
-from maml_zoo.envs.rl2_env import rl2env
-from maml_zoo.algos.ppo import PPO
-from maml_zoo.trainer import Trainer
-from maml_zoo.samplers.maml_sampler import MAMLSampler
-from maml_zoo.samplers.rl2_sample_processor import RL2SampleProcessor
-from maml_zoo.policies.gaussian_rnn_policy import GaussianRNNPolicy
-from maml_zoo.logger import logger
-
 from metaworld.benchmarks import ML1
-import os
 
+import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-# If false, run ML else HalfCheetah
-ML = True
+# 0 : HalfCheetahVel
+# 1 : HalfCheetahDir
+# 2 : ML1-push
+# 3 : ML1-reach
+# 4 : ML1-pick-place
+env_ind = 0
+ML = env_ind in [2, 3, 4]
 
 hyper_parameters = {
     'meta_batch_size': 50,
@@ -59,8 +54,8 @@ hyper_parameters = {
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 100 if ML else 50, # total it will run [n_itr * steps_per_epoch] for garage
-    'steps_per_epoch': 10,
+    'n_itr': 1000 if ML else 500, # total it will run [n_itr * steps_per_epoch] for garage
+    'steps_per_epoch': 1,
     'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
@@ -89,17 +84,27 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     def test_benchmark_rl2(self):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         if ML:
-            envs = [ML1.get_train_tasks('push-v1')]
-            env_ids = ['ML1-push-v1']
-            # envs = [ML1.get_train_tasks('reach-v1')]
-            # env_ids = 'ML1-reach-v1'
-            # envs = [ML1.get_train_tasks('pick-place-v1')]
-            # env_ids = 'ML1-pick-place-v1'
+            if env_ind == 2:
+                envs = [ML1.get_train_tasks('push-v1')]
+                env_ids = ['ML1-push-v1']
+            elif env_ind == 3:
+                envs = [ML1.get_train_tasks('reach-v1')]
+                env_ids = 'ML1-reach-v1'
+            elif env_ind == 4:
+                envs = [ML1.get_train_tasks('pick-place-v1')]
+                env_ids = 'ML1-pick-place-v1'
+            else:
+                raise ValueError("Env index is wrong")
         else:
-            envs = [HalfCheetahVelEnv]
-            env_ids = ['HalfCheetahVelEnv']
-            # envs = [HalfCheetahDirEnv]
-            # env_ids = ['HalfCheetahDirEnv']
+            if env_ind == 0:
+                envs = [HalfCheetahVelEnv]
+                env_ids = ['HalfCheetahVelEnv']
+            elif env_ind == 1:
+                envs = [HalfCheetahDirEnv]
+                env_ids = ['HalfCheetahDirEnv']
+            else:
+                raise ValueError("Env index is wrong")
+
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/rl2/%s/' % timestamp
         result_json = {}
@@ -145,7 +150,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
             for g_y in g_ys:
                 plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark_fit_first_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
+                            '{}_benchmark_fit_first_linear_baseline_{}.png'.format(env_ids[i], g_y.replace('/', '-')))
                 Rh.relplot(g_csvs=garage_tf_csvs,
                            b_csvs=None,
                            g_x=g_x,
@@ -157,9 +162,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                            trials=hyper_parameters['n_trials'],
                            seeds=seeds,
                            plt_file=plt_file,
-                           env_id=env_ids[i],
-                           x_label=g_x,
-                           y_label=g_y)
+                           env_id=env_ids[i])
 
 
 def run_garage(env, seed, log_dir):

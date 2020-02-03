@@ -298,7 +298,7 @@ def create_json(b_csvs, g_csvs, trails, seeds, b_x, b_y, g_x, g_y, factor_g,
 
 
 def relplot(g_csvs, b_csvs, g_x, g_y, g_z, b_x, b_y, b_z, trials, seeds,
-            plt_file, env_id, x_label, y_label, g_csvs2=None, g_z2=None):
+            plt_file, env_id, g_csvs2=None, g_z2=None):
     """
     Plot benchmark from csv files of garage from multiple trials using Seaborn.
 

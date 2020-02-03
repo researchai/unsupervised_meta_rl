@@ -35,20 +35,11 @@ from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
 
-from maml_zoo.baselines.linear_baseline import LinearFeatureBaseline
-from maml_zoo.envs.mujoco_envs.half_cheetah_rand_direc import HalfCheetahRandDirecEnv
-from maml_zoo.envs.rl2_env import rl2env
-from maml_zoo.algos.ppo import PPO
-from maml_zoo.trainer import Trainer
-from maml_zoo.samplers.maml_sampler import MAMLSampler
-from maml_zoo.samplers.rl2_sample_processor import RL2SampleProcessor
-from maml_zoo.policies.gaussian_rnn_policy import GaussianRNNPolicy
-from maml_zoo.logger import logger
-
 from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
+
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
 ML10_ENVS = MEDIUM_MODE_CLS_DICT
 ML45_ARGS = HARD_MODE_ARGS_KWARGS
@@ -58,24 +49,24 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # True if ML10, false if ML45
-ML10 = True
+ML10 = False
 
 hyper_parameters = {
     'meta_batch_size': 50,
-    'hidden_sizes': [200, 200],
+    'hidden_sizes': [200, 200, 200],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
     'n_itr': 150, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 10,
-    'rollout_per_task': 20,
+    'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 20 if ML10 else 50,
+    'n_test_tasks': 5,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -156,9 +147,7 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                        trials=hyper_parameters['n_trials'],
                        seeds=seeds,
                        plt_file=plt_file,
-                       env_id=env_id,
-                       x_label=g_x,
-                       y_label=g_y)
+                       env_id=env_id)
 
 
 def run_garage(env, envs, tasks, seed, log_dir):

@@ -52,6 +52,13 @@ class Baseline(abc.ABC):
 
         """
 
+    @property
+    def recurrent(self):
+        return False
+
+    def reset(self, dones):
+        pass
+    
     def log_diagnostics(self, paths):
         """Log diagnostic information.
 

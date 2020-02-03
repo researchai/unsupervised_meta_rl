@@ -175,9 +175,11 @@ class BatchPolopt(RLAlgorithm):
         if hasattr(self.baseline, 'predict_n'):
             all_path_baselines = self.baseline.predict_n(paths)
         else:
-            all_path_baselines = [
-                self.baseline.predict(path) for path in paths
-            ]
+            all_path_baselines = []
+            for path in paths:
+                self.baseline.reset(path['dones'])
+                baseline = self.baseline.predict(path)
+                all_path_baselines.append(baseline)
 
         for idx, path in enumerate(paths):
             total_steps += len(path['rewards'])

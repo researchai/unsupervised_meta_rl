@@ -35,7 +35,6 @@ class RL2NPO2(NPO):
                  center_adv_across_batch=True,
                  name='NPO'):
         self._meta_batch_size = meta_batch_size
-        self._baselines = [copy.deepcopy(baseline) for _ in range(meta_batch_size)]
         super().__init__(env_spec=env_spec,
                          policy=policy,
                          baseline=baseline,
@@ -58,6 +57,21 @@ class RL2NPO2(NPO):
                          entropy_method=entropy_method,
                          center_adv_across_batch=center_adv_across_batch,
                          flatten_input=flatten_input)
+        if baseline.recurrent:
+            self._baselines = [
+                type(baseline)(
+                    env_spec=baseline._mdp_spec,
+                    regressor_args=baseline._regressor_args,
+                    name="{}-{}".format(baseline.name, i))
+                for i in range(meta_batch_size)
+            ]
+        else:
+            self._baselines = [
+                type(baseline)(
+                    env_spec=baseline._mdp_spec,
+                    name="{}-{}".format(baseline.name, i))
+                for i in range(meta_batch_size)
+            ] 
 
     def _fit_baseline_first(self, samples_data):
         """Update baselines from samples and get baseline prediction.
