@@ -15,6 +15,7 @@ import random
 import tensorflow as tf
 from garage.envs import normalize
 from garage.envs.multi_env_wrapper import MultiEnvWrapper, round_robin_strategy
+from garage.envs.multi_env_sampling_wrapper import MultiEnvSamplingWrapper
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
@@ -44,7 +45,7 @@ def ppo_mt10(ctxt=None, seed=1):
     """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        env = MultiEnvWrapper(MT10_envs, env_ids, sample_strategy=round_robin_strategy)
+        env = MultiEnvSamplingWrapper(MT10_envs, env_ids, len(env_ids)-1, sample_strategy=round_robin_strategy)
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
