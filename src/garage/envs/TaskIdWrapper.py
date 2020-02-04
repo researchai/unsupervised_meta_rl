@@ -19,20 +19,9 @@ class TaskIdWrapper(gym.Wrapper):
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
-        obs = self._augment_observation(obs)
         info['task_id'] = self.task_id
         info['task_name'] = self.task_name
-        
         return obs, reward, done, info
-
-    def _augment_observation(self, obs):
-        # optionally zero-pad observation
-        if np.prod(obs.shape) < 9:
-            zeros = np.zeros(
-                shape=(9 - np.prod(obs.shape),)
-            )
-            obs = np.concatenate([obs, zeros])
-        return obs
 
     def set_task(self, task):
         self.env.set_task(task)
@@ -58,6 +47,4 @@ class TaskIdWrapper(gym.Wrapper):
             return tasks_with_goal
         else:
             return tasks
-    
-    def reset(self, **kwargs):
-        return self._augment_observation(self.env.reset(**kwargs))
+
