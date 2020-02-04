@@ -67,7 +67,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
 
     @pytest.mark.huge
-    def test_benchmark_maml(self):  # pylint: disable=no-self-use
+    def test_benchmark_maml(self, _):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/maml-ml45/%s/' % timestamp
