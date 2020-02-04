@@ -204,7 +204,7 @@ def run_garage(env, envs, tasks, seed, log_dir):
             worker_class=RL2Worker,
             sampler_args=dict(
                 use_all_workers=hyper_parameters['use_all_workers'],
-                ))
+                n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
         #################
         # meta evaluator
