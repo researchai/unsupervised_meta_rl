@@ -72,15 +72,16 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
             numpy.ndarray: active task one-hot representation + observation
 
         """
-        while self._active_task_index in self.skipping_samples:
-            self._active_task_index = self._sample_strategy(
-                self._num_tasks, self._active_task_index)
+        while True:
+            self._active_task_index = self._sample_strategy(self._num_tasks, self._active_task_index)
 
-            print ("pick", self._active_task_index)
             if self._active_task_index == self._num_tasks-1:
                 print("this is last index.")
-                self.skipping_samples = [None] + random.sample(range(self._num_tasks), self._num_tasks-self.sample_size)
+                self.skipping_samples = random.sample(range(self._num_tasks), self._num_tasks-self.sample_size)
                 print("repick skipping_samples >> "+str(self.skipping_samples))
+
+            if self._active_task_index not in self.skipping_samples:
+                break
         print("final selected env_id", self._active_task_index)
 
         self.env = self._task_envs[self._active_task_index]
