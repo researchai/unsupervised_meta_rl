@@ -58,7 +58,8 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
     def __init__(self, envs, task_name, sample_size, sample_strategy=uniform_random_strategy):
         super().__init__(envs, task_name, sample_strategy)
         self.sample_size = sample_size
-        self.skipping_samples = []
+        self.skipping_samples = [None] + random.sample(range(self._num_tasks), self._num_tasks-self.sample_size)
+        print(self.skipping_samples)
 
 
     def reset(self, **kwargs):
@@ -78,8 +79,7 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
             print ("pick", self._active_task_index)
             if self._active_task_index == self._num_tasks-1:
                 print("this is last index.")
-                self.skipping_samples = random.sample(range(self._num_tasks),
-                                                      self._num_tasks - self.sample_size)
+                self.skipping_samples = [None] + random.sample(range(self._num_tasks), self._num_tasks-self.sample_size)
                 print("repick skipping_samples >> "+str(self.skipping_samples))
         print("final selected env_id", self._active_task_index)
 
