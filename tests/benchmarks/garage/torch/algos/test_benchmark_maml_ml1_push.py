@@ -5,7 +5,9 @@ until it's done. So we introduced tests.wrappers.AutoStopEnv wrapper to set
 done=True when it reaches max_path_length. We also need to change the
 garage.tf.samplers.BatchSampler to smooth the reward curve.
 """
+import argparse
 import datetime
+import os
 import os.path as osp
 import random
 import sys
@@ -46,13 +48,13 @@ test_promp = False
 hyper_parameters = {
     'hidden_sizes': [100, 100],
     'max_kl': 0.01,
-    'inner_lr': 0.1,
+    'inner_lr': 0.05,
     'gae_lambda': 1.0,
     'discount': 0.99,
-    'max_path_length': 150,
+    'max_path_length': 100,
     'fast_batch_size': 10,  # num of rollouts per task
     'meta_batch_size': 20,  # num of tasks
-    'n_epochs': 350,
+    'n_epochs': 2500,
     # 'n_epochs': 1,
     'n_trials': 3,
     'num_grad_update': 1,
@@ -65,7 +67,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
 
     @pytest.mark.huge
-    def test_benchmark_maml(self):  # pylint: disable=no-self-use
+    def test_benchmark_maml(self, _):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/maml-ml1-push/%s/' % timestamp
@@ -265,10 +267,73 @@ def run_promp(env, seed, log_dir):
     return tabular_log_file
 
 
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        test_garage = sys.argv[1] in ('both', 'garage')
-        test_promp = sys.argv[1] in ('both', 'promp')
+def worker(variant):
+    variant_str = '-'.join(['{}_{}'.format(k, v) for k, v in variant.items()])
+    if 'hidden_sizes' in variant:
+        hidden_sizes = variant['hidden_sizes']
+        variant['hidden_sizes'] = [hidden_sizes, hidden_sizes]
+    hyper_parameters.update(variant)
 
     test_cls = TestBenchmarkMAML()
-    test_cls.test_benchmark_maml()
+    test_cls.test_benchmark_maml(variant_str)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('who', nargs='?')
+    parser.add_argument('--parallel', action='store_true', default=False)
+    parser.add_argument('--combined', action='store_true', default=False)
+
+    known_args, unknown_args = parser.parse_known_args()
+
+    for arg in unknown_args:
+        if arg.startswith('--'):
+            parser.add_argument(arg, type=float)
+
+    args = parser.parse_args()
+    print(args)
+
+    if args.who:
+        test_garage = args.who in ('both', 'garage')
+        test_promp = args.who in ('both', 'promp')
+
+    parallel = args.parallel
+    combined = args.combined
+    args = vars(args)
+    del args['who']
+    del args['parallel']
+    del args['combined']
+
+    n_variants = len(args)
+    if combined:
+        variants = [{
+            k: int(v) if v.is_integer() else v for k, v in args.items()
+        }]
+    else:
+        if n_variants > 0:
+            variants = [{
+                k: int(v) if v.is_integer() else v
+            } for k, v in args.items()]
+        else:
+            variants = [dict(n_trials=1)
+                        for _ in range(hyper_parameters['n_trials'])]
+
+    for key in args:
+        assert key in hyper_parameters, "{} is not a hyperparameter".format(key)
+
+    children = []
+    for i, variant in enumerate(variants):
+        random.seed(i)
+        pid = os.fork()
+        if pid == 0:
+            worker(variant)
+            exit()
+        else:
+            if parallel:
+                children.append(pid)
+            else:
+                os.waitpid(pid, 0)
+
+    if parallel:
+        for child in children:
+            os.waitpid(child, 0)
