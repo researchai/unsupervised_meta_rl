@@ -15,6 +15,7 @@ from torch.nn import functional as F  # NOQA
 #pip install git+https://github.com/rlworkgroup/metaworld.git@master#egg=metaworld
 from metaworld.benchmarks import ML10
 
+from garage.envs import TaskIdWrapper
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
@@ -49,7 +50,7 @@ params = dict(
         num_steps_posterior=0, # number of transitions to collect per task with z ~ posterior
         num_extra_rl_steps_posterior=750, # number of additional transitions to collect per task with z ~ posterior that are only used to train the policy and NOT the encoder
         num_evals=5, # number of independent evals
-        num_steps_per_eval=450,  # nuumber of transitions to eval on
+        num_steps_per_eval=1650,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
         embedding_batch_size=64, # number of transitions in the context batch
         embedding_mini_batch_size=64, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
@@ -111,11 +112,11 @@ class TestBenchmarkPEARL:
 
             benchmark_helper.plot_average_over_trials(
                 [garage_csvs],
-                ys=['SuccessRate'],
+                ys=['Test/Average/SuccessRate'],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
-                y_label='SuccessRate',
+                y_label='Test/Average/SuccessRate',
                 names=['garage_pearl'],
             )
 
@@ -125,7 +126,7 @@ class TestBenchmarkPEARL:
                 seeds=seeds,
                 trials=params['n_trials'],
                 xs=['TotalEnvSteps'],
-                ys=['SuccessRate'],
+                ys=['Test/Average/SuccessRate'],
                 factors=[factor_val],
                 names=['garage_pearl'])
 
@@ -142,8 +143,8 @@ def run_garage(env, seed, log_dir, test_env=None):
     :return:
     '''
     deterministic.set_seed(seed)
-    env = GarageEnv(normalize(env))
-    test_env = GarageEnv(normalize(test_env))
+    env = TaskIdWrapper(GarageEnv(normalize(env)))
+    test_env = TaskIdWrapper(GarageEnv(normalize(test_env)))
     snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
                                      snapshot_mode='gap',
                                      snapshot_gap=10)
@@ -206,7 +207,7 @@ def run_garage(env, seed, log_dir, test_env=None):
         **params['algo_params']
     )
 
-    tu.set_gpu_mode(params['use_gpu'], gpu_id=1)
+    tu.set_gpu_mode(params['use_gpu'], gpu_id=0)
     if params['use_gpu'] == True: 
         pearlsac.to()
 
