@@ -2,7 +2,6 @@
 
 from garage import TrajectoryBatch
 from garage.sampler.sampler import Sampler
-from garage.envs import RL2Env
 
 
 class LocalSampler(Sampler):

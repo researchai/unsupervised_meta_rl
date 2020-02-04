@@ -6,9 +6,11 @@ import collections
 import numpy as np
 import garage
 
-from garage.np.algos import MetaRLAlgorithm
 from dowel import logger, tabular
+from garage import log_multitask_performance
+from garage import TrajectoryBatch
 from garage.misc import tensor_utils as np_tensor_utils
+from garage.np.algos import MetaRLAlgorithm
 
 
 class RL2(MetaRLAlgorithm):
@@ -23,7 +25,7 @@ class RL2(MetaRLAlgorithm):
 
     """
 
-    def __init__(self, *, policy, inner_algo, max_path_length, meta_batch_size, task_sampler, steps_per_epoch=10):
+    def __init__(self, *, policy, inner_algo, max_path_length, meta_batch_size, task_sampler, steps_per_epoch=1):
         assert isinstance(inner_algo, garage.tf.algos.BatchPolopt)
         self._inner_algo = inner_algo
         self._max_path_length = max_path_length
@@ -127,7 +129,7 @@ class RL2(MetaRLAlgorithm):
         for path in paths:
             path['returns'] = np_tensor_utils.discount_cumsum(
                 path['rewards'], self._discount)
-            path['lengths'] = len(path['rewards'])
+            path['lengths'] = [len(path['rewards'])]
             if 'batch_idx' in path:
                 paths_by_task[path['batch_idx']].append(path)            
             elif 'batch_idx' in path['agent_infos']:
@@ -155,18 +157,20 @@ class RL2(MetaRLAlgorithm):
         ent = np.sum(self._policy.distribution.entropy(agent_infos) *
                      valids) / np.sum(valids)
 
+        undiscounted_returns = log_multitask_performance(itr, TrajectoryBatch.from_trajectory_list(self._env_spec, paths), self._inner_algo.discount)
+
         # performance is evaluated across all paths
-        undiscounted_returns = self.evaluate_performance(
-            itr,
-            dict(env_spec=self._env_spec,
-                 observations=_observations,
-                 actions=_actions,
-                 rewards=_rewards,
-                 terminals=_terminals,
-                 env_infos=_env_infos,
-                 agent_infos=_agent_infos,
-                 lengths=_lengths,
-                 discount=self._discount))
+        # undiscounted_returns = self.evaluate_performance(
+        #     itr,
+        #     dict(env_spec=self._env_spec,
+        #          observations=_observations,
+        #          actions=_actions,
+        #          rewards=_rewards,
+        #          terminals=_terminals,
+        #          env_infos=_env_infos,
+        #          agent_infos=_agent_infos,
+        #          lengths=_lengths,
+        #          discount=self._discount))
 
         tabular.record('Entropy', ent)
         tabular.record('Perplexity', np.exp(ent))

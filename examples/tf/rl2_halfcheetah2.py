@@ -9,7 +9,6 @@ from garage.tf.algos import RL2
 from garage.tf.algos import RL2PPO
 from garage.tf.algos import RL2PPO2
 from garage.tf.algos import RL2PPO3
-from garage.tf.algos import RL2PPO4
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
@@ -39,7 +38,7 @@ def run_task(snapshot_config, *_):
         # env2 = RL2Env(env=HalfCheetahDirEnv())
         # env = RL2Env(ML1.get_train_tasks('push-v1'))
         max_path_length = 150
-        meta_batch_size = 2
+        meta_batch_size = 50
         n_epochs = 2
         episode_per_task = 2
         steps_per_epoch = 1
@@ -69,49 +68,6 @@ def run_task(snapshot_config, *_):
                             max_epochs=10,
                          ),
                          stop_entropy_gradient=True)
-        # inner_algo = RL2PPO2(env_spec=env.spec,
-        #                  policy=policy,
-        #                  baseline=baseline,
-        #                  max_path_length=max_path_length * episode_per_task,
-        #                  discount=0.99,
-        #                  gae_lambda=0.95,
-        #                  lr_clip_range=0.2,
-        #                  optimizer_args=dict(
-        #                     batch_size=32,
-        #                     max_epochs=10,
-        #                  ),
-        #                  stop_entropy_gradient=True,
-        #                  meta_batch_size=meta_batch_size,
-        #                  )
-        # inner_algo = RL2PPO3(env_spec=env.spec,
-        #                  policy=policy,
-        #                  baseline=baseline,
-        #                  max_path_length=max_path_length * episode_per_task,
-        #                  discount=0.99,
-        #                  gae_lambda=0.95,
-        #                  lr_clip_range=0.2,
-        #                  optimizer_args=dict(
-        #                     batch_size=32,
-        #                     max_epochs=10,
-        #                  ),
-        #                  stop_entropy_gradient=True,
-        #                  episode_per_task=episode_per_task
-        #                  )
-        # inner_algo = RL2PPO4(env_spec=env.spec,
-        #                  policy=policy,
-        #                  baseline=baseline,
-        #                  max_path_length=max_path_length * episode_per_task,
-        #                  discount=0.99,
-        #                  gae_lambda=0.95,
-        #                  lr_clip_range=0.2,
-        #                  optimizer_args=dict(
-        #                     batch_size=32,
-        #                     max_epochs=10,
-        #                  ),
-        #                  stop_entropy_gradient=True,
-        #                  meta_batch_size=meta_batch_size,
-        #                  episode_per_task=episode_per_task
-        #                  )
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,

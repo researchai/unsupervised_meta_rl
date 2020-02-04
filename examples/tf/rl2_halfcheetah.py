@@ -7,6 +7,7 @@ from garage.experiment import task_sampler
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import RL2
 from garage.tf.algos import RL2PPO
+from garage.tf.algos import RL2TRPO
 from garage.tf.algos import RL2PPO2
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
@@ -53,18 +54,16 @@ def run_task(snapshot_config, *_):
 
         baseline = LinearFeatureBaseline(env_spec=env_spec)
 
-        inner_algo = RL2PPO(env_spec=env_spec,
+        inner_algo = RL2TRPO(env_spec=env_spec,
                          policy=policy,
                          baseline=baseline,
                          max_path_length=max_path_length * episode_per_task,
                          discount=0.99,
+                         max_kl_step=0.01,
+                         optimizer=ConjugateGradientOptimizer,
                          gae_lambda=0.95,
-                         lr_clip_range=0.2,
-                         optimizer_args=dict(
-                            batch_size=32,
-                            max_epochs=10,
-                         ),
-                         stop_entropy_gradient=True)
+                         optimizer_args=dict(hvp_approach=FiniteDifferenceHvp(
+                         base_eps=1e-5)))
 
         algo = RL2(policy=policy,
                    inner_algo=inner_algo,
@@ -79,9 +78,9 @@ def run_task(snapshot_config, *_):
                      n_workers=meta_batch_size,
                      worker_class=RL2Worker)
 
-        runner.setup_meta_evaluator(test_task_sampler=tasks,
-                                    sampler_cls=LocalSampler,
-                                    n_test_tasks=n_test_tasks)
+        # runner.setup_meta_evaluator(test_task_sampler=tasks,
+        #                             sampler_cls=LocalSampler,
+        #                             n_test_tasks=n_test_tasks)
 
         runner.train(n_epochs=n_epochs,
                      batch_size=episode_per_task * max_path_length *

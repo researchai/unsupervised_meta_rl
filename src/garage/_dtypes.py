@@ -195,19 +195,19 @@ class TrajectoryBatch(
                 'of dtype {} instead.'.format(terminals.dtype))
 
         # env_infos
-        for key, val in env_infos.items():
-            if not isinstance(val, (dict, np.ndarray)):
-                raise ValueError(
-                    'Each entry in env_infos must be a numpy array or '
-                    'dictionary, but got key {} with value type {} instead.'.
-                    format(key, type(val)))
+        # for key, val in env_infos.items():
+            # if not isinstance(val, (dict, np.ndarray)):
+                # raise ValueError(
+                    # 'Each entry in env_infos must be a numpy array or '
+                    # 'dictionary, but got key {} with value type {} instead.'.
+                    # format(key, type(val)))
 
-            if (isinstance(val, np.ndarray)
-                    and val.shape[0] != inferred_batch_size):
-                raise ValueError(
-                    'Each entry in env_infos must have a batch dimension of '
-                    'length {}, but got key {} with batch size {} instead.'.
-                    format(inferred_batch_size, key, val.shape[0]))
+            # if (isinstance(val, np.ndarray)
+                    # and val.shape[0] != inferred_batch_size):
+                # raise ValueError(
+                    # 'Each entry in env_infos must have a batch dimension of '
+                    # 'length {}, but got key {} with batch size {} instead.'.
+                    # format(inferred_batch_size, key, val.shape[0]))
 
         # agent_infos
         for key, val in agent_infos.items():

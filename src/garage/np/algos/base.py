@@ -4,8 +4,6 @@ import abc
 import numpy as np
 from dowel import tabular
 
-from garage import TrajectoryBatch
-
 from garage.misc import tensor_utils as np_tensor_utils
 
 
@@ -66,7 +64,7 @@ class RLAlgorithm(abc.ABC):
             numpy.ndarray: Undiscounted returns.
 
         """
-        log_multitask_performance(TrajectoryBatch.from_trajectory_list(batch), self.discount)
+        # log_multitask_performance(TrajectoryBatch.from_trajectory_list(batch['env_spec'], batch), self.discount)
         returns = []
         for reward in batch['rewards']:
             rtn = np_tensor_utils.discount_cumsum(reward, batch['discount'])

@@ -35,42 +35,36 @@ from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
+from garage.envs.TaskIdWrapper import TaskIdWrapper
 
-from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
-from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
 ML10_ENVS = MEDIUM_MODE_CLS_DICT
-ML45_ARGS = HARD_MODE_ARGS_KWARGS
-ML45_ENVS = HARD_MODE_CLS_DICT
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-# True if ML10, false if ML45
-ML10 = True
-is_normalizing_reward = True
 
 hyper_parameters = {
-    'meta_batch_size': 50,
+    'meta_batch_size': 40,
     'hidden_sizes': [200, 200],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 150, # total it will run [n_itr * steps_per_epoch] for garage
-    'steps_per_epoch': 10,
-    'rollout_per_task': 20,
+    'n_itr': 1500, # total it will run [n_itr * steps_per_epoch] for garage
+    'steps_per_epoch': 1,
+    'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 5,
+    # 'n_test_tasks': 5,
     'cell_type': 'gru',
-    'sampler_cls': LocalSampler,
+    'sampler_cls': RaySampler,
     'use_all_workers': True
 }
 
@@ -80,25 +74,12 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     @pytest.mark.huge
     def test_benchmark_rl2(self):  # pylint: disable=no-self-use
         """Compare benchmarks between garage and baselines."""
-        if ML10:
-            env_id = 'ML10'
-            ML_train_envs = [
-                RL2Env(env(*ML10_ARGS['train'][task]['args'],
-                    **ML10_ARGS['train'][task]['kwargs']))
-                for (task, env) in ML10_ENVS['train'].items()
-            ]
-        else:
-            # test set has a higher max_obs_dim
-            env_obs_dim = [env().observation_space.shape[0] for (_, env) in ML45_ENVS['test'].items()]
-            max_obs_dim = max(env_obs_dim)
-            env_id = 'ML45'
-            ML_train_envs = [
-                RL2Env(env(*ML45_ARGS['train'][task]['args'],
-                    **ML45_ARGS['train'][task]['kwargs']), max_obs_dim)
-                for (task, env) in ML45_ENVS['train'].items()
-            ]
-        import ipdb; ipdb.set_trace()
-
+        env_id = 'ML10'
+        ML_train_envs = [
+            TaskIdWrapper(RL2Env(env(*ML10_ARGS['train'][task]['args'],
+                **ML10_ARGS['train'][task]['kwargs'])), task_id=task_id, task_name=task)
+            for (task_id, (task, env)) in enumerate(ML10_ENVS['train'].items())
+        ]
         tasks = task_sampler.EnvPoolSampler(ML_train_envs)
         tasks.grow_pool(hyper_parameters['meta_batch_size'])
         envs = tasks.sample(hyper_parameters['meta_batch_size'])
@@ -133,8 +114,6 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
         g_ys = [
             'Evaluation/AverageReturn',
             'Evaluation/SuccessRate',
-            'MetaTest/AverageReturn',
-            'MetaTest/SuccessRate'
         ]
 
         for g_y in g_ys:
@@ -222,26 +201,17 @@ def run_garage(env, envs, tasks, seed, log_dir):
 
         #################
         # meta evaluator
-        if ML10:
-            ML_test_envs = [
-                RL2Env(env(*ML10_ARGS['test'][task]['args'],
-                    **ML10_ARGS['test'][task]['kwargs']))
-                for (task, env) in ML10_ENVS['test'].items()
-            ]
-        else:
-            # test set has a higher max_obs_dim
-            env_obs_dim = [env().observation_space.shape[0] for (_, env) in ML45_ENVS['test'].items()]
-            max_obs_dim = max(env_obs_dim)
-            ML_test_envs = [
-                RL2Env(env(*ML45_ARGS['test'][task]['args'],
-                    **ML45_ARGS['test'][task]['kwargs']), max_obs_dim)
-                for (task, env) in ML45_ENVS['test'].items()
-            ]
-        test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
-        test_tasks.grow_pool(hyper_parameters['n_test_tasks'])
-        runner.setup_meta_evaluator(test_task_sampler=test_tasks,
-                                    sampler_cls=hyper_parameters['sampler_cls'],
-                                    n_test_tasks=hyper_parameters['n_test_tasks'])
+        # if ML10:
+        #     ML_test_envs = [
+        #         TaskIdWrapper(RL2Env(env(*ML10_ARGS['test'][task]['args'],
+        #             **ML10_ARGS['test'][task]['kwargs'])), task_id=task_id, task_name=task)
+        #         for (task_id, (task, env)) in enumerate(ML10_ENVS['test'].items())
+        #     ]
+        # test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
+        # test_tasks.grow_pool(hyper_parameters['n_test_tasks'])
+        # runner.setup_meta_evaluator(test_task_sampler=test_tasks,
+        #                             sampler_cls=hyper_parameters['sampler_cls'],
+        #                             n_test_tasks=hyper_parameters['n_test_tasks'])
         #################
 
         runner.train(n_epochs=hyper_parameters['n_itr'],

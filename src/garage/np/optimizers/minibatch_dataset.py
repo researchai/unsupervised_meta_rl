@@ -31,16 +31,18 @@ class BatchDataset:
             if update:
                 self.update()
 
-    def iterate_meta(self, update=True):
-        if self._batch_size is None:
-            yield list(self._inputs) + list(self._extra_inputs)
-        else:
-            for i in range(0, self._inputs[0].shape[1], self._batch_size):
-                n_i = i + self._batch_size
-                batch = [d[:, i:n_i] for d in self._inputs]
-                yield list(batch) + list(self._extra_inputs)
-            if update:
-                self.update()
+    # def iterate_meta(self, update=True):
+    #     if self._batch_size is None:
+    #         yield list(self._inputs) + list(self._extra_inputs)
+    #     else:
+    #         for i in range(0, self._inputs[0].shape[1], self._batch_size):
+    #             n_i = i + self._batch_size
+    #             batch = [d[:, i:n_i] for d in self._inputs]
+    #             import pdb
+    #             pdb.set_trace()
+    #             yield list(batch) + list(self._extra_inputs)
+    #         if update:
+    #             self.update()
 
     def update(self):
         np.random.shuffle(self._ids)

@@ -1,5 +1,9 @@
 """Evaluator which tests Meta-RL algorithms on test environments."""
-from garage import log_performance, TrajectoryBatch
+from dowel import tabular
+
+
+from garage import log_multitask_performance, TrajectoryBatch
+from garage.sampler import LocalSampler
 
 
 class MetaEvaluator:
@@ -36,11 +40,12 @@ class MetaEvaluator:
                  max_path_length,
                  sampler_cls=None,
                  n_test_tasks=None,
-                 n_exploration_traj=1,
-                 prefix='MetaTest'):
+                 n_exploration_traj=10,
+                 prefix='MetaTest',
+                 task_name_map={}):
         self._test_task_sampler = test_task_sampler
         if n_test_tasks is None:
-            n_test_tasks = test_task_sampler.n_tasks
+            n_test_tasks = 10 * test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
         self._n_exploration_traj = n_exploration_traj
         env = test_task_sampler.sample(1)[0]()
@@ -48,6 +53,7 @@ class MetaEvaluator:
             sampler_cls=sampler_cls, n_workers=1, max_path_length=max_path_length, env=env)
         self._eval_itr = 0
         self._prefix = prefix
+        self._task_name_map = task_name_map
 
     def evaluate(self, algo):
         """Evaluate the Meta-RL algorithm on the test tasks.
@@ -68,8 +74,10 @@ class MetaEvaluator:
             adapted_traj = self._test_sampler.obtain_samples(
                 self._eval_itr, 1, adapted_policy.get_param_values())
             adapted_trajectories.append(adapted_traj)
-        log_performance(self._eval_itr,
-                        TrajectoryBatch.concatenate(*adapted_trajectories),
-                        getattr(algo, 'discount', 1.0),
-                        prefix=self._prefix)
+        with tabular.prefix(self._prefix + '/'):
+            log_multitask_performance(self._eval_itr,
+                                      TrajectoryBatch.concatenate(
+                                          *adapted_trajectories),
+                                      getattr(algo, 'discount', 1.0),
+                                      self._task_name_map)
         self._eval_itr += 1

@@ -29,6 +29,7 @@ from garage.experiment.snapshotter import SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
 from garage.tf.algos import RL2
 from garage.tf.algos import RL2PPO
+from garage.tf.algos import RL2TRPO
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
@@ -49,14 +50,14 @@ env_ind = 0
 ML = env_ind in [2, 3, 4]
 
 hyper_parameters = {
-    'meta_batch_size': 50,
+    'meta_batch_size': 2,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 1000 if ML else 500, # total it will run [n_itr * steps_per_epoch] for garage
+    'n_itr': 1000 if ML else 2, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 1,
-    'rollout_per_task': 10,
+    'rollout_per_task': 2,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
@@ -138,13 +139,13 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 g_ys = [
                     'Evaluation/AverageReturn',
                     'Evaluation/SuccessRate',
-                    'MetaTest/AverageReturn',
-                    'MetaTest/SuccessRate'
+                    # 'MetaTest/AverageReturn',
+                    # 'MetaTest/SuccessRate'
                 ]
             else:
                 g_ys = [
                     'Evaluation/AverageReturn',
-                    'MetaTest/AverageReturn'
+                    # 'MetaTest/AverageReturn'
                 ]
 
 
@@ -232,9 +233,9 @@ def run_garage(env, seed, log_dir):
                         use_all_workers=hyper_parameters['use_all_workers'],
                         n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
-        runner.setup_meta_evaluator(test_task_sampler=task_samplers,
-                                    sampler_cls=hyper_parameters['sampler_cls'],
-                                    n_test_tasks=hyper_parameters['n_test_tasks'])
+        # runner.setup_meta_evaluator(test_task_sampler=task_samplers,
+        #                             sampler_cls=hyper_parameters['sampler_cls'],
+        #                             n_test_tasks=hyper_parameters['n_test_tasks'])
 
         runner.train(n_epochs=hyper_parameters['n_itr'],
             batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])

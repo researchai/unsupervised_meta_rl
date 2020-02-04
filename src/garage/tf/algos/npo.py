@@ -104,7 +104,6 @@ class NPO(BatchPolopt):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 center_adv_across_batch=True,
                  name='NPO'):
         self._name = name
         self._name_scope = tf.name_scope(self._name)
@@ -112,7 +111,6 @@ class NPO(BatchPolopt):
         self._use_neg_logli_entropy = use_neg_logli_entropy
         self._stop_entropy_gradient = stop_entropy_gradient
         self._pg_loss = pg_loss
-        self._center_adv_across_batch = center_adv_across_batch
         if optimizer is None:
             if optimizer_args is None:
                 optimizer_args = dict()
@@ -401,10 +399,7 @@ class NPO(BatchPolopt):
             eps = tf.constant(1e-8, dtype=tf.float32)
             if self.center_adv:
                 if self.policy.recurrent:
-                    if self._center_adv_across_batch:
-                        adv = center_advs(adv, axes=[0], eps=eps)
-                    else:
-                        adv = center_advs_local(adv, axes=[1], eps=eps, max_len=self.max_path_length)
+                    adv = center_advs(adv, axes=[0], eps=eps)
                 else:
                     adv_valid = center_advs(adv_valid, axes=[0], eps=eps)
 
