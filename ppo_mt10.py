@@ -36,7 +36,7 @@ env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT10_envs = [TfEnv(normalize(MT10_envs_by_id[i], normalize_reward=True)) for i in env_ids]
+MT10_envs = [TfEnv(MT10_envs_by_id[i]) for i in env_ids]
 
 @wrap_experiment
 def ppo_mt10(ctxt=None, seed=1):
@@ -76,16 +76,10 @@ def ppo_mt10(ctxt=None, seed=1):
                     learning_rate=3e-4,
                 ),
             ),
-            stop_entropy_gradient=True,
-            entropy_method='max',
-            policy_ent_coeff=0.002,
-            center_adv=False,
         )
 
         runner.setup(algo, env)
         runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150, plot=False)
 
 
-seeds = random.sample(range(100), 1)
-for seed in seeds:
-    ppo_mt10(seed=seed)
+ppo_mt10(seed=375)
