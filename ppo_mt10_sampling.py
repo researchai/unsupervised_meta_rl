@@ -42,7 +42,7 @@ skip_size = 1
 total_steps = 20000000
 
 @wrap_experiment
-def ppo_mt10(ctxt=None, seed=1):
+def ppo_mt10_sampling(ctxt=None, seed=1):
 
     """Run task."""
     set_seed(seed)
@@ -90,4 +90,4 @@ def ppo_mt10(ctxt=None, seed=1):
         runner.train(n_epochs=epochs, batch_size=batch_size, plot=False)
 
 
-ppo_mt10(seed=931)
+ppo_mt10_sampling(seed=931)
