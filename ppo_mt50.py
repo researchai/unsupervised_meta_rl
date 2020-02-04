@@ -100,7 +100,7 @@ def ppo_mt50(ctxt=None, seed=1):
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
             hidden_sizes=(64, 64),
-            hidden_nonlinearity=tf.nn.relu,
+            hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
         )
 
@@ -108,7 +108,7 @@ def ppo_mt50(ctxt=None, seed=1):
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(64, 64),
-                use_trust_region=True,
+                use_trust_region=False,
             ),
         )
 
@@ -118,7 +118,7 @@ def ppo_mt50(ctxt=None, seed=1):
             baseline=baseline,
             max_path_length=150,
             discount=0.99,
-            gae_lambda=0.95,
+            gae_lambda=0.97,
             lr_clip_range=0.2,
             optimizer_args=dict(
                 batch_size=32,
