@@ -81,7 +81,7 @@ def ppo_mt10(ctxt=None, seed=1):
             ),
         )
 
-        batch_size = len(env_ids)-skip_size*10*150
+        batch_size = (len(env_ids)-skip_size)*10*150
         epochs = (total_steps//batch_size)+10
 
         print ("epochs:", epochs, "batch_size:", batch_size)
