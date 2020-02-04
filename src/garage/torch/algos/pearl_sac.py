@@ -11,6 +11,7 @@ from dowel import logger, tabular
 import numpy as np
 import torch
 
+from garage import log_performance, log_multitask_performance, TrajectoryBatch
 from garage.misc.tensor_utils import discount_cumsum
 from garage.np.algos.meta_rl_algorithm import MetaRLAlgorithm
 from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
@@ -466,7 +467,7 @@ class PEARLSAC(MetaRLAlgorithm):
             indices, False)
         """
         # eval test tasks
-        self.get_average_returns(self._test_tasks_idx, True)
+        self.get_average_returns(self._test_tasks_idx, True, epoch)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
@@ -487,7 +488,7 @@ class PEARLSAC(MetaRLAlgorithm):
         tabular.record('TotalTrainSteps', self._total_train_steps)
         tabular.record('TotalEnvSteps', self._total_env_steps)
 
-    def get_average_returns(self, indices, test):
+    def get_average_returns(self, indices, test, epoch):
         """Get average returns for specific tasks.
 
         Args:
@@ -502,16 +503,23 @@ class PEARLSAC(MetaRLAlgorithm):
         undiscounted_returns = []
         completion = []
         success = []
+        eval_paths = []
         for idx in indices:
             for _ in range(self._num_evals):
                 paths = self.collect_paths(idx, test)
+                paths[-1]['dones'] = paths[-1]['terminals']
+                eval_paths.append(paths[-1])
+
                 discounted_returns.append(discount_cumsum(paths[-1]['rewards'], self._discount))
                 undiscounted_returns.append(sum(paths[-1]['rewards']))
                 completion.append(float(paths[-1]['terminals'].any()))
                 # calculate success rate for metaworld tasks
                 if 'success' in paths[-1]['env_infos']:
                     success.append(paths[-1]['env_infos']['success'].any())
+        
+        traj = TrajectoryBatch.from_trajectory_list(self.env, eval_paths)
 
+        """
         avg_discounted_return = np.mean([rtn[0] for rtn in discounted_returns])
         tabular.record('NumTrajs', len(discounted_returns))
         tabular.record('AverageDiscountedReturn', avg_discounted_return)
@@ -522,6 +530,9 @@ class PEARLSAC(MetaRLAlgorithm):
         tabular.record('CompletionRate', np.mean(completion))
         if success:
             tabular.record('SuccessRate', np.mean(success))
+        """
+
+        log_multitask_performance(epoch, traj, self._discount)
 
     def obtain_samples(self,
                        num_samples,

@@ -1,8 +1,24 @@
 """Functions exposed directly in the garage namespace."""
+from collections import defaultdict
+
 from dowel import tabular
 import numpy as np
 
+import garage
 from garage.misc.tensor_utils import discount_cumsum
+
+
+def log_multitask_performance(itr, batch, discout, name_map={}):
+    traj_by_name = defaultdict(list)
+    for trajectory in batch.split():
+        try:
+            task_name = trajectory.env_infos['task_name'][0]
+        except KeyError:
+            task_name = name_map[trajectory.env_infos['task_id'][0]]
+        traj_by_name[task_name].append(trajectory)
+    for (task_name, trajectories) in traj_by_name.items():
+        log_performance(itr, garage.TrajectoryBatch.concatenate(*trajectories),
+                        discout, prefix=task_name)
 
 
 def log_performance(itr, batch, discount, prefix='Evaluation'):
