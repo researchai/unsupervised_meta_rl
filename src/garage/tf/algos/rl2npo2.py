@@ -32,7 +32,6 @@ class RL2NPO2(NPO):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 center_adv_across_batch=True,
                  name='NPO'):
         self._meta_batch_size = meta_batch_size
         super().__init__(env_spec=env_spec,
@@ -55,7 +54,6 @@ class RL2NPO2(NPO):
                          use_neg_logli_entropy=use_neg_logli_entropy,
                          stop_entropy_gradient=stop_entropy_gradient,
                          entropy_method=entropy_method,
-                         center_adv_across_batch=center_adv_across_batch,
                          flatten_input=flatten_input)
         if baseline.recurrent:
             self._baselines = [

@@ -45,11 +45,11 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 # 2 : ML1-push
 # 3 : ML1-reach
 # 4 : ML1-pick-place
-env_ind = 0
+env_ind = 2
 ML = env_ind in [2, 3, 4]
 
 hyper_parameters = {
-    'meta_batch_size': 50,
+    'meta_batch_size': 40,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
@@ -89,10 +89,10 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 env_ids = ['ML1-push-v1']
             elif env_ind == 3:
                 envs = [ML1.get_train_tasks('reach-v1')]
-                env_ids = 'ML1-reach-v1'
+                env_ids = ['ML1-reach-v1']
             elif env_ind == 4:
                 envs = [ML1.get_train_tasks('pick-place-v1')]
-                env_ids = 'ML1-pick-place-v1'
+                env_ids = ['ML1-pick-place-v1']
             else:
                 raise ValueError("Env index is wrong")
         else:
@@ -138,13 +138,13 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 g_ys = [
                     'Evaluation/AverageReturn',
                     'Evaluation/SuccessRate',
-                    'MetaTest/AverageReturn',
-                    'MetaTest/SuccessRate'
+                    # 'MetaTest/AverageReturn',
+                    # 'MetaTest/SuccessRate'
                 ]
             else:
                 g_ys = [
                     'Evaluation/AverageReturn',
-                    'MetaTest/AverageReturn'
+                    # 'MetaTest/AverageReturn'
                 ]
 
 

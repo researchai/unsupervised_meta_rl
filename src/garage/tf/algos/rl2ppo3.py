@@ -33,7 +33,6 @@ class RL2PPO3(RL2NPO3):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 center_adv_across_batch=True,
                  name='PPO'):
         if optimizer is None:
             optimizer = FirstOrderOptimizer
@@ -61,5 +60,4 @@ class RL2PPO3(RL2NPO3):
                          stop_entropy_gradient=stop_entropy_gradient,
                          entropy_method=entropy_method,
                          flatten_input=flatten_input,
-                         center_adv_across_batch=center_adv_across_batch,
                          name=name)

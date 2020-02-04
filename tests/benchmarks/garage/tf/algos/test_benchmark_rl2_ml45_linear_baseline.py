@@ -179,13 +179,16 @@ def run_garage(env, envs, tasks, seed, log_dir):
             )
         )
 
+        # Need to pass this if meta_batch_size < num_of_tasks
+        task_names = list(ML45_ENVS['train'].keys())
         algo = RL2(
             policy=policy,
             inner_algo=inner_algo,
             max_path_length=hyper_parameters['max_path_length'],
             meta_batch_size=hyper_parameters['meta_batch_size'],
             task_sampler=tasks,
-            steps_per_epoch=hyper_parameters['steps_per_epoch'])
+            steps_per_epoch=hyper_parameters['steps_per_epoch'],
+            task_names=None if hyper_parameters['meta_batch_size'] >= len(task_names) else task_names)
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')

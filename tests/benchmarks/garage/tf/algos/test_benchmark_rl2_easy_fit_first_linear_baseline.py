@@ -46,18 +46,18 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 # 2 : ML1-push
 # 3 : ML1-reach
 # 4 : ML1-pick-place
-env_ind = 0
+env_ind = 2
 ML = env_ind in [2, 3, 4]
 
 hyper_parameters = {
-    'meta_batch_size': 2,
+    'meta_batch_size': 40,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 1000 if ML else 2, # total it will run [n_itr * steps_per_epoch] for garage
+    'n_itr': 1000 if ML else 500, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 1,
-    'rollout_per_task': 2,
+    'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
@@ -90,10 +90,10 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 env_ids = ['ML1-push-v1']
             elif env_ind == 3:
                 envs = [ML1.get_train_tasks('reach-v1')]
-                env_ids = 'ML1-reach-v1'
+                env_ids = ['ML1-reach-v1']
             elif env_ind == 4:
                 envs = [ML1.get_train_tasks('pick-place-v1')]
-                env_ids = 'ML1-pick-place-v1'
+                env_ids = ['ML1-pick-place-v1']
             else:
                 raise ValueError("Env index is wrong")
         else:

@@ -25,7 +25,7 @@ class RL2(MetaRLAlgorithm):
 
     """
 
-    def __init__(self, *, policy, inner_algo, max_path_length, meta_batch_size, task_sampler, steps_per_epoch=1):
+    def __init__(self, *, policy, inner_algo, max_path_length, meta_batch_size, task_sampler, steps_per_epoch=1, task_names=None):
         assert isinstance(inner_algo, garage.tf.algos.BatchPolopt)
         self._inner_algo = inner_algo
         self._max_path_length = max_path_length
@@ -36,6 +36,7 @@ class RL2(MetaRLAlgorithm):
         self._meta_batch_size = meta_batch_size
         self._task_sampler = task_sampler
         self._steps_per_epoch = steps_per_epoch
+        self._task_names = task_names
 
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
@@ -130,6 +131,8 @@ class RL2(MetaRLAlgorithm):
             path['returns'] = np_tensor_utils.discount_cumsum(
                 path['rewards'], self._discount)
             path['lengths'] = [len(path['rewards'])]
+            # import pdb
+            # pdb.set_trace()
             if 'batch_idx' in path:
                 paths_by_task[path['batch_idx']].append(path)            
             elif 'batch_idx' in path['agent_infos']:
@@ -157,7 +160,10 @@ class RL2(MetaRLAlgorithm):
         ent = np.sum(self._policy.distribution.entropy(agent_infos) *
                      valids) / np.sum(valids)
 
-        undiscounted_returns = log_multitask_performance(itr, TrajectoryBatch.from_trajectory_list(self._env_spec, paths), self._inner_algo.discount)
+        undiscounted_returns = log_multitask_performance(itr,
+            TrajectoryBatch.from_trajectory_list(self._env_spec, paths),
+            self._inner_algo.discount,
+            task_names=self._task_names)
 
         # performance is evaluated across all paths
         # undiscounted_returns = self.evaluate_performance(

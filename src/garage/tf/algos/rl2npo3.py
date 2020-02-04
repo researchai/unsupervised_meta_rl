@@ -35,7 +35,6 @@ class RL2NPO3(NPO):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 center_adv_across_batch=True,
                  name='NPO'):
         self._episode_per_task = episode_per_task
         super().__init__(env_spec=env_spec,
@@ -58,7 +57,6 @@ class RL2NPO3(NPO):
                          use_neg_logli_entropy=use_neg_logli_entropy,
                          stop_entropy_gradient=stop_entropy_gradient,
                          entropy_method=entropy_method,
-                         center_adv_across_batch=center_adv_across_batch,
                          flatten_input=flatten_input)
 
     def _fit_baseline_first(self, samples_data):
