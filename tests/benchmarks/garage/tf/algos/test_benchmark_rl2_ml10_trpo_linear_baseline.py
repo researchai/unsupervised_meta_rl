@@ -29,13 +29,15 @@ from garage.experiment import task_sampler
 from garage.experiment.snapshotter import SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
 from garage.tf.algos import RL2
-from garage.tf.algos import RL2PPO
+from garage.tf.algos import RL2TRPO
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
 from garage.envs.TaskIdWrapper import TaskIdWrapper
+from garage.tf.optimizers import ConjugateGradientOptimizer
+from garage.tf.optimizers import FiniteDifferenceHvp
 
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
@@ -157,7 +159,7 @@ def run_garage(env, envs, tasks, seed, log_dir):
 
         baseline = GarageLinearFeatureBaseline(env_spec=env.spec)
 
-        inner_algo = RL2PPO(
+        inner_algo = RL2TRPO(
             env_spec=env.spec,
             policy=policy,
             baseline=baseline,
@@ -165,12 +167,10 @@ def run_garage(env, envs, tasks, seed, log_dir):
             discount=hyper_parameters['discount'],
             gae_lambda=hyper_parameters['gae_lambda'],
             lr_clip_range=hyper_parameters['lr_clip_range'],
-            optimizer_args=dict(
-                max_epochs=hyper_parameters['optimizer_max_epochs'],
-                tf_optimizer_args=dict(
-                    learning_rate=hyper_parameters['optimizer_lr'],
-                ),
-            )
+            max_kl_step=0.01,
+            optimizer=ConjugateGradientOptimizer,
+            optimizer_args=dict(hvp_approach=FiniteDifferenceHvp(
+                base_eps=1e-5))
         )
 
         # Need to pass this if meta_batch_size < num_of_tasks
