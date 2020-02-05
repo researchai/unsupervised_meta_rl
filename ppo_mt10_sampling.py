@@ -13,7 +13,7 @@ Results:
 import random
 
 import tensorflow as tf
-from garage.envs import normalize
+from garage.envs import normalize, normalize_reward
 from garage.envs.multi_env_wrapper import MultiEnvWrapper, round_robin_strategy
 from garage.envs.multi_env_sampling_wrapper import MultiEnvSamplingWrapper
 from garage.experiment.deterministic import set_seed
@@ -37,7 +37,7 @@ env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT10_envs = [TfEnv(MT10_envs_by_id[i]) for i in env_ids]
+MT10_envs = [TfEnv(normalize_reward(MT10_envs_by_id[i])) for i in env_ids]
 skip_size = 1
 total_steps = 20000000
 
