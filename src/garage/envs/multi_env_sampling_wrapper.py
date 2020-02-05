@@ -58,8 +58,7 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
     def __init__(self, envs, task_name, sample_size, sample_strategy=uniform_random_strategy):
         super().__init__(envs, task_name, sample_strategy)
         self.sample_size = sample_size
-        self.skipping_samples = [None] + random.sample(range(self._num_tasks), self._num_tasks-self.sample_size)
-        print(self.skipping_samples)
+        self.skipping_samples = [None]
 
 
     def reset(self, **kwargs):
@@ -75,10 +74,6 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         while True:
             self._active_task_index = self._sample_strategy(self._num_tasks,
                                                             self._active_task_index)
-
-            if self._active_task_index == self._num_tasks-1:
-                self.skipping_samples = random.sample(range(self._num_tasks),
-                                                      self._num_tasks-self.sample_size)
             if self._active_task_index not in self.skipping_samples:
                 break
 
@@ -87,3 +82,8 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         obs = self._augment_observation(obs)
         oh_obs = self._obs_with_one_hot(obs)
         return oh_obs
+
+    def init_sampling(self):
+        self.skipping_samples = [None] + random.sample(range(self._num_tasks),
+                                                       self._num_tasks - self.sample_size)
+        print(self.skipping_samples)

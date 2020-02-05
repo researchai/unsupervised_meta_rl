@@ -223,6 +223,9 @@ class LocalRunner:
                                      sampler_args=sampler_args,
                                      seed=get_seed())
 
+    def init_sampling(self):
+        self._env.init_sampling()
+
     def _start_worker(self):
         """Start Plotter and Sampler workers."""
         self._sampler.start_worker()

@@ -92,6 +92,7 @@ class BatchPolopt(RLAlgorithm):
         last_return = None
 
         for _ in runner.step_epochs():
+            runner.init_sampling()
             runner.step_path = runner.obtain_samples(runner.step_itr)
             tabular.record('TotalEnvSteps', runner.total_env_steps)
             last_return = self.train_once(runner.step_itr, runner.step_path)
