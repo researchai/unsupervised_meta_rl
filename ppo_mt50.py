@@ -87,10 +87,14 @@ env_ids = ['reach-v1',
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT50_envs = [TfEnv(MT50_envs_by_id[i]) for i in env_ids]
-
 @wrap_experiment
 def ppo_mt50(ctxt=None, seed=1):
+    MT50_envs = []
+    for id in env_ids:
+        env = MT50_envs_by_id[id]
+        env.random_init = False
+        MT50_envs.append(TfEnv(env))
+        assert env.random_init == False
 
     """Run task."""
     set_seed(seed)
