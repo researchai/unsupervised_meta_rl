@@ -329,10 +329,11 @@ class ExperimentTemplate:
             if name is None:
                 name = self.function.__name__
                 self.name = self.function.__name__
-            log_dir = ('{data}/local/{prefix}/{name}/{time}'.format(
+            log_dir = ('{data}/{prefix}/{name}/seed_{seed}_{time}'.format(
                 data=osp.join(os.getcwd(), 'data'),
                 prefix=self.prefix,
                 name=name,
+                seed=kwargs['seed'],
                 time=timestamp))
         log_dir = _make_sequential_log_dir(log_dir)
 
