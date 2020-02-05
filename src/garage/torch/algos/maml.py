@@ -66,6 +66,14 @@ class MAML(MetaRLAlgorithm):
                                               policy,
                                               lr=_Default(outer_lr),
                                               eps=_Default(1e-5))
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self._inner_optimizer = DifferentiableSGD(self._policy, 0.05)
+        self._meta_optimizer = make_optimizer(
+            (ConjugateGradientOptimizer,
+             dict(max_constraint_value=0.01)),
+            self._policy,
+            lr=_Default(1e-3), eps=_Default(1e-5))
 
     def train(self, runner):
         """Obtain samples and start training for each epoch.

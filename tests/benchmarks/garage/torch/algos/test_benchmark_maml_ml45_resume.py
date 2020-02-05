@@ -4,7 +4,7 @@ import sys
 
 from dowel import logger, StdOutput, CsvOutput, tabular
 
-from metaworld.benchmarks import ML10WithPinnedGoal
+from metaworld.benchmarks import ML45WithPinnedGoal
 
 from garage.envs.TaskIdWrapper import TaskIdWrapper
 from garage.experiment import MetaEvaluator, Snapshotter
@@ -17,11 +17,11 @@ max_path_length = 150
 adapt_rollout_per_task = 10
 test_rollout_per_task = 10
 
-meta_task_cls = ML10WithPinnedGoal.get_test_tasks
+meta_task_cls = ML45WithPinnedGoal.get_test_tasks
 
 
 def resume_training(meta_train_dir):
-    logger.add_output(CsvOutput(os.path.join(meta_train_dir, 'progress.csv')))
+    logger.add_output(CsvOutput(os.path.join(meta_train_dir, 'progress-resume.csv')))
     logger.add_output(StdOutput())
 
     snapshot_config = SnapshotConfig(snapshot_dir=meta_train_dir,
