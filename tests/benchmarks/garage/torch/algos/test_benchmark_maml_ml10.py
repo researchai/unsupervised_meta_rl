@@ -56,7 +56,7 @@ hyper_parameters = {
     'meta_batch_size': 20,  # num of tasks
     'n_epochs': 2500,
     # 'n_epochs': 1,
-    'n_trials': 5,
+    'n_trials': 1,
     'num_grad_update': 1,
     'n_parallel': 1,
     'inner_loss': 'log_likelihood'

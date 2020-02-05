@@ -37,7 +37,8 @@ def do_meta_test(meta_train_dir, meta_test_dir):
                                    test_task_sampler=meta_sampler,
                                    max_path_length=max_path_length,
                                    n_test_tasks=meta_batch_size,
-                                   n_exploration_traj=rollout_per_task)
+                                   n_exploration_traj=rollout_per_task,
+                                   prefix='')
 
     itrs = Snapshotter.get_available_itrs(meta_train_dir)
 
@@ -45,9 +46,8 @@ def do_meta_test(meta_train_dir, meta_test_dir):
         runner.restore(meta_train_dir, from_epoch=itr)
         meta_evaluator.evaluate(runner._algo)
 
-        tabular.record('MetaTrain/Epoch', runner._stats.total_epoch)
-        tabular.record('MetaTrain/TotalEnvSteps',
-                       runner._stats.total_env_steps)
+        tabular.record('Iteration', runner._stats.total_epoch)
+        tabular.record('TotalEnvSteps', runner._stats.total_env_steps)
         logger.log(tabular)
         logger.dump_output_type(CsvOutput)
 

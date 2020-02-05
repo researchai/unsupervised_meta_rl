@@ -39,8 +39,8 @@ from garage.torch.policies import GaussianMLPPolicy
 from tests import benchmark_helper
 import tests.helpers as Rh
 
-test_garage = False
-test_promp = True
+test_garage = True
+test_promp = False
 
 # Same as promp:full_code/config/trpo_maml_config.json
 hyper_parameters = {
