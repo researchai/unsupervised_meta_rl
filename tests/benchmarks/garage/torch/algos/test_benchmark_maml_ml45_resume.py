@@ -2,7 +2,7 @@ from functools import partial
 import os
 import sys
 
-from dowel import logger, StdOutput, CsvOutput, tabular
+from dowel import logger, StdOutput, CsvOutput, tabular, TensorBoardOutput
 
 from metaworld.benchmarks import ML45WithPinnedGoal
 
@@ -22,6 +22,7 @@ meta_task_cls = ML45WithPinnedGoal.get_test_tasks
 
 def resume_training(meta_train_dir):
     logger.add_output(CsvOutput(os.path.join(meta_train_dir, 'progress-resume.csv')))
+    logger.add_output(TensorBoardOutput(meta_train_dir))
     logger.add_output(StdOutput())
 
     snapshot_config = SnapshotConfig(snapshot_dir=meta_train_dir,
@@ -34,6 +35,7 @@ def resume_training(meta_train_dir):
 
     logger.remove_output_type(CsvOutput)
     logger.remove_output_type(StdOutput)
+    logger.remove_output_type(TensorBoardOutput)
 
 if __name__ == '__main__':
     assert len(sys.argv) == 2
