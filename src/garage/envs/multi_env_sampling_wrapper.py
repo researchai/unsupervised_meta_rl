@@ -74,11 +74,9 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         """
         while True:
             self._active_task_index = self._sample_strategy(self._num_tasks, self._active_task_index)
-            print ('\nTry', self._active_task_index, 'with', MultiEnvSamplingWrapper.skipping_samples)
             if self._active_task_index not in self.skipping_samples:
                 break
 
-        print('\nNext', self._active_task_index)
         self.env = self._task_envs[self._active_task_index]
         obs = self.env.reset(**kwargs)
         obs = self._augment_observation(obs)
@@ -87,3 +85,4 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
 
     def init_sampling(self):
         MultiEnvSamplingWrapper.skipping_samples = random.sample(range(self._num_tasks), self._num_tasks - self.sample_size)
+        print("Skip ", MultiEnvSamplingWrapper.skipping_samples)
