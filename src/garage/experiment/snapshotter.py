@@ -143,7 +143,7 @@ class Snapshotter:
                     raise FileNotFoundError(errno.ENOENT,
                                             os.strerror(errno.ENOENT),
                                             '*.pkl file in '+ load_dir)
-                files.sort()
+                files.sort(key=lambda s: int(s.split('.')[0][4:]))
                 load_from_file = files[0] if itr == 'first' else files[-1]
                 load_from_file = os.path.join(load_dir, load_from_file)
 
