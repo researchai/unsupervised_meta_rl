@@ -45,7 +45,6 @@ class MTSAC(OffPolicyRLAlgorithm):
                  input_include_goal=False):
         self.env = env
         self.eval_env_dict = eval_env_dict
-        logger.log(str(env.task_name_to_one_hot))
         self.policy = policy
         self.qf1 = qf1
         self.qf2 = qf2
@@ -94,7 +93,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         self.episode_rewards = deque(maxlen=30)
         self.epoch_median_success_rate = []
         self.epoch_mean_success_rate = []
-    @profile
+
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
 
@@ -289,10 +288,10 @@ class MTSAC(OffPolicyRLAlgorithm):
         tabular.record("policy_loss", policy_loss.item())
         tabular.record("qf_loss/{}".format("qf1_loss"), float(qf1_loss))
         tabular.record("qf_loss/{}".format("qf2_loss"), float(qf2_loss))
-        tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
+        # tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
         tabular.record("local/normalized_avg_return", np.mean(self.episode_rewards))
-        for index, alpha in enumerate(self.log_alpha):
-            tabular.record("local/alpha_{i}".format(i=index), float((alpha).detach().exp().item()))
+        # for index, alpha in enumerate(self.log_alpha):
+        #     tabular.record("local/alpha_{i}".format(i=index), float((alpha).detach().exp().item()))
 
     @property
     def networks(self):
