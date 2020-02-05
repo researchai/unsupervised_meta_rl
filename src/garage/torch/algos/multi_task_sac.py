@@ -94,7 +94,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         self.episode_rewards = deque(maxlen=30)
         self.epoch_median_success_rate = []
         self.epoch_mean_success_rate = []
-
+    @profile
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
 
@@ -138,7 +138,8 @@ class MTSAC(OffPolicyRLAlgorithm):
                                                                                          task_number,
                                                                                          self._num_tasks,
                                                                                          self.env._max_plain_dim),
-                                                                        num_trajs=self.num_eval_paths),
+                                                                        num_trajs=self.num_eval_paths,
+                                                                        max_path_length=150),
                                         discount=self.discount,
                                         prefix=name)
 
