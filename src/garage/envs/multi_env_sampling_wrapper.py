@@ -60,7 +60,7 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
     def __init__(self, envs, task_name, sample_size, sample_strategy=uniform_random_strategy):
         super().__init__(envs, task_name, sample_strategy)
         self.sample_size = sample_size
-
+        self.init_sampling()
 
     def reset(self, **kwargs):
         """Sample new task and call reset on new task env.
