@@ -53,9 +53,9 @@ hyper_parameters = {
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
-    'n_itr': 10000, # total it will run [n_itr * steps_per_epoch] for garage
+    'n_itr': 1500, # total it will run [n_itr * steps_per_epoch] for garage
     'steps_per_epoch': 1,
-    'rollout_per_task': 10,
+    'rollout_per_task': 65,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
