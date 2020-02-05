@@ -83,18 +83,28 @@ env_ids = ['reach-v1',
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT50_envs = [TfEnv(normalize_reward(MT50_envs_by_id[i])) for i in env_ids]
-
 
 @wrap_experiment
 def trpo_mt50(ctxt=None, seed=1):
+
+    MT50_envs = []
+    for id in env_ids:
+        env = MT50_envs_by_id[id]
+        env.random_init = False
+        MT50_envs.append(TfEnv(normalize_reward(env)))
+        assert env.random_init == False
 
     """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
         env = MultiEnvWrapper(MT50_envs, env_ids, sample_strategy=round_robin_strategy)
 
-        policy = GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=(64, 64))
+        policy = GaussianMLPPolicy(
+            env_spec=env.spec,
+            hidden_sizes=(64, 64),
+            hidden_nonlinearity=tf.nn.tanh,
+            output_nonlinearity=None,
+        )
 
         # baseline = LinearFeatureBaseline(env_spec=env.spec)
         baseline = GaussianMLPBaseline(
@@ -117,6 +127,4 @@ def trpo_mt50(ctxt=None, seed=1):
         runner.train(n_epochs=1500, batch_size=len(MT50_envs)*10*150)
 
 
-seeds = random.sample(range(100), 1)
-for seed in seeds:
-    trpo_mt50(seed=seed)
+trpo_mt50(seed=59)
