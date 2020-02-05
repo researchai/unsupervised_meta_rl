@@ -74,7 +74,7 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         """
         while True:
             self._active_task_index = self._sample_strategy(self._num_tasks, self._active_task_index)
-            skip = self._active_task_index not in self.skipping_samples
+            skip = self._active_task_index in self.skipping_samples
             if self._active_task_index == self._num_tasks-1:
                 self.skipping_samples = [(i + 1) % self._num_tasks for i in self.skipping_samples]
                 print('Skipping Samples', self.skipping_samples)
