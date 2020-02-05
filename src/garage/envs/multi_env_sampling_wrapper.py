@@ -88,3 +88,6 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         obs = self._augment_observation(obs)
         oh_obs = self._obs_with_one_hot(obs)
         return oh_obs
+
+    def init_sampling(self):
+        print (self)

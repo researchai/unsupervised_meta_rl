@@ -436,6 +436,7 @@ class LocalRunner:
             self._itr_start_time = time.time()
             with logger.prefix('epoch #%d | ' % epoch):
                 yield epoch
+                self._env.init_sampling()
                 save_path = (self.step_path
                              if self._train_args.store_paths else None)
 
