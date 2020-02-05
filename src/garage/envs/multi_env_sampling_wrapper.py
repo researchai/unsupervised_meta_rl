@@ -55,11 +55,11 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
 
     """
 
+    skipping_samples = []
+
     def __init__(self, envs, task_name, sample_size, sample_strategy=uniform_random_strategy):
         super().__init__(envs, task_name, sample_strategy)
         self.sample_size = sample_size
-        self.skipping_samples = random.sample(range(self._num_tasks), self._num_tasks - self.sample_size)
-        print ('Skipping Samples', self.skipping_samples)
 
 
     def reset(self, **kwargs):
@@ -74,18 +74,11 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         """
         while True:
             self._active_task_index = self._sample_strategy(self._num_tasks, self._active_task_index)
-            skip = self._active_task_index in self.skipping_samples
-            # print("\nTry", self._active_task_index, 'in' , self._num_tasks)
-            if self._active_task_index == self._num_tasks-1:
-                self.skipping_samples = [(i + 1) % self._num_tasks for i in self.skipping_samples]
-                # print('\nSkipping Samples', self.skipping_samples)
-
-                print("reset", hash(self))
-
-            if not skip:
+            print ('\nTry', self._active_task_index, 'with', MultiEnvSamplingWrapper.skipping_samples)
+            if self._active_task_index not in self.skipping_samples:
                 break
 
-        # print('\nNext', self._active_task_index, 'with', self.skipping_samples)
+        print('\nNext', self._active_task_index)
         self.env = self._task_envs[self._active_task_index]
         obs = self.env.reset(**kwargs)
         obs = self._augment_observation(obs)
@@ -93,4 +86,4 @@ class MultiEnvSamplingWrapper(MultiEnvWrapper):
         return oh_obs
 
     def init_sampling(self):
-        print ("init_sampling", hash(self))
+        MultiEnvSamplingWrapper.skipping_samples = random.sample(range(self._num_tasks), self._num_tasks - self.sample_size)
