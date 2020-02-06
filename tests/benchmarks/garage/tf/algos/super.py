@@ -48,6 +48,10 @@ cmd += "--max-path-length 150 "
 cmd += "--parallel 90 "
 cmd += "--stride 10 "
 for target, indice in zip(targets, indices):
-	cmd += "{}_{} ".format(target, indice)
-
+	if isinstance(indice, int):
+		for ind in range(indice):
+			cmd += "{}_{} ".format(target, ind)
+	else:
+		for ind in indice:
+			cmd += "{}_{} ".format(target, ind)
 print(cmd)
