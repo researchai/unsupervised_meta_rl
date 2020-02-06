@@ -154,12 +154,13 @@ class MetaTestHelper:
     def test_many_folders(self, folders, workers, skip_existing, to_merge, stride):
         for meta_train_dir in folders:
             itrs = Snapshotter.get_available_itrs(meta_train_dir)
-            if stride > 1:
-                itrs = list(range(0, len(itrs), stride))
             tested_itrs = self._get_tested_itrs(meta_train_dir)
 
             if skip_existing:
                 itrs = [itr for itr in itrs if itr not in tested_itrs]
+
+            if stride > 1:
+                itrs = itrs[::stride]
 
             if workers == 0:
                 self.test_one_folder(meta_train_dir, itrs)
