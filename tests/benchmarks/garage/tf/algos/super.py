@@ -36,12 +36,16 @@ indices = [
 os.system("mkdir results")
 # Download pickle files
 for target, indice in zip(targets, indices):
-	if isinstance(indice, int):
-		for i, ind in enumerate(range(indice)):
-			os.system("aws s3 cp --recursive s3://resl-garge-paper/{}_{} results/{}_{}".format(target, ind, target, i))
-	else:
-		for i, ind in enumerate(indice):
-			os.system("aws s3 cp --recursive s3://resl-garge-paper/{}_{} results/{}_{}".format(target, ind, target, i))
+		if isinstance(indice, int):
+				for i, ind in enumerate(range(indice)):
+						path = "aws s3 cp --recursive s3://resl-garge-paper/{}_{} results/{}_{}".format(target, ind, target, i)
+						os.system(path)
+						print("Path: ", path)
+		else:
+				for i, ind in enumerate(indice):
+						path = "aws s3 cp --recursive s3://resl-garge-paper/{}_{} results/{}_{}".format(target, ind, target, i)
+						os.system(path)
+						print("Path: ", path)
 cmd = "python tests/benchmarks/garage/tf/algos/test_benchmark_rl2_meta_test_ml10.py "
 cmd += "--test-rollouts 10 "
 cmd += "--max-path-length 150 "
