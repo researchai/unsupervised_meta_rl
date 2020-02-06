@@ -52,12 +52,13 @@ class MetaEvaluator:
             LocalSampler,
             n_workers=1,
             max_path_length=max_path_length,
-            env=self._test_task_sampler._env)
+            env=self._test_task_sampler._env,
+            policy=runner._algo.get_exploration_policy())
         self._eval_itr = 0
         self._prefix = prefix
         self._task_name_map = task_name_map
 
-    def evaluate(self, algo):
+    def evaluate(self, algo, num_test_rollouts):
         """Evaluate the Meta-RL algorithm on the test tasks.
 
         Args:
@@ -73,11 +74,15 @@ class MetaEvaluator:
                 for _ in range(self._n_exploration_traj)
             ])
             adapted_policy = algo.adapt_policy(policy, traj)
-            adapted_traj = self._test_sampler.obtain_samples(
-                self._eval_itr,
-                1,
-                adapted_policy.get_param_values())
-            adapted_trajectories.append(adapted_traj)
+            adapted_hidden_state = adapted_policy._prev_hiddens[:]
+
+            for _ in range(num_test_rollouts):
+                policy._prev_hiddens[:] = adapted_hidden_state[:]
+                adapted_traj = self._test_sampler.obtain_samples(
+                    self._eval_itr,
+                    1,
+                    adapted_policy.get_param_values())
+                adapted_trajectories.append(adapted_traj)
         with tabular.prefix(self._prefix + '/' if self._prefix else ''):
             log_multitask_performance(self._eval_itr,
                                       TrajectoryBatch.concatenate(

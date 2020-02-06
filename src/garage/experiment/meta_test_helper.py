@@ -128,15 +128,14 @@ class MetaTestHelperTF:
                                          snapshot_gap=1)
 
         with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-            meta_sampler = AllSetTaskSampler(self.meta_task_cls,
-                                             self.test_rollout_per_task)
+            meta_sampler = AllSetTaskSampler(self.meta_task_cls)
             runner.restore(meta_train_dir)
 
             meta_evaluator = MetaEvaluator(
                 runner,
                 test_task_sampler=meta_sampler,
                 max_path_length=self.max_path_length,
-                n_test_tasks=meta_sampler.n_tasks * self.test_rollout_per_task,
+                n_test_tasks=meta_sampler.n_tasks,
                 n_exploration_traj=self.adapt_rollout_per_task,
                 prefix='')
 
@@ -158,7 +157,8 @@ class MetaTestHelperTF:
                     max_path_length=self.max_path_length,
                     env=meta_sampler._env)
 
-                meta_evaluator.evaluate(runner._algo)
+                meta_evaluator.evaluate(runner._algo,
+                                        self.test_rollout_per_task)
 
                 tabular.record('Iteration', runner._stats.total_epoch)
                 tabular.record('TotalEnvSteps', runner._stats.total_env_steps)
@@ -171,12 +171,13 @@ class MetaTestHelperTF:
     def test_many_folders(self, folders, workers, skip_existing, to_merge, stride):
         for meta_train_dir in folders:
             itrs = Snapshotter.get_available_itrs(meta_train_dir)
-            if stride > 1:
-                itrs = list(range(0, len(itrs), stride))
             tested_itrs = self._get_tested_itrs(meta_train_dir)
 
             if skip_existing:
                 itrs = [itr for itr in itrs if itr not in tested_itrs]
+
+            if stride > 1:
+                itrs = itrs[::stride]
 
             if workers == 0:
                 self.test_one_folder(meta_train_dir, itrs)

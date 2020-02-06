@@ -54,7 +54,7 @@ class RL2(MetaRLAlgorithm):
 
         for _ in runner.step_epochs():
             for _ in range(self._steps_per_epoch):
-                runner.step_path = runner.obtain_samples(runner.step_itr, 
+                runner.step_path = runner.obtain_samples(runner.step_itr,
                     env_update=self._task_sampler.sample(self._meta_batch_size))
                 tabular.record('TotalEnvSteps', runner.total_env_steps)
                 last_return = self.train_once(runner.step_itr, runner.step_path)
@@ -86,6 +86,10 @@ class RL2(MetaRLAlgorithm):
             def __init__(self, policy):
                 self._policy = policy
 
+            @property
+            def _prev_hiddens(self):
+                return self._policy._prev_hiddens
+
             def reset(self, *args, **kwargs):
                 pass
 
@@ -94,6 +98,9 @@ class RL2(MetaRLAlgorithm):
 
             def get_param_values(self):
                 return self._policy.get_param_values()
+
+            def set_param_values(self, params):
+                self._policy.set_param_values(params)
 
         return NoResetPolicy(self._policy)
 
@@ -134,14 +141,14 @@ class RL2(MetaRLAlgorithm):
             # import pdb
             # pdb.set_trace()
             if 'batch_idx' in path:
-                paths_by_task[path['batch_idx']].append(path)            
+                paths_by_task[path['batch_idx']].append(path)
             elif 'batch_idx' in path['agent_infos']:
                 paths_by_task[path['agent_infos']['batch_idx'][0]].append(path)
             else:
                 raise ValueError('Batch idx is required for RL2 but not found')
 
         # all path in paths_by_task[i] are sampled from task[i]
-        # 
+        #
         for path in paths_by_task.values():
             concatenated_path = self._concatenate_paths(path)
             concatenated_path_in_meta_batch.append(concatenated_path)
