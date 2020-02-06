@@ -155,9 +155,10 @@ class SetTaskSampler(TaskSampler):
         ]
 
 class AllSetTaskSampler(TaskSampler):
-    def __init__(self, env_constructor):
+    def __init__(self, env_constructor, num_copies):
         self._env_constructor = env_constructor
         self._env = env_constructor()
+        self._num_copies = num_copies
         assert hasattr(self._env, 'num_tasks')
         assert hasattr(self._env, '_task_names')
 
@@ -167,9 +168,11 @@ class AllSetTaskSampler(TaskSampler):
         return getattr(self._env, 'num_tasks', None)
 
     def sample(self, n_tasks, with_replacement=False):
-        assert n_tasks == self.n_tasks
+        assert n_tasks == self.n_tasks * self._num_copies
         self._env._sampled_all = True
-        tasks = self._env.sample_tasks(n_tasks)
+        tasks = [task
+                 for _ in range(self._num_copies)
+                 for task in self._env.sample_tasks(n_tasks)]
         self._env._sampled_all = False
         return [SetTaskUpdate(self._env_constructor, task) for task in tasks]
 

@@ -125,14 +125,14 @@ class MetaTestHelper:
                                          snapshot_gap=1)
 
         runner = LocalRunner(snapshot_config=snapshot_config)
-        meta_sampler = AllSetTaskSampler(self.meta_task_cls)
+        meta_sampler = AllSetTaskSampler(self.meta_task_cls, self.test_rollout_per_task)
         runner.restore(meta_train_dir)
 
         meta_evaluator = MetaEvaluator(
             runner,
             test_task_sampler=meta_sampler,
             max_path_length=self.max_path_length,
-            n_test_tasks=meta_sampler.n_tasks,
+            n_test_tasks=meta_sampler.n_tasks * self.test_rollout_per_task,
             n_exploration_traj=self.adapt_rollout_per_task,
             prefix='')
 
@@ -143,7 +143,7 @@ class MetaTestHelper:
             logger.log("Writing into {}".format(log_filename))
 
             runner.restore(meta_train_dir, from_epoch=itr)
-            meta_evaluator.evaluate(runner._algo, self.test_rollout_per_task)
+            meta_evaluator.evaluate(runner._algo)
 
             tabular.record('Iteration', runner._stats.total_epoch)
             tabular.record('TotalEnvSteps', runner._stats.total_env_steps)
