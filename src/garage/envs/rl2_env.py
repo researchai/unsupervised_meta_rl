@@ -60,3 +60,10 @@ class RL2Env(gym.Wrapper):
         next_obs = np.concatenate([next_obs, action, [reward], [done]])
         return next_obs, reward, done, info
 
+    @property
+    def num_tasks(self):
+        return self.env.num_tasks
+
+    @property
+    def _task_names(self):
+        return self.env._task_names

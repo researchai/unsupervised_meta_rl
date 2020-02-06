@@ -347,7 +347,7 @@ class LocalRunner:
         self._stats = saved['stats']
 
         set_seed(self._setup_args.seed)
-        self.setup(env=saved['env'],
+        self.setup(env=saved['env'][0] if isinstance(saved['env'], list) else saved['env'],
                    algo=saved['algo'],
                    n_workers=saved['n_worker'],
                    worker_class=saved['worker_class'],

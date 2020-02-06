@@ -5,6 +5,7 @@ import math
 
 import numpy as np
 
+from garage.envs import RL2Env
 from garage.sampler.env_update import (ExistingEnvUpdate, NewEnvUpdate,
                                        SetTaskUpdate)
 
@@ -153,6 +154,25 @@ class SetTaskSampler(TaskSampler):
             SetTaskUpdate(self._env_constructor, task)
             for task in self._env.sample_tasks(n_tasks)
         ]
+
+class AllSetTaskSampler(TaskSampler):
+    def __init__(self, env_constructor):
+        self._env_constructor = env_constructor
+        self._env = RL2Env(env_constructor())
+        assert hasattr(self._env, 'num_tasks')
+        assert hasattr(self._env, '_task_names')
+
+    @property
+    def n_tasks(self):
+        """int or None: The number of tasks if known and finite."""
+        return getattr(self._env.env, 'num_tasks', None)
+
+    def sample(self, n_tasks, with_replacement=False):
+        assert n_tasks == self.n_tasks
+        self._env.env._sampled_all = True
+        tasks = self._env.sample_tasks(n_tasks)
+        self._env.env._sampled_all = False
+        return [SetTaskUpdate(self._env_constructor, task) for task in tasks]
 
 
 class EnvPoolSampler(TaskSampler):

@@ -64,7 +64,7 @@ hyper_parameters = {
     'n_trials': 1,
     # 'n_test_tasks': 5,
     'cell_type': 'gru',
-    'sampler_cls': RaySampler,
+    'sampler_cls': LocalSampler,
     'use_all_workers': True
 }
 

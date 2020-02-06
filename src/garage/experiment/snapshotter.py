@@ -3,7 +3,8 @@ import collections
 import errno
 import os
 import pathlib
-import cloudpickle
+import pickle
+import re
 
 import joblib
 
@@ -97,7 +98,7 @@ class Snapshotter:
                                          'itr_%d.pkl' % itr)
             file_name_last = os.path.join(self._snapshot_dir, 'params.pkl')
             with open(file_name_last, 'wb') as file:
-                cloudpickle.dump(params, file)
+                pickle.dump(params, file)
         elif self._snapshot_mode == 'none':
             pass
         else:
@@ -106,7 +107,7 @@ class Snapshotter:
 
         if file_name:
             with open(file_name, 'wb') as file:
-                cloudpickle.dump(params, file)
+                pickle.dump(params, file)
 
     def load(self, load_dir, itr='last'):
         # pylint: disable=no-self-use
@@ -141,7 +142,7 @@ class Snapshotter:
                 if not files:
                     raise FileNotFoundError(errno.ENOENT,
                                             os.strerror(errno.ENOENT),
-                                            '*.pkl file in', load_dir)
+                                            '*.pkl file in '+ load_dir)
                 files.sort()
                 load_from_file = files[0] if itr == 'first' else files[-1]
                 load_from_file = os.path.join(load_dir, load_from_file)
@@ -151,6 +152,38 @@ class Snapshotter:
 
         with open(load_from_file, 'rb') as file:
             return joblib.load(file)
+
+    @classmethod
+    def get_available_itrs(cls, load_dir):
+        """Get a list of available iterations in load_dir folder.
+
+        Args:
+            load_dir (str): Directory of the pickle file
+                to resume experiment from.
+
+        Returns:
+            list[int or string]: Available iterations to load.
+                If no snapshot in load_dir, return an empty list.
+                If snapshot_mode == "last", return "last".
+                Otherwise, return a list of integer iterations.
+
+        """
+        single_file = os.path.join(load_dir, 'params.pkl')
+        if os.path.isfile(single_file):
+            return ['last']
+
+        files = [f for f in os.listdir(load_dir) if f.endswith('.pkl')]
+        if not files:
+            return []
+
+        itrs = []
+        for file in files:
+            nums = re.findall(r'\d+', file)
+            if nums:
+                itrs.append(int(nums[0]))
+        itrs.sort()
+
+        return itrs
 
 
 class NotAFileError(Exception):

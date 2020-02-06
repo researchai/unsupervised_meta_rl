@@ -62,7 +62,7 @@ def log_multitask_performance(itr, batch, discount, name_map={}, task_names=None
                         tabular.record('MinReturn', -1)
                         tabular.record('CompletionRate', -1)
                         tabular.record('SuccessRate', -1)
-    return log_performance(itr, batch, discount=discount)    
+    return log_performance(itr, batch, discount=discount)
 
 def log_performance(itr, batch, discount, prefix='Evaluation'):
     """Evaluate the performance of an algorithm on a batch of trajectories.
