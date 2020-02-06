@@ -128,14 +128,15 @@ class MetaTestHelperTF:
                                          snapshot_gap=1)
 
         with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-            meta_sampler = AllSetTaskSampler(self.meta_task_cls)
+            meta_sampler = AllSetTaskSampler(self.meta_task_cls,
+                                             self.test_rollout_per_task)
             runner.restore(meta_train_dir)
 
             meta_evaluator = MetaEvaluator(
                 runner,
                 test_task_sampler=meta_sampler,
                 max_path_length=self.max_path_length,
-                n_test_tasks=meta_sampler.n_tasks,
+                n_test_tasks=meta_sampler.n_tasks * self.test_rollout_per_task,
                 n_exploration_traj=self.adapt_rollout_per_task,
                 prefix='')
 
@@ -157,13 +158,15 @@ class MetaTestHelperTF:
                     max_path_length=self.max_path_length,
                     env=meta_sampler._env)
 
-                meta_evaluator.evaluate(runner._algo, self.test_rollout_per_task)
+                meta_evaluator.evaluate(runner._algo)
 
                 tabular.record('Iteration', runner._stats.total_epoch)
                 tabular.record('TotalEnvSteps', runner._stats.total_env_steps)
                 logger.log(tabular)
                 logger.dump_output_type(CsvOutput)
                 logger.remove_output_type(CsvOutput)
+
+        tf.compat.v1.reset_default_graph()
 
     def test_many_folders(self, folders, workers, skip_existing, to_merge, stride):
         for meta_train_dir in folders:

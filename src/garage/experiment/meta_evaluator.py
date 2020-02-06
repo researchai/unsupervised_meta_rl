@@ -57,12 +57,11 @@ class MetaEvaluator:
         self._prefix = prefix
         self._task_name_map = task_name_map
 
-    def evaluate(self, algo, rollouts_per_task):
+    def evaluate(self, algo):
         """Evaluate the Meta-RL algorithm on the test tasks.
 
         Args:
             algo (garage.np.algos.MetaRLAlgorithm): The algorithm to evaluate.
-            rollouts_per_task (int): Number of rollouts per task.
 
         """
         adapted_trajectories = []
@@ -76,7 +75,7 @@ class MetaEvaluator:
             adapted_policy = algo.adapt_policy(policy, traj)
             adapted_traj = self._test_sampler.obtain_samples(
                 self._eval_itr,
-                rollouts_per_task * self._max_path_length,
+                1,
                 adapted_policy.get_param_values())
             adapted_trajectories.append(adapted_traj)
         with tabular.prefix(self._prefix + '/' if self._prefix else ''):
