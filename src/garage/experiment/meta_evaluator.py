@@ -48,6 +48,7 @@ class MetaEvaluator:
             n_test_tasks = 10 * test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
         self._n_exploration_traj = n_exploration_traj
+        self._max_path_length = max_path_length
         self._test_sampler = runner.make_sampler(
             LocalSampler, n_workers=1, max_path_length=max_path_length)
         self._eval_itr = 0
@@ -72,8 +73,11 @@ class MetaEvaluator:
             ])
             adapted_policy = algo.adapt_policy(policy, traj)
             adapted_traj = self._test_sampler.obtain_samples(
-                self._eval_itr, rollouts_per_task, adapted_policy)
+                self._eval_itr,
+                rollouts_per_task * self._max_path_length,
+                adapted_policy)
             adapted_trajectories.append(adapted_traj)
+
         with tabular.prefix(self._prefix + '/' if self._prefix else ''):
             log_multitask_performance(self._eval_itr,
                                       TrajectoryBatch.concatenate(
