@@ -104,5 +104,12 @@ class NormalizedRewardEnv(gym.Wrapper):
 
         return next_obs, reward * self._scale_reward, done, info
 
+    @property
+    def num_tasks(self):
+        return self.env.num_tasks
+
+    @property
+    def _task_names(self):
+        return self.env._task_names
 
 normalize_reward = NormalizedRewardEnv
