@@ -39,14 +39,12 @@ class MetaEvaluator:
                  test_task_sampler,
                  max_path_length,
                  n_test_tasks=None,
-                 n_exploration_traj=10,
                  prefix='MetaTest',
                  task_name_map={}):
         self._test_task_sampler = test_task_sampler
         if n_test_tasks is None:
             n_test_tasks = 10 * test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
-        self._n_exploration_traj = n_exploration_traj
         self._max_path_length = max_path_length
         self._test_sampler = runner.make_sampler(
             LocalSampler,
@@ -58,7 +56,7 @@ class MetaEvaluator:
         self._prefix = prefix
         self._task_name_map = task_name_map
 
-    def evaluate(self, algo, num_test_rollouts):
+    def evaluate(self, algo, num_test_rollouts, adapt_rollouts=20):
         """Evaluate the Meta-RL algorithm on the test tasks.
 
         Args:
@@ -68,12 +66,17 @@ class MetaEvaluator:
         adapted_trajectories = []
         for env_up in self._test_task_sampler.sample(self._n_test_tasks):
             policy = algo.get_exploration_policy()
-            traj = TrajectoryBatch.concatenate(*[
-                self._test_sampler.obtain_samples(self._eval_itr, 1, policy.get_param_values(),
-                                                  env_up)
-                for _ in range(self._n_exploration_traj)
-            ])
-            adapted_policy = algo.adapt_policy(policy, traj)
+            if adapt_rollouts:
+                traj = TrajectoryBatch.concatenate(*[
+                    self._test_sampler.obtain_samples(self._eval_itr, 1, policy.get_param_values(),
+                                                      env_up)
+                    for _ in range(adapt_rollouts)
+                ])
+                adapted_policy = algo.adapt_policy(policy, traj)
+            else:
+                self._test_sampler._update_workers(policy, env_up)
+                adapted_policy = policy
+
             adapted_hidden_state = adapted_policy._prev_hiddens[:]
 
             for _ in range(num_test_rollouts):
@@ -83,6 +86,7 @@ class MetaEvaluator:
                     1,
                     adapted_policy.get_param_values())
                 adapted_trajectories.append(adapted_traj)
+
         with tabular.prefix(self._prefix + '/' if self._prefix else ''):
             log_multitask_performance(self._eval_itr,
                                       TrajectoryBatch.concatenate(
