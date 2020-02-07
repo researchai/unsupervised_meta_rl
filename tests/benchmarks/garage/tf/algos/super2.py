@@ -1,13 +1,13 @@
 import os
 
 targets = [
-        'RL2PPO_garage_ML10',
-        'RL2PPO_garage_ML10_normalized-reward',
-        'RL2PPO_garage_ML10_individual',
-        'RL2PPO_garage_ML10_max-ent',
-        #'RL2TRPO_garage_ML10',
-        #'RL2PPO_garage_ML1-reach-v1',
-        #'RL2PPO_garage_ML1-reach-v1_individual',
+        #'RL2PPO_garage_ML10',
+        #'RL2PPO_garage_ML10_normalized-reward',
+        #'RL2PPO_garage_ML10_individual',
+        #'RL2PPO_garage_ML10_max-ent',
+        'RL2TRPO_garage_ML10',
+        'RL2PPO_garage_ML1-reach-v1',
+        'RL2PPO_garage_ML1-reach-v1_individual',
         #'RL2PPO_garage_ML10_sample-9',
         #'RL2PPO_garage_ML10_sample-8',
         #'RL2PPO_garage_ML10_sample-6',
@@ -17,13 +17,13 @@ targets = [
 
 # total = 53
 indices = [
-        5,
-        5,
-        5,
-        5,
         #5,
-        #[11, 12, 13],
-        #3,
+        #5,
+        #5,
+        #5,
+        5,
+        [11, 12, 13],
+        3,
         #3,
         #3,
         #3,

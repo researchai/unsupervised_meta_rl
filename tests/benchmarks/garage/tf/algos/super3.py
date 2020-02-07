@@ -1,10 +1,10 @@
 import os
 
 targets = [
-        'RL2PPO_garage_ML10',
-        'RL2PPO_garage_ML10_normalized-reward',
-        'RL2PPO_garage_ML10_individual',
-        'RL2PPO_garage_ML10_max-ent',
+        #'RL2PPO_garage_ML10',
+        #'RL2PPO_garage_ML10_normalized-reward',
+        #'RL2PPO_garage_ML10_individual',
+        #'RL2PPO_garage_ML10_max-ent',
         #'RL2TRPO_garage_ML10',
         #'RL2PPO_garage_ML1-reach-v1',
         #'RL2PPO_garage_ML1-reach-v1_individual',
@@ -12,15 +12,15 @@ targets = [
         #'RL2PPO_garage_ML10_sample-8',
         #'RL2PPO_garage_ML10_sample-6',
         #'RL2PPO_garage_ML10_sample-2',
-        #'RL2PPO_garage_ML45_normalized-reward'
+        'RL2PPO_garage_ML45_normalized-reward'
 ]
 
 # total = 53
 indices = [
-        5,
-        5,
-        5,
-        5,
+        #5,
+        #5,
+        #5,
+        35,
         #5,
         #[11, 12, 13],
         #3,
@@ -28,7 +28,7 @@ indices = [
         #3,
         #3,
         #3,
-        #10,
+        10,
 ]
 
 load_file = True
