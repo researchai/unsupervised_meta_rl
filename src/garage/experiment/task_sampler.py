@@ -9,6 +9,17 @@ from garage.envs import RL2Env
 from garage.sampler.env_update import (ExistingEnvUpdate, NewEnvUpdate,
                                        SetTaskUpdate)
 
+from garage.envs.normalized_reward_env import NormalizedRewardEnv
+
+from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
+
+ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
+ML10_ENVS = MEDIUM_MODE_CLS_DICT
+ML45_ARGS = HARD_MODE_ARGS_KWARGS
+ML45_ENVS = HARD_MODE_CLS_DICT
 
 def _sample_indices(n_to_sample, n_available_tasks, with_replacement):
     """Select indices of tasks to sample.
@@ -156,9 +167,19 @@ class SetTaskSampler(TaskSampler):
         ]
 
 class AllSetTaskSampler(TaskSampler):
-    def __init__(self, env_constructor):
+    def __init__(self, env_constructor, is_ml_45, is_normlaized_reward):
         self._env_constructor = env_constructor
-        self._env = RL2Env(env_constructor())
+        if is_ml_45:
+            env_obs_dim = [env().observation_space.shape[0] for (_, env) in ML45_ENVS['test'].items()]
+            max_obs_dim = max(env_obs_dim)
+            if is_normlaized_reward:
+                self._env = NormalizedRewardEnv(RL2Env(env_constructor(), max_obs_dim))
+            else:
+                self._env = RL2Env(env_constructor(), max_obs_dim)
+        elif is_normlaized_reward:
+            self._env = NormalizedRewardEnv(RL2Env(env_constructor()))
+        else:
+            self._env = RL2Env(env_constructor())
         assert hasattr(self._env, 'num_tasks')
         assert hasattr(self._env, '_task_names')
 

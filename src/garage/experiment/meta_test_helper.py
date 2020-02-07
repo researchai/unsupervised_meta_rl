@@ -16,6 +16,8 @@ from garage.experiment.task_sampler import AllSetTaskSampler
 class MetaTestHelperTF:
     def __init__(self,
                  meta_task_cls,
+                 is_ml_45=False,
+                 is_normalized_reward=False,
                  max_path_length=150,
                  adapt_rollout_per_task=10,
                  test_rollout_per_task=10):
@@ -24,14 +26,14 @@ class MetaTestHelperTF:
         self.max_path_length = max_path_length
         self.adapt_rollout_per_task = adapt_rollout_per_task
         self.test_rollout_per_task = test_rollout_per_task
-
+        self.is_ml_45 = is_ml_45
+        self.is_normalized_reward = is_normalized_reward
         # random_init should be False in testing.
         self._set_random_init(False)
 
     @classmethod
-    def read_cmd(cls, env_cls):
+    def read_cmd(cls, env_cls, is_ml_45=False, is_normalized_reward=False):
         logger.add_output(StdOutput())
-
         parser = argparse.ArgumentParser()
         parser.add_argument("folder", nargs="+")
         # Adaptation parameters
@@ -59,6 +61,8 @@ class MetaTestHelperTF:
         stride = args.stride
 
         helper = cls(
+            is_ml_45=is_ml_45,
+            is_normalized_reward=is_normalized_reward,
             meta_task_cls=env_cls,
             max_path_length=max_path_length,
             adapt_rollout_per_task=adapt_rollout_per_task,
@@ -128,7 +132,9 @@ class MetaTestHelperTF:
                                          snapshot_gap=1)
 
         with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-            meta_sampler = AllSetTaskSampler(self.meta_task_cls)
+            meta_sampler = AllSetTaskSampler(self.meta_task_cls,
+                self.is_ml_45,
+                self.is_normalized_reward)
             runner.restore(meta_train_dir)
 
             meta_evaluator = MetaEvaluator(

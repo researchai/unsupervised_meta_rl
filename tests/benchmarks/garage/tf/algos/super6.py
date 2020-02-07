@@ -5,10 +5,10 @@ targets = [
         #'RL2PPO_garage_ML10_individual',
         #'RL2PPO_garage_ML10_max-ent',
         #'RL2TRPO_garage_ML10',
-        'RL2PPO_garage_ML1-reach-v1',
-        'RL2PPO_garage_ML1-reach-v1_individual',
+        #'RL2PPO_garage_ML1-reach-v1',
+        #'RL2PPO_garage_ML1-reach-v1_individual',
         #'RL2PPO_garage_ML10_normalized-reward',
-        #'RL2PPO_garage_ML45_normalized-reward'
+        'RL2PPO_garage_ML45_normalized-reward'
 ]
 
 indices = [
@@ -16,10 +16,10 @@ indices = [
         #5,
         #5,
         #5,
-        [11, 12, 13],
-        3,
+        #[11, 12, 13],
+        #3,
         #5,
-        #10,
+        [5, 6, 7, 8, 9],
 ]
 
 load_file = True
@@ -42,7 +42,7 @@ for target, indice in zip(targets, indices):
 						print("Path: ", path)
 import pdb
 pdb.set_trace()
-cmd = "python tests/benchmarks/garage/tf/algos/test_benchmark_rl2_meta_test_ml1.py "
+cmd = "python tests/benchmarks/garage/tf/algos/test_benchmark_rl2_meta_test_ml45_normalized.py "
 cmd += "--test-rollouts 10 "
 cmd += "--max-path-length 150 "
 cmd += "--parallel 90 "
