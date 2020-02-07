@@ -120,7 +120,7 @@ class MetaTestBestHelper:
                                          snapshot_gap=1)
 
         with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-            meta_sampler = AllSetTaskSampler(self.meta_task_cls)
+            meta_sampler = AllSetTaskSampler(self.meta_task_cls, self.is_ml_45, self.is_normalized_reward)
             runner.restore(meta_train_dir, from_epoch=itr)
 
             meta_evaluator = MetaEvaluator(
