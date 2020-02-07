@@ -18,6 +18,8 @@ adapt_rollouts_to_test = [0, 1, 2, 4, 8, 16, 32, 64]
 class MetaTestBestHelper:
     def __init__(self,
                  meta_task_cls,
+                 is_ml_45=False,
+                 is_normalized_reward=False,
                  max_path_length=150,
                  adapt_rollout_per_task=10,
                  test_rollout_per_task=10):
@@ -26,12 +28,13 @@ class MetaTestBestHelper:
         self.max_path_length = max_path_length
         self.adapt_rollout_per_task = adapt_rollout_per_task
         self.test_rollout_per_task = test_rollout_per_task
-
+        self.is_ml_45 = is_ml_45
+        self.is_normalized_reward = is_normalized_reward
         # random_init should be False in testing.
         self._set_random_init(False)
 
     @classmethod
-    def read_cmd(cls, env_cls):
+    def read_cmd(cls, env_cls, is_ml_45, is_normalized_reward):
         logger.add_output(StdOutput())
 
         parser = argparse.ArgumentParser()
@@ -55,6 +58,8 @@ class MetaTestBestHelper:
         itrs = args.itrs
 
         helper = cls(
+            is_ml_45=is_ml_45,
+            is_normalized_reward=is_normalized_reward,
             meta_task_cls=env_cls,
             max_path_length=max_path_length,
             adapt_rollout_per_task=adapt_rollout_per_task,
