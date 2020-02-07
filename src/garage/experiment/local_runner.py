@@ -13,6 +13,7 @@ from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
 from garage.sampler.base import BaseSampler
 from garage.sampler.rl2_worker import RL2Worker
+from garage.sampler import LocalSampler
 # This is avoiding a circular import
 from garage.sampler.worker import DefaultWorker
 from garage.sampler.worker_factory import WorkerFactory
@@ -351,7 +352,7 @@ class LocalRunner:
                    algo=saved['algo'],
                    n_workers=saved['n_worker'],
                    worker_class=saved['worker_class'],
-                   sampler_cls=self._setup_args.sampler_cls,
+                   sampler_cls=LocalSampler,
                    sampler_args=self._setup_args.sampler_args)
 
         n_epochs = self._train_args.n_epochs

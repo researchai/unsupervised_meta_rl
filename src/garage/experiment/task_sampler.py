@@ -21,6 +21,7 @@ ML10_ENVS = MEDIUM_MODE_CLS_DICT
 ML45_ARGS = HARD_MODE_ARGS_KWARGS
 ML45_ENVS = HARD_MODE_CLS_DICT
 
+
 def _sample_indices(n_to_sample, n_available_tasks, with_replacement):
     """Select indices of tasks to sample.
 
@@ -166,14 +167,20 @@ class SetTaskSampler(TaskSampler):
             for task in self._env.sample_tasks(n_tasks)
         ]
 
+
 class AllSetTaskSampler(TaskSampler):
+
     def __init__(self, env_constructor, is_ml_45, is_normlaized_reward):
         self._env_constructor = env_constructor
         if is_ml_45:
-            env_obs_dim = [env().observation_space.shape[0] for (_, env) in ML45_ENVS['test'].items()]
+            env_obs_dim = [
+                env().observation_space.shape[0]
+                for (_, env) in ML45_ENVS['test'].items()
+            ]
             max_obs_dim = max(env_obs_dim)
             if is_normlaized_reward:
-                self._env = NormalizedRewardEnv(RL2Env(env_constructor(), max_obs_dim))
+                self._env = NormalizedRewardEnv(
+                    RL2Env(env_constructor(), max_obs_dim))
             else:
                 self._env = RL2Env(env_constructor(), max_obs_dim)
         elif is_normlaized_reward:

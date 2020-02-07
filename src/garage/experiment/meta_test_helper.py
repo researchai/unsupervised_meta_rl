@@ -13,7 +13,9 @@ from garage.sampler import LocalSampler
 from garage.tf.experiment import LocalTFRunner
 from garage.experiment.task_sampler import AllSetTaskSampler
 
+
 class MetaTestHelperTF:
+
     def __init__(self,
                  meta_task_cls,
                  is_ml_45=False,
@@ -35,20 +37,26 @@ class MetaTestHelperTF:
     def read_cmd(cls, env_cls, is_ml_45=False, is_normalized_reward=False):
         logger.add_output(StdOutput())
         parser = argparse.ArgumentParser()
-        parser.add_argument("folder", nargs="+")
+        parser.add_argument('folder', nargs='+')
         # Adaptation parameters
-        parser.add_argument("--adapt-rollouts", nargs="?", default=10, type=int)
-        parser.add_argument("--test-rollouts", nargs="?", default=10, type=int)
-        parser.add_argument("--max-path-length", nargs="?", default=100, type=int)
+        parser.add_argument('--adapt-rollouts',
+                            nargs='?',
+                            default=10,
+                            type=int)
+        parser.add_argument('--test-rollouts', nargs='?', default=10, type=int)
+        parser.add_argument('--max-path-length',
+                            nargs='?',
+                            default=100,
+                            type=int)
         # Number of workers
-        parser.add_argument("--parallel", nargs="?", default=0, type=int)
+        parser.add_argument('--parallel', nargs='?', default=0, type=int)
         # Skip iteration that has existing meta-testing result.
-        parser.add_argument("--skip-exist", action='store_true', default=True)
+        parser.add_argument('--skip-exist', action='store_true', default=True)
         # Merge all meta-testing result to meta-test.csv
-        parser.add_argument("--merge", action='store_true', default=True)
+        parser.add_argument('--merge', action='store_true', default=True)
         # Skip some iterations.
         # e.g. stride=3 sample 1 iteration every 3 iterations.
-        parser.add_argument("--stride", default=1, type=int)
+        parser.add_argument('--stride', default=1, type=int)
 
         args = parser.parse_args()
         meta_train_dirs = args.folder
@@ -60,20 +68,18 @@ class MetaTestHelperTF:
         to_merge = args.merge
         stride = args.stride
 
-        helper = cls(
-            is_ml_45=is_ml_45,
-            is_normalized_reward=is_normalized_reward,
-            meta_task_cls=env_cls,
-            max_path_length=max_path_length,
-            adapt_rollout_per_task=adapt_rollout_per_task,
-            test_rollout_per_task=test_rollout_per_task)
+        helper = cls(is_ml_45=is_ml_45,
+                     is_normalized_reward=is_normalized_reward,
+                     meta_task_cls=env_cls,
+                     max_path_length=max_path_length,
+                     adapt_rollout_per_task=adapt_rollout_per_task,
+                     test_rollout_per_task=test_rollout_per_task)
 
-        helper.test_many_folders(
-            folders=meta_train_dirs,
-            workers=workers,
-            skip_existing=skip_existing,
-            to_merge=to_merge,
-            stride=stride)
+        helper.test_many_folders(folders=meta_train_dirs,
+                                 workers=workers,
+                                 skip_existing=skip_existing,
+                                 to_merge=to_merge,
+                                 stride=stride)
 
     @classmethod
     def _get_tested_itrs(cls, meta_train_dir):
@@ -110,9 +116,11 @@ class MetaTestHelperTF:
     @classmethod
     def _merge_csv(cls, folder, itrs):
         """Merge into one csv."""
-        merged_file = os.path.join(folder, "meta-test.csv")
-        files_to_merge = [os.path.join(folder, "meta-test-itr_{}.csv".format(itr))
-                          for itr in itrs]
+        merged_file = os.path.join(folder, 'meta-test.csv')
+        files_to_merge = [
+            os.path.join(folder, 'meta-test-itr_{}.csv'.format(itr))
+            for itr in itrs
+        ]
 
         if os.path.isfile(merged_file):
             files_to_merge.append(merged_file)
@@ -122,9 +130,8 @@ class MetaTestHelperTF:
         merged_csv.sort_values(by=['Iteration'])
         merged_csv.to_csv(merged_file, index=False)
 
-        logger.log(
-            "Merged iteration {} into {}".format(", ".join([str(itr) for itr in itrs]),
-                                                 merged_file))
+        logger.log('Merged iteration {} into {}'.format(
+            ', '.join([str(itr) for itr in itrs]), merged_file))
 
     def test_one_folder(self, meta_train_dir, itrs):
         snapshot_config = SnapshotConfig(snapshot_dir=meta_train_dir,
@@ -132,9 +139,8 @@ class MetaTestHelperTF:
                                          snapshot_gap=1)
 
         with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-            meta_sampler = AllSetTaskSampler(self.meta_task_cls,
-                self.is_ml_45,
-                self.is_normalized_reward)
+            meta_sampler = AllSetTaskSampler(self.meta_task_cls, self.is_ml_45,
+                                             self.is_normalized_reward)
             runner.restore(meta_train_dir)
 
             meta_evaluator = MetaEvaluator(
@@ -149,7 +155,7 @@ class MetaTestHelperTF:
                 log_filename = os.path.join(meta_train_dir,
                                             'meta-test-itr_{}.csv'.format(itr))
                 logger.add_output(CsvOutput(log_filename))
-                logger.log("Writing into {}".format(log_filename))
+                logger.log('Writing into {}'.format(log_filename))
 
                 runner.__exit__(None, None, None)
                 tf.compat.v1.reset_default_graph()
@@ -174,7 +180,8 @@ class MetaTestHelperTF:
 
         tf.compat.v1.reset_default_graph()
 
-    def test_many_folders(self, folders, workers, skip_existing, to_merge, stride):
+    def test_many_folders(self, folders, workers, skip_existing, to_merge,
+                          stride):
         for meta_train_dir in folders:
             itrs = Snapshotter.get_available_itrs(meta_train_dir)
             tested_itrs = self._get_tested_itrs(meta_train_dir)
@@ -189,8 +196,10 @@ class MetaTestHelperTF:
                 self.test_one_folder(meta_train_dir, itrs)
             else:
                 bite_size = math.ceil(len(itrs) / workers)
-                bites = [itrs[i * bite_size: (i+1) * bite_size]
-                         for i in range(workers)]
+                bites = [
+                    itrs[i * bite_size:(i + 1) * bite_size]
+                    for i in range(workers)
+                ]
 
                 children = []
                 for bite_itrs in bites:
