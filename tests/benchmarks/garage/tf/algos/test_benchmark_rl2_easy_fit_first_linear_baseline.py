@@ -72,8 +72,9 @@ hyper_parameters = {
 
 def _prepare_meta_env(env):
     if ML:
-        task_samplers = task_sampler.EnvPoolSampler([RL2Env(env)])
-        task_samplers.grow_pool(hyper_parameters['meta_batch_size'])
+        # task_samplers = task_sampler.SetTaskSampler([RL2Env(env)])
+        task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('push-v1')))
+        # task_samplers.grow_pool(hyper_parameters['meta_batch_size'])
     else:
         task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(env()))
     return task_samplers.sample(1)[0](), task_samplers

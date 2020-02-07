@@ -75,7 +75,6 @@ class MetaEvaluator:
             ])
             adapted_policy = algo.adapt_policy(policy, traj)
             adapted_hidden_state = adapted_policy._prev_hiddens[:]
-
             for _ in range(num_test_rollouts):
                 policy._prev_hiddens[:] = adapted_hidden_state[:]
                 adapted_traj = self._test_sampler.obtain_samples(

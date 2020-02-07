@@ -46,7 +46,7 @@ class MetaTestHelperTF:
         parser.add_argument('--test-rollouts', nargs='?', default=10, type=int)
         parser.add_argument('--max-path-length',
                             nargs='?',
-                            default=100,
+                            default=150,
                             type=int)
         # Number of workers
         parser.add_argument('--parallel', nargs='?', default=0, type=int)
