@@ -14,9 +14,15 @@ import torch.nn.functional as F
 import garage.torch.utils as tu
 
 def _product_of_gaussians(mus, sigmas_squared):
-    '''
-    compute mu, sigma of product of gaussians
-    '''
+    """Compute mu, sigma of product of gaussians.
+    
+    Args:
+        mus (torch.Tensor): Means.
+        sigmas_squared (torch.Tensor): Variances.
+
+    Returns:
+        torch.Tensor: Mu and sigma of product of gaussians
+    """
     sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
     sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
     mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
@@ -193,8 +199,6 @@ class ContextConditionedPolicy(nn.Module):
         pre_tanh, actions = dist.rsample_with_pre_tanh_value()
         log_pi = dist.log_prob(value=actions, pre_tanh_value=pre_tanh)
         log_pi = log_pi.unsqueeze(1)
-        #import ipdb; ipdb.set_trace()
-        #log_pi = log_pi.sum()
         mean = dist.mean.to('cpu').detach().numpy()
         log_std = (dist.variance**.5).log().to('cpu').detach().numpy()
 
@@ -212,14 +216,11 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         z = self.z
-        #obs = torch.Tensor(obs)
-        #obs = torch.unsqueeze(obs, 0)
         obs = tu.from_numpy(obs[None])
         obs_in = torch.cat([obs, z], dim=1)
         action, info = self._policy.get_action(obs_in)
         action = np.squeeze(action, axis=0)
         info['mean'] = np.squeeze(info['mean'], axis=0)
-        #import ipdb; ipdb.set_trace()
         return action, info
 
     def compute_kl_div(self):

@@ -99,14 +99,14 @@ class PEARLSAC(MetaRLAlgorithm):
             num_test_tasks,
             latent_dim,
             test_env=None,
-            policy_lr=1e-3,
-            qf_lr=1e-3,
-            vf_lr=1e-3,
-            context_lr=1e-3,
-            policy_mean_reg_coeff=1e-3,
-            policy_std_reg_coeff=1e-3,
+            policy_lr=3E-4,
+            qf_lr=3E-4,
+            vf_lr=3E-4,
+            context_lr=3E-4,
+            policy_mean_reg_coeff=1E-3,
+            policy_std_reg_coeff=1E-3,
             policy_pre_activation_coeff=0.,
-            soft_target_tau=1e-2,
+            soft_target_tau=0.005,
             kl_lambda=1.,
             optimizer_class=torch.optim.Adam,
             recurrent=False,
@@ -117,7 +117,7 @@ class PEARLSAC(MetaRLAlgorithm):
             num_initial_steps=100,
             num_tasks_sample=100,
             num_steps_prior=100,
-            num_steps_posterior=100,
+            num_steps_posterior=0,
             num_extra_rl_steps_posterior=100,
             num_evals=10,
             num_steps_per_eval=1000,
@@ -128,7 +128,7 @@ class PEARLSAC(MetaRLAlgorithm):
             discount=0.99,
             replay_buffer_size=1000000,
             reward_scale=1,
-            num_exp_traj_eval=1,
+            num_exp_traj_eval=2,
             update_post_train=1,
             eval_deterministic=True,
             render_eval_paths=False,
@@ -351,8 +351,6 @@ class PEARLSAC(MetaRLAlgorithm):
         # optimize qf and encoder networks
         q1_pred = self._qf1(torch.cat([obs, actions], dim=1), task_z)
         q2_pred = self._qf2(torch.cat([obs, actions], dim=1), task_z)
-        #q1_pred = self._qf1(obs, actions, task_z)
-        #q2_pred = self._qf2(obs, actions, task_z)
         v_pred = self._vf(obs, task_z.detach())
 
         with torch.no_grad():
@@ -385,8 +383,6 @@ class PEARLSAC(MetaRLAlgorithm):
         # compute min Q on the new actions
         q1 = self._qf1(torch.cat([obs, new_actions], dim=1), task_z.detach())
         q2 = self._qf2(torch.cat([obs, new_actions], dim=1), task_z.detach())
-        #q1 = self._qf1(obs, new_actions, task_z.detach())
-        #q2 = self._qf2(obs, new_actions, task_z.detach())
         min_q = torch.min(q1, q2)
 
         # optimize vf
@@ -724,7 +720,7 @@ class PEARLSAC(MetaRLAlgorithm):
         ]
 
     def get_exploration_policy(self):
-        return self.policy
+        return copy.deepcopy(self.policy)
 
     def adapt_policy(self, exploration_policy, exploration_trajectories):
         pass

@@ -10,15 +10,12 @@ import dowel
 from dowel import logger as dowel_logger
 import numpy as np
 import pytest
-import torch
-from torch.nn import functional as F  # NOQA
-#pip install git+https://github.com/rlworkgroup/metaworld.git@master#egg=metaworld
 from metaworld.benchmarks import ML1
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
-from garage.experiment import deterministic, LocalRunner, run_experiment
+from garage.experiment import deterministic, LocalRunner
 from garage.experiment.snapshotter import SnapshotConfig
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
@@ -207,7 +204,7 @@ def run_garage(env, seed, log_dir):
     )
 
     tu.set_gpu_mode(params['use_gpu'])
-    if params['use_gpu'] == True: 
+    if params['use_gpu'] == True:
         pearlsac.to()
 
     # Set up logger since we are not using run_experiment
