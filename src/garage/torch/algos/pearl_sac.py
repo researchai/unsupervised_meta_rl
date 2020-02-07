@@ -428,7 +428,7 @@ class PEARLSAC(MetaRLAlgorithm):
             self._eval_statistics['PolicyLoss'] = np.mean(
                 tu.to_numpy(policy_loss))
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, num_adapt, num_steps):
         """Evaluate train and test tasks.
 
         Args:
@@ -468,9 +468,10 @@ class PEARLSAC(MetaRLAlgorithm):
         avg_train_return, train_success_rate = self.get_average_returns(
             indices, False)
         """
-        self.get_average_returns(indices, False, epoch)
+        #self.get_average_returns(indices, False, epoch)
         # eval test tasks
-        self.get_average_returns(self._test_tasks_idx, True, epoch)
+        
+        self.get_average_returns(self._test_tasks_idx, True, epoch, num_adapt, num_steps)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
@@ -487,11 +488,12 @@ class PEARLSAC(MetaRLAlgorithm):
             tabular.record(key, value)
         self._eval_statistics = None
 
+        tabular.record('AdaptRollouts', num_adapt)
         tabular.record('Iteration', epoch)
         tabular.record('TotalTrainSteps', self._total_train_steps)
         tabular.record('TotalEnvSteps', self._total_env_steps)
 
-    def get_average_returns(self, indices, test, epoch):
+    def get_average_returns(self, indices, test, epoch, num_adapt, num_steps):
         """Get average returns for specific tasks.
 
         Args:
@@ -510,17 +512,18 @@ class PEARLSAC(MetaRLAlgorithm):
         for idx in indices:
             
             eval_paths = []
-            for _ in range(self._num_evals):
-                paths = self.collect_paths(idx, test)
-                paths[-1]['terminals'] = paths[-1]['terminals'].squeeze()
-                paths[-1]['dones'] = paths[-1]['terminals']
-                eval_paths.append(paths[-1])
-                discounted_returns.append(discount_cumsum(paths[-1]['rewards'], self._discount))
-                undiscounted_returns.append(sum(paths[-1]['rewards']))
-                completion.append(float(paths[-1]['terminals'].any()))
-                # calculate success rate for metaworld tasks
-                if 'success' in paths[-1]['env_infos']:
-                    success.append(paths[-1]['env_infos']['success'].any())
+            for _ in range(1):
+                for x in range(-20, 0, 1):
+                    paths = self.collect_paths(idx, test, num_adapt, num_steps)
+                    paths[x]['terminals'] = paths[x]['terminals'].squeeze()
+                    paths[x]['dones'] = paths[x]['terminals']
+                    eval_paths.append(paths[x])
+                    discounted_returns.append(discount_cumsum(paths[x]['rewards'], self._discount))
+                    undiscounted_returns.append(sum(paths[x]['rewards']))
+                    completion.append(float(paths[x]['terminals'].any()))
+                    # calculate success rate for metaworld tasks
+                    if 'success' in paths[x]['env_infos']:
+                        success.append(paths[x]['env_infos']['success'].any())
             
             temp_traj = TrajectoryBatch.from_trajectory_list(self.env, eval_paths)
             traj.append(temp_traj)
@@ -661,7 +664,7 @@ class PEARLSAC(MetaRLAlgorithm):
         t = batch['terminals'][None, ...]
         return [o, a, r, no, t]
 
-    def collect_paths(self, idx, test):
+    def collect_paths(self, idx, test, num_adapt, num_steps):
         """Collect paths for evaluation.
 
         Args:
@@ -687,16 +690,16 @@ class PEARLSAC(MetaRLAlgorithm):
         num_transitions = 0
         num_trajs = 0
 
-        while num_transitions < self._num_steps_per_eval:
+        while num_transitions < num_steps:
             path, num = self.sampler.obtain_samples(
                 deterministic=self._eval_deterministic,
-                max_samples=self._num_steps_per_eval - num_transitions,
+                max_samples=num_steps - num_transitions,
                 max_trajs=1,
                 accum_context=True)
             paths += path
             num_transitions += num
             num_trajs += 1
-            if num_trajs >= self._num_exp_traj_eval:
+            if num_trajs >= num_adapt:
                 context = self.policy.context
                 self.policy.infer_posterior(context)
 
