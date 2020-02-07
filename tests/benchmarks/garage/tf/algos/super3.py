@@ -36,9 +36,9 @@ for target, indice in zip(targets, indices):
                 os.system(path)
             print('Path: ', path)
     else:
-        for i, ind in enumerate(indice):
+        for ind in indice:
             path = 'aws s3 cp --recursive s3://resl-garage-paper/{}_{} results/{}_{}'.format(
-                target, ind, target, i)
+                target, ind, target, ind)
             if load_file:
                 os.system(path)
             print('Path: ', path)

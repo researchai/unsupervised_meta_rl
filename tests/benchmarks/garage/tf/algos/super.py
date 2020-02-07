@@ -24,7 +24,6 @@ indices = [
     #5,
     #10,
 ]
-1
 load_file = True
 run_test = True
 
@@ -50,7 +49,7 @@ pdb.set_trace()
 cmd = 'python tests/benchmarks/garage/tf/algos/test_benchmark_rl2_meta_test_ml10.py '
 cmd += '--test-rollouts 10 '
 cmd += '--max-path-length 150 '
-cmd += '--parallel 20'
+cmd += '--parallel 90 '
 cmd += '--stride 10 '
 for target, indice in zip(targets, indices):
     if isinstance(indice, int):

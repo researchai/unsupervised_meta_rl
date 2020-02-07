@@ -179,12 +179,12 @@ class AllSetTaskSampler(TaskSampler):
             ]
             max_obs_dim = max(env_obs_dim)
             if is_normlaized_reward:
-                self._env = NormalizedRewardEnv(
-                    RL2Env(env_constructor(), max_obs_dim))
+                self._env = 
+                    RL2Env(NormalizedRewardEnv(env_constructor()), max_obs_dim)
             else:
                 self._env = RL2Env(env_constructor(), max_obs_dim)
         elif is_normlaized_reward:
-            self._env = NormalizedRewardEnv(RL2Env(env_constructor()))
+            self._env = RL2Env(NormalizedRewardEnv(env_constructor()))
         else:
             self._env = RL2Env(env_constructor())
         assert hasattr(self._env, 'num_tasks')
