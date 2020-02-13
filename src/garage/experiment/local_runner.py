@@ -7,6 +7,7 @@ import time
 from dowel import logger, tabular
 import psutil
 
+from garage import TrajectoryBatch, TaskEmbeddingTrajectoryBatch
 from garage.experiment.deterministic import get_seed, set_seed
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
@@ -181,15 +182,17 @@ class LocalRunner:
         if issubclass(sampler_cls, BaseSampler):
             return sampler_cls(self._algo, self._env, **sampler_args)
         else:
+            trajectory_batch_cls = TrajectoryBatch if worker_class == DefaultWorker else TaskEmbeddingTrajectoryBatch
             return sampler_cls.from_worker_factory(WorkerFactory(
                 seed=seed,
                 max_path_length=max_path_length,
                 n_workers=n_workers,
                 worker_class=worker_class),
                                                    agents=self._algo.policy,
-                                                   envs=self._env)
+                                                   envs=self._env,
+                                                   trajectory_batch_cls=trajectory_batch_cls)
 
-    def setup(self, algo, env, sampler_cls=None, sampler_args=None):
+    def setup(self, algo, env, sampler_cls=None, sampler_args=None, worker_class=DefaultWorker):
         """Set up runner for algorithm and environment.
 
         This method saves algo and env within runner and creates a sampler.
@@ -215,6 +218,7 @@ class LocalRunner:
         if sampler_cls is None:
             sampler_cls = algo.sampler_cls
         self._sampler = self.make_sampler(sampler_cls,
+                                          worker_class=worker_class,
                                           sampler_args=sampler_args)
 
         self._has_setup = True

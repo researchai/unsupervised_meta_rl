@@ -24,10 +24,13 @@ class LocalSampler(Sampler):
             in. If a list is passed in, it must have length exactly
             `worker_factory.n_workers`, and will be spread across the
             workers.
+        trajectory_batch_cls(TrajectoryBatch): A tuple representing a batch
+            of whole trajectories, it must has a concatenate method.
 
     """
 
-    def __init__(self, worker_factory, agents, envs):
+    def __init__(self, worker_factory, agents, envs,
+                 trajectory_batch_cls=TrajectoryBatch):
         # pylint: disable=super-init-not-called
         self._factory = worker_factory
         self._agents = worker_factory.prepare_worker_messages(agents)
@@ -35,12 +38,14 @@ class LocalSampler(Sampler):
         self._workers = [
             worker_factory(i) for i in range(worker_factory.n_workers)
         ]
+        self._trajectory_batch_cls = trajectory_batch_cls
         for worker, agent, env in zip(self._workers, self._agents, self._envs):
             worker.update_agent(agent)
             worker.update_env(env)
 
     @classmethod
-    def from_worker_factory(cls, worker_factory, agents, envs):
+    def from_worker_factory(cls, worker_factory, agents, envs,
+                            trajectory_batch_cls=TrajectoryBatch):
         """Construct this sampler.
 
         Args:
@@ -56,12 +61,14 @@ class LocalSampler(Sampler):
                 in. If a list is passed in, it must have length exactly
                 `worker_factory.n_workers`, and will be spread across the
                 workers.
+            trajectory_batch_cls(TrajectoryBatch): A tuple representing a batch
+                of whole trajectories.
 
         Returns:
             Sampler: An instance of `cls`.
 
         """
-        return cls(worker_factory, agents, envs)
+        return cls(worker_factory, agents, envs, trajectory_batch_cls)
 
     def _update_workers(self, agent_update, env_update):
         """Apply updates to the workers.
@@ -114,7 +121,7 @@ class LocalSampler(Sampler):
                 completed_samples += len(batch.actions)
                 batches.append(batch)
                 if completed_samples >= num_samples:
-                    return TrajectoryBatch.concatenate(*batches)
+                    return self._trajectory_batch_cls.concatenate(*batches)
 
     def obtain_exact_trajectories(self,
                                   n_traj_per_worker,
@@ -146,7 +153,7 @@ class LocalSampler(Sampler):
             for _ in range(n_traj_per_worker):
                 batch = worker.rollout()
                 batches.append(batch)
-        return TrajectoryBatch.concatenate(*batches)
+        return self._trajectory_batch_cls.concatenate(*batches)
 
     def shutdown_worker(self):
         """Shutdown the workers."""

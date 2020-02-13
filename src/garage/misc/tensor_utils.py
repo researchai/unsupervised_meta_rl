@@ -282,3 +282,41 @@ def slice_nested_dict(dict_or_array, start, stop):
         # It *should* be a numpy array (unless someone ignored the type
         # signature).
         return dict_or_array[start:stop]
+
+
+def rrse(actual: np.ndarray, predicted: np.ndarray):
+    """ Root Relative Squared Error """
+    return np.sqrt(np.sum(np.square(actual - predicted)) / np.sum(np.square(actual - np.mean(actual))))
+
+
+def sliding_window(t, window, step_size, smear=False):
+    if window > t.shape[0]:
+        raise ValueError("`window` must be <= `t.shape[0]`")
+    elif window == t.shape[0]:
+        return np.stack([t] * window)
+
+    # TODO(gh/19): this is broken for other step sizes. The problem may be with
+    # the transpose trick
+    if step_size != 1:
+        raise NotImplementedError
+
+    # The stride trick works only on the last dimension of an ndarray, so we
+    # operate on the transpose, which reverses the dimensions of t.
+    t_T = t.T
+
+    shape = t_T.shape[:-1] + (t_T.shape[-1] - window + 1 - step_size, window)
+    strides = t_T.strides + (t_T.strides[-1] * step_size, )
+    t_T_win = np.lib.stride_tricks.as_strided(
+        t_T, shape=shape, strides=strides)
+
+    # t_T_win has shape (d_k, d_k-1, ..., (n - window_size), window_size)
+    # To arrive at the final shape, we first transpose the result to arrive at
+    # (window_size, (n - window_size), d_1, ..., d_k), then swap the firs two
+    # axes
+    t_win = np.swapaxes(t_T_win.T, 0, 1)
+
+    # Optionally smear the last element to preserve the first dimension
+    if smear:
+        t_win = pad_tensor(t_win, t.shape[0], mode='last')
+
+    return t_win

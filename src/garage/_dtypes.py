@@ -492,3 +492,225 @@ class TimeStep(
         return super().__new__(TimeStep, env_spec, observation, action, reward,
                                next_observation, terminal, env_info,
                                agent_info)
+
+
+class TaskEmbeddingTrajectoryBatch(
+        collections.namedtuple('TaskEmbeddingTrajectoryBatch',
+                                TrajectoryBatch._fields \
+                                + ('tasks', 'latents', 'latent_infos'))):
+    __slots__ = ()
+
+    def __new__(cls, env_spec, observations, last_observations, actions,
+                rewards, terminals, env_infos, agent_infos,
+                lengths, tasks, latents, latent_infos):  # noqa: D102
+        trajectory_batch = TrajectoryBatch.__new__(
+            TrajectoryBatch, env_spec, observations,
+            last_observations, actions, rewards, terminals,
+            env_infos, agent_infos, lengths)
+        # TODO(): Add checks for tasks, latents and latent_infos
+        return super().__new__(
+            TaskEmbeddingTrajectoryBatch, env_spec, observations,
+            last_observations, actions, rewards, terminals, env_infos,
+            agent_infos, lengths, tasks, latents, latent_infos)
+
+    @classmethod
+    def concatenate(cls, *batches):
+        """Create a TaskEmbeddingTrajectoryBatch by concatenating TaskEmbeddingTrajectoryBatches.
+
+        Args:
+            batches (list[TaskEmbeddingTrajectoryBatch]): Batches to concatenate.
+
+        Returns:
+            TaskEmbeddingTrajectoryBatch: The concatenation of the batches.
+
+        """
+        if __debug__:
+            for b in batches:
+                assert (set(b.env_infos.keys()) == set(
+                    batches[0].env_infos.keys()))
+                assert (set(b.agent_infos.keys()) == set(
+                    batches[0].agent_infos.keys()))
+                assert (set(b.latent_infos.keys()) == set(
+                    batches[0].latent_infos.keys()))
+        env_infos = {
+            k: np.concatenate([b.env_infos[k] for b in batches])
+            for k in batches[0].env_infos.keys()
+        }
+        agent_infos = {
+            k: np.concatenate([b.agent_infos[k] for b in batches])
+            for k in batches[0].agent_infos.keys()
+        }
+        latent_infos = {
+            k: np.concatenate([b.latent_infos[k] for b in batches])
+            for k in batches[0].latent_infos.keys()
+        }
+        return cls(
+            batches[0].env_spec,
+            np.concatenate([batch.observations for batch in batches]),
+            np.concatenate([batch.last_observations for batch in batches]),
+            np.concatenate([batch.actions for batch in batches]),
+            np.concatenate([batch.rewards for batch in batches]),
+            np.concatenate([batch.terminals for batch in batches]), env_infos,
+            agent_infos, np.concatenate([batch.lengths for batch in batches]),
+            np.concatenate([batch.tasks for batch in batches]),
+            np.concatenate([batch.latents for batch in batches]),
+            latent_infos)
+
+    def split(self):
+        """Split a TaskEmbeddingTrajectoryBatch into a list of TaskEmbeddingTrajectoryBatches.
+
+        The opposite of concatenate.
+
+        Returns:
+            list[TaskEmbeddingTrajectoryBatch]: A list of TaskEmbeddingTrajectoryBatches, with one
+                trajectory per batch.
+
+        """
+        trajectories = []
+        start = 0
+        for i, length in enumerate(self.lengths):
+            stop = start + length
+            traj = TaskEmbeddingTrajectoryBatch(
+                env_spec=self.env_spec,
+                observations=self.observations[start:stop],
+                last_observations=np.asarray(
+                    [self.last_observations[i]]),
+                actions=self.actions[start:stop],
+                rewards=self.rewards[start:stop],
+                terminals=self.terminals[start:stop],
+                env_infos=tensor_utils.slice_nested_dict(
+                    self.env_infos, start, stop),
+                agent_infos=tensor_utils.slice_nested_dict(
+                    self.agent_infos, start, stop),
+                lengths=np.asarray([length]),
+                tasks=self.tasks[start:stop],
+                latents=self.latents[start:stop],
+                latent_infos=tensor_utils.slice_nested_dict(
+                    self.latent_infos, start, stop))
+            trajectories.append(traj)
+            start = stop
+        return trajectories
+
+    def to_trajectory_list(self):
+        """Convert the batch into a list of dictionaries.
+
+        Returns:
+            list[dict[str, np.ndarray or dict[str, np.ndarray]]]: Keys:
+                * observations (np.ndarray): Non-flattened array of
+                    observations. Has shape (T, S^*) (the unflattened state
+                    space of the current environment).  observations[i] was
+                    used by the agent to choose actions[i].
+                * next_observations (np.ndarray): Non-flattened array of
+                    observations. Has shape (T, S^*). next_observations[i] was
+                    observed by the agent after taking actions[i].
+                * actions (np.ndarray): Non-flattened array of actions. Should
+                    have shape (T, S^*) (the unflattened action space of the
+                    current environment).
+                * rewards (np.ndarray): Array of rewards of shape (T,) (1D
+                    array of length timesteps).
+                * dones (np.ndarray): Array of rewards of shape (T,) (1D array
+                    of length timesteps).
+                * agent_infos (dict[str, np.ndarray]): Dictionary of stacked,
+                    non-flattened `agent_info` arrays.
+                * env_infos (dict[str, np.ndarray]): Dictionary of stacked,
+                    non-flattened `env_info` arrays.
+
+        """
+        start = 0
+        trajectories = []
+        for i, length in enumerate(self.lengths):
+            stop = start + length
+            trajectories.append({
+                'observations':
+                self.observations[start:stop],
+                'next_observations':
+                np.concatenate((self.observations[1 + start:stop],
+                                [self.last_observations[i]])),
+                'actions':
+                self.actions[start:stop],
+                'rewards':
+                self.rewards[start:stop],
+                'env_infos':
+                {k: v[start:stop]
+                 for (k, v) in self.env_infos.items()},
+                'agent_infos':
+                {k: v[start:stop]
+                 for (k, v) in self.agent_infos.items()},
+                'dones':
+                self.terminals[start:stop],
+                'tasks':
+                self.tasks[start:stop],
+                'latents':
+                self.latents[start:stop],
+                'latent_infos':
+                {k: v[start:stop]
+                 for (k, v) in self.latent_infos.items()},
+            })
+            start = stop
+        return trajectories
+
+    @classmethod
+    def from_trajectory_list(cls, env_spec, paths):
+        """Create a TaskEmbeddingTrajectoryBatch from a list of trajectories.
+
+        Args:
+            env_spec (garage.envs.EnvSpec): Specification for the environment
+                from which this data was sampled.
+            paths (list[dict[str, np.ndarray or dict[str, np.ndarray]]]): Keys:
+                * observations (np.ndarray): Non-flattened array of
+                    observations. Typically has shape (T, S^*) (the unflattened
+                    state space of the current environment). observations[i]
+                    was used by the agent to choose actions[i]. observations
+                    may instead have shape (T + 1, S^*).
+                * next_observations (np.ndarray): Non-flattened array of
+                    observations. Has shape (T, S^*). next_observations[i] was
+                    observed by the agent after taking actions[i]. Optional.
+                    Note that to ensure all information from the environment
+                    was preserved, observations[i] should have shape (T + 1,
+                    S^*), or this key should be set. However, this method is
+                    lenient and will "duplicate" the last observation if the
+                    original last observation has been lost.
+                * actions (np.ndarray): Non-flattened array of actions. Should
+                    have shape (T, S^*) (the unflattened action space of the
+                    current environment).
+                * rewards (np.ndarray): Array of rewards of shape (T,) (1D
+                    array of length timesteps).
+                * dones (np.ndarray): Array of rewards of shape (T,) (1D array
+                    of length timesteps).
+                * agent_infos (dict[str, np.ndarray]): Dictionary of stacked,
+                    non-flattened `agent_info` arrays.
+                * env_infos (dict[str, np.ndarray]): Dictionary of stacked,
+                    non-flattened `env_info` arrays.
+
+        """
+        lengths = np.asarray([len(p['rewards']) for p in paths])
+        if all(
+                len(path['observations']) == length + 1
+                for (path, length) in zip(paths, lengths)):
+            last_observations = np.asarray(
+                [p['observations'][-1] for p in paths])
+            observations = np.concatenate(
+                [p['observations'][:-1] for p in paths])
+        else:
+            # The number of observations and timesteps must match.
+            observations = np.concatenate([p['observations'] for p in paths])
+            if paths[0].get('next_observations') is not None:
+                last_observations = np.asarray(
+                    [p['next_observations'][-1] for p in paths])
+            else:
+                last_observations = np.asarray(
+                    [p['observations'][-1] for p in paths])
+
+        stacked_paths = tensor_utils.concat_tensor_dict_list(paths)
+        return cls(env_spec=env_spec,
+                   observations=observations,
+                   last_observations=last_observations,
+                   actions=stacked_paths['actions'],
+                   rewards=stacked_paths['rewards'],
+                   terminals=stacked_paths['dones'],
+                   env_infos=stacked_paths['env_infos'],
+                   agent_infos=stacked_paths['agent_infos'],
+                   lengths=lengths,
+                   tasks=stacked_paths['tasks'],
+                   latents=stacked_paths['latents'],
+                   latent_infos=stacked_paths['latent_infos'])
