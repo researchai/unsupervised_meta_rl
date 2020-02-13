@@ -15,6 +15,7 @@ from garage.sampler.rl2_worker import RL2Worker
 from garage.sampler.sampler import Sampler
 from garage.sampler.simple_sampler import SimpleSampler
 from garage.sampler.stateful_pool import singleton_pool
+from garage.sampler.task_embedding_worker import TaskEmbeddingWorker
 from garage.sampler.vec_env_executor import VecEnvExecutor
 from garage.sampler.worker import DefaultWorker, Worker
 from garage.sampler.worker_factory import WorkerFactory
@@ -35,6 +36,7 @@ __all__ = [
     'SamplerWorker',
     'SimpleSampler',
     'singleton_pool',
+    'TaskEmbeddingWorker',
     'VecEnvExecutor',
     'Worker',
     'WorkerFactory',

@@ -145,7 +145,8 @@ class LocalTFRunner(LocalRunner):
             policy=policy,
             env=env)
 
-    def setup(self, algo, env, sampler_cls=None, sampler_args=None, n_workers=psutil.cpu_count(logical=False),
+    def setup(self, algo, env, sampler_cls=None, sampler_args=None,
+              n_workers=psutil.cpu_count(logical=False),
               worker_class=DefaultWorker, worker_args=None):
         """Set up runner and sessions for algorithm and environment.
 

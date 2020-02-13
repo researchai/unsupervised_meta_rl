@@ -10,11 +10,14 @@ from garage.tf.policies.discrete_qf_derived_policy import (
     DiscreteQfDerivedPolicy)
 from garage.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
 from garage.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
+from garage.tf.policies.gaussian_mlp_multitask_policy import GaussianMLPMultitaskPolicy
 from garage.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
+from garage.tf.policies.multitask_policy import StochasticMultitaskPolicy
 
 __all__ = [
     'Policy', 'StochasticPolicy', 'CategoricalCNNPolicy',
     'CategoricalGRUPolicy', 'CategoricalLSTMPolicy', 'CategoricalMLPPolicy',
     'ContinuousMLPPolicy', 'DiscreteQfDerivedPolicy', 'GaussianGRUPolicy',
-    'GaussianLSTMPolicy', 'GaussianMLPPolicy'
+    'GaussianLSTMPolicy', 'GaussianMLPPolicy', 'StochasticMultitaskPolicy',
+    'GaussianMLPMultitaskPolicy'
 ]
