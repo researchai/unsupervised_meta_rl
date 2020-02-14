@@ -33,9 +33,9 @@ MT10_envs_by_id = {
 }
 
 # env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 'drawer-close-v1', 'button-press-topdown-v1', 'ped-insert-side-v1', 'window-open-v1', 'window-close-v1']
-# env_ids = ['push-v1']
-# env_ids = ['reach-v1']
-# env_ids = ['pick-place-v1']
+# env_id = 'push-v1'
+# env_id = 'reach-v1'
+env_id = 'pick-place-v1'
 
 # ML1_envs = [TfEnv(normalize(MT10_envs_by_id[i], normalize_reward=True)) for i in env_ids]
 
@@ -45,7 +45,7 @@ def ppo_ml1(ctxt=None, seed=1):
     """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        Ml1_reach_envs = get_ML1_envs_test("reach-v1")
+        Ml1_reach_envs = get_ML1_envs_test(env_id)
         env = MTMetaWorldWrapper(Ml1_reach_envs)
 
         policy = GaussianMLPPolicy(
