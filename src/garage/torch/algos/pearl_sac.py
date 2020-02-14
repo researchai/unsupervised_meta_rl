@@ -14,7 +14,7 @@ import torch
 from garage import log_performance, log_multitask_performance, TrajectoryBatch
 from garage.misc.tensor_utils import discount_cumsum
 from garage.np.algos.meta_rl_algorithm import MetaRLAlgorithm
-from garage.replay_buffer.multi_task_replay_buffer import MultiTaskReplayBuffer
+from garage.replay_buffer.meta_replay_buffer import MetaReplayBuffer
 from garage.sampler.pearl_sampler import PEARLSampler
 import garage.torch.utils as tu
 
@@ -107,7 +107,7 @@ class PEARLSAC(MetaRLAlgorithm):
             policy_std_reg_coeff=1E-3,
             policy_pre_activation_coeff=0.,
             soft_target_tau=0.005,
-            kl_lambda=1.,
+            kl_lambda=.1,
             optimizer_class=torch.optim.Adam,
             recurrent=False,
             use_information_bottleneck=True,
@@ -132,6 +132,7 @@ class PEARLSAC(MetaRLAlgorithm):
             update_post_train=1,
             eval_deterministic=True,
             render_eval_paths=False,
+            multi_env=False,
     ):
 
         self.env = env
@@ -177,6 +178,7 @@ class PEARLSAC(MetaRLAlgorithm):
         self._total_env_steps = 0
         self._total_train_steps = 0
         self._eval_statistics = None
+        self._multi_env = multi_env
 
         self.sampler = PEARLSampler(
             env=env,
@@ -199,17 +201,19 @@ class PEARLSAC(MetaRLAlgorithm):
         self._test_tasks_idx = range(num_test_tasks)
 
         # buffer for training RL update
-        self.replay_buffer = MultiTaskReplayBuffer(
-            replay_buffer_size,
-            env,
-            self._train_tasks_idx,
-        )
+        self.replay_buffer = {
+            i: MetaReplayBuffer(max_replay_buffer_size=replay_buffer_size,
+                                observation_dim=env.observation_space.low.size,
+                                action_dim=env.action_space.low.size)
+            for i in self._train_tasks_idx
+        }
         # buffer for training encoder update
-        self.enc_replay_buffer = MultiTaskReplayBuffer(
-            replay_buffer_size,
-            env,
-            self._train_tasks_idx,
-        )
+        self.context_replay_buffer = {
+            i: MetaReplayBuffer(max_replay_buffer_size=replay_buffer_size,
+                                observation_dim=env.observation_space.low.size,
+                                action_dim=env.action_space.low.size)
+            for i in self._train_tasks_idx
+        }
 
         self.target_vf = copy.deepcopy(self._vf)
         self.vf_criterion = torch.nn.MSELoss()
@@ -244,7 +248,7 @@ class PEARLSAC(MetaRLAlgorithm):
         """
         data = self.__dict__.copy()
         del data['replay_buffer']
-        del data['enc_replay_buffer']
+        del data['context_replay_buffer']
         return data
 
     def train(self, runner):
@@ -266,7 +270,6 @@ class PEARLSAC(MetaRLAlgorithm):
                     self._task = self._train_tasks[idx]
                     self.env.set_task(self._task)
                     self.env.reset()
-                    self.sampler.env = self.env
                     self.obtain_samples(self._num_initial_steps, 1, np.inf)
 
             # obtain samples from random tasks
@@ -276,8 +279,7 @@ class PEARLSAC(MetaRLAlgorithm):
                 self._task = self._train_tasks[idx]
                 self.env.set_task(self._task)
                 self.env.reset()
-                self.sampler.env = self.env
-                self.enc_replay_buffer.task_buffers[idx].clear()
+                self.context_replay_buffer[idx].clear()
 
                 # obtain samples with z ~ prior
                 if self._num_steps_prior > 0:
@@ -510,6 +512,7 @@ class PEARLSAC(MetaRLAlgorithm):
                 paths = self.collect_paths(idx, test)
                 paths[-1]['terminals'] = paths[-1]['terminals'].squeeze()
                 paths[-1]['dones'] = paths[-1]['terminals']
+                #paths[-1]['env_infos']['task'] = paths[-1]['env_infos']['task']['velocity']
                 eval_paths.append(paths[-1])
                 discounted_returns.append(discount_cumsum(paths[-1]['rewards'], self._discount))
                 undiscounted_returns.append(sum(paths[-1]['rewards']))
@@ -523,14 +526,16 @@ class PEARLSAC(MetaRLAlgorithm):
         
         if test:
             with tabular.prefix("Test/"):
-                log_multitask_performance(epoch, TrajectoryBatch.concatenate(*traj), 
-                    self._discount, task_names=self.test_env.task_names)
+                if self._multi_env:
+                    log_multitask_performance(epoch, TrajectoryBatch.concatenate(*traj), 
+                        self._discount, task_names=self.test_env.task_names)
                 log_performance(epoch, TrajectoryBatch.concatenate(*traj), 
                     self._discount, prefix='Average')
         else:
             with tabular.prefix("Train/"):
-                log_multitask_performance(epoch, TrajectoryBatch.concatenate(*traj), 
-                    self._discount, task_names=self.env.task_names)
+                if self._multi_env:
+                    log_multitask_performance(epoch, TrajectoryBatch.concatenate(*traj), 
+                        self._discount, task_names=self.env.task_names)
                 log_performance(epoch, TrajectoryBatch.concatenate(*traj), 
                     self._discount, prefix='Average')
         
@@ -577,10 +582,13 @@ class PEARLSAC(MetaRLAlgorithm):
                 accum_context=False,
                 resample=resample_z_rate)
             num_transitions += n_samples
-            self.replay_buffer.add_paths(self.task_idx, paths)
+            for path in paths:
+                self.replay_buffer[self.task_idx].add_path(path)
 
-            if add_to_enc_buffer:
-                self.enc_replay_buffer.add_paths(self.task_idx, paths)
+                if add_to_enc_buffer:
+                    self.context_replay_buffer[self.task_idx].add_path(path)
+
+            
             if update_posterior_rate != np.inf:
                 context = self.sample_context(self.task_idx)
                 self.policy.infer_posterior(context)
@@ -600,8 +608,7 @@ class PEARLSAC(MetaRLAlgorithm):
         # transitions sampled randomly from replay buffer
         batches = [
             tu.np_to_pytorch_batch(
-                self.replay_buffer.random_batch(idx,
-                                                batch_size=self._batch_size))
+                self.replay_buffer[idx].sample_batch(self._batch_size))
             for idx in indices
         ]
         unpacked = [self.unpack_batch(batch) for batch in batches]
@@ -625,10 +632,8 @@ class PEARLSAC(MetaRLAlgorithm):
             indices = [indices]
         batches = [
             tu.np_to_pytorch_batch(
-                self.enc_replay_buffer.random_batch(
-                    idx,
-                    batch_size=self._embedding_batch_size,
-                    sequence=self._recurrent)) for idx in indices
+                self.context_replay_buffer[idx].sample_batch(self._batch_size)) 
+            for idx in indices
         ]
         context = [self.unpack_batch(batch) for batch in batches]
         # group like elements together
@@ -676,7 +681,6 @@ class PEARLSAC(MetaRLAlgorithm):
         else:
             self._task = self._train_tasks[idx]
             self.env.set_task(self._task)
-            self.sampler.env = self.env
             self.env.reset()
         self.policy.reset_belief()
         paths = []
@@ -696,6 +700,7 @@ class PEARLSAC(MetaRLAlgorithm):
                 context = self.policy.context
                 self.policy.infer_posterior(context)
 
+        self.sampler.env = self.env
         return paths
 
     def _update_target_network(self):

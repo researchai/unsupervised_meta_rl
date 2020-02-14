@@ -48,6 +48,8 @@ params = dict(
     embedding_mini_batch_size=64,
     max_path_length=150,
     reward_scale=10.,
+    use_information_bottleneck=True,
+    use_next_obs_in_context=False,
     n_trials=1,
     use_gpu=True,
 )
