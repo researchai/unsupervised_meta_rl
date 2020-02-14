@@ -38,14 +38,16 @@ env_ids = ['reach-v1', 'push-v1', 'pick-place-v1', 'door-v1', 'drawer-open-v1', 
 # env_ids = ['pick-place-v1']
 
 MT10_envs = [TfEnv(MT10_envs_by_id[i]) for i in env_ids]
+skip_size = 1
+total_steps = 20000000
 
 @wrap_experiment
-def ppo_mt10(ctxt=None, seed=1):
+def ppo_mt10_sampling(ctxt=None, seed=1):
 
     """Run task."""
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        env = MultiEnvSamplingWrapper(MT10_envs, env_ids, len(env_ids)-1, sample_strategy=round_robin_strategy)
+        env = MultiEnvSamplingWrapper(MT10_envs, env_ids, len(env_ids)-skip_size, sample_strategy=round_robin_strategy)
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
@@ -79,8 +81,13 @@ def ppo_mt10(ctxt=None, seed=1):
             ),
         )
 
+        batch_size = (len(env_ids)-skip_size)*10*150
+        epochs = (total_steps//batch_size)+10
+
+        print ("epochs:", epochs, "batch_size:", batch_size)
+
         runner.setup(algo, env)
-        runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150, plot=False)
+        runner.train(n_epochs=epochs, batch_size=batch_size, plot=False)
 
 
-ppo_mt10(seed=931)
+ppo_mt10_sampling(seed=931)

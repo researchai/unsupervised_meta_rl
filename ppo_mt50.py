@@ -87,7 +87,7 @@ env_ids = ['reach-v1',
 # env_ids = ['reach-v1']
 # env_ids = ['pick-place-v1']
 
-MT50_envs = [TfEnv(normalize(MT50_envs_by_id[i], normalize_reward=True)) for i in env_ids]
+MT50_envs = [TfEnv(MT50_envs_by_id[i]) for i in env_ids]
 
 @wrap_experiment
 def ppo_mt50(ctxt=None, seed=1):
@@ -100,7 +100,7 @@ def ppo_mt50(ctxt=None, seed=1):
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
             hidden_sizes=(64, 64),
-            hidden_nonlinearity=tf.nn.relu,
+            hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
         )
 
@@ -108,7 +108,7 @@ def ppo_mt50(ctxt=None, seed=1):
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(64, 64),
-                use_trust_region=True,
+                use_trust_region=False,
             ),
         )
 
@@ -118,7 +118,7 @@ def ppo_mt50(ctxt=None, seed=1):
             baseline=baseline,
             max_path_length=150,
             discount=0.99,
-            gae_lambda=0.95,
+            gae_lambda=0.97,
             lr_clip_range=0.2,
             optimizer_args=dict(
                 batch_size=32,
@@ -127,16 +127,10 @@ def ppo_mt50(ctxt=None, seed=1):
                     learning_rate=3e-4,
                 ),
             ),
-            stop_entropy_gradient=True,
-            entropy_method='max',
-            policy_ent_coeff=0.002,
-            center_adv=False,
         )
 
         runner.setup(algo, env)
         runner.train(n_epochs=1500, batch_size=len(MT50_envs)*10*150, plot=False)
 
 
-seeds = random.sample(range(100), 1)
-for seed in seeds:
-    ppo_mt50(seed=seed)
+ppo_mt50(seed=916)
