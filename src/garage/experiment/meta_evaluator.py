@@ -61,6 +61,7 @@ class MetaEvaluator:
             max_path_length=max_path_length,
             worker_class=RL2Worker,
             policy=runner._algo.get_exploration_policy(),
+            env=self._test_task_sampler._env,
             sampler_args=dict(
                 n_paths_per_trial=rollout_per_task)
             )
