@@ -154,12 +154,14 @@ class SetTaskSampler(TaskSampler):
             for task in self._env.sample_tasks(n_tasks)
         ]
 
+
 class AllSetTaskSampler(TaskSampler):
+
     def __init__(self, env_constructor):
         self._env_constructor = env_constructor
         self._env = env_constructor()
         assert hasattr(self._env, 'num_tasks')
-        assert hasattr(self._env, '_task_names')
+        # assert hasattr(self._env, '_task_names')
 
     @property
     def n_tasks(self):
