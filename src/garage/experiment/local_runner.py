@@ -240,10 +240,11 @@ class LocalRunner:
                                      sampler_args=sampler_args,
                                      seed=get_seed())
 
-    def setup_meta_evaluator(self, sampler_cls, test_task_sampler, n_test_tasks=None):
+    def setup_meta_evaluator(self, test_task_sampler, n_exploration_traj=10, n_test_rollouts=10, n_test_tasks=None):
         self._meta_eval = MetaEvaluator(self,
-            sampler_cls=sampler_cls,
             test_task_sampler=test_task_sampler,
+            n_exploration_traj=n_exploration_traj,
+            n_test_rollouts=n_test_rollouts,
             max_path_length=self._algo.max_path_length,
             n_test_tasks=n_test_tasks)
 
@@ -476,7 +477,7 @@ class LocalRunner:
                 self._stats.total_itr = self.step_itr
 
                 if self._meta_eval is not None:
-                    self._meta_eval.evaluate(self._algo)
+                    self._meta_eval.evaluate(self._algo, )
 
                 self.save(epoch)
                 self.log_diagnostics(self._train_args.pause_for_plot)

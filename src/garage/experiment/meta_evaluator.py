@@ -40,6 +40,7 @@ class MetaEvaluator:
                  max_path_length,
                  n_test_tasks=None,
                  n_exploration_traj=10,
+                 n_test_rollouts=10,
                  prefix='MetaTest',
                  task_name_map={}):
         self._test_task_sampler = test_task_sampler
@@ -47,6 +48,7 @@ class MetaEvaluator:
             n_test_tasks = 10 * test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
         self._n_exploration_traj = n_exploration_traj
+        self._n_test_rollouts = n_test_rollouts
         self._max_path_length = max_path_length
         self._test_sampler = runner.make_sampler(
             LocalSampler,
@@ -58,7 +60,7 @@ class MetaEvaluator:
         self._prefix = prefix
         self._task_name_map = task_name_map
 
-    def evaluate(self, algo, num_test_rollouts):
+    def evaluate(self, algo):
         """Evaluate the Meta-RL algorithm on the test tasks.
 
         Args:
@@ -75,7 +77,7 @@ class MetaEvaluator:
             ])
             adapted_policy = algo.adapt_policy(policy, traj)
             adapted_hidden_state = adapted_policy._prev_hiddens[:]
-            for _ in range(num_test_rollouts):
+            for _ in range(self._n_test_rollouts):
                 policy._prev_hiddens[:] = adapted_hidden_state[:]
                 adapted_traj = self._test_sampler.obtain_samples(
                     self._eval_itr,

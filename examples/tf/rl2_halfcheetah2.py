@@ -34,15 +34,14 @@ def run_task(snapshot_config, *_):
 
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        env = RL2Env(env=HalfCheetahVelEnv())
+        # env = RL2Env(env=HalfCheetahVelEnv())
         # env2 = RL2Env(env=HalfCheetahDirEnv())
-        # env = RL2Env(ML1.get_train_tasks('push-v1'))
+        env = RL2Env(ML1.get_train_tasks('push-v1'))
         max_path_length = 150
         meta_batch_size = 50
         n_epochs = 2
         episode_per_task = 2
         steps_per_epoch = 1
-        n_test_tasks = 1
 
         # tasks = task_sampler.EnvPoolSampler([env])
         # tasks.grow_pool(meta_batch_size)
@@ -82,9 +81,9 @@ def run_task(snapshot_config, *_):
                      n_workers=meta_batch_size,
                      worker_class=RL2Worker)
 
-        runner.setup_meta_evaluator(test_task_sampler=tasks,
-                                    sampler_cls=LocalSampler,
-                                    n_test_tasks=n_test_tasks)
+        # runner.setup_meta_evaluator(test_task_sampler=tasks,
+        #                             sampler_cls=LocalSampler,
+        #                             n_test_tasks=n_test_tasks)
 
         runner.train(n_epochs=n_epochs,
                      batch_size=episode_per_task * max_path_length *

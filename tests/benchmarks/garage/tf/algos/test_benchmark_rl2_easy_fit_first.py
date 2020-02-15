@@ -72,12 +72,16 @@ hyper_parameters = {
 
 def _prepare_meta_env(env):
     if ML:
-        # task_samplers = task_sampler.SetTaskSampler([RL2Env(env)])
-        task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('push-v1')))
-        # task_samplers.grow_pool(hyper_parameters['meta_batch_size'])
+        if env_ind == 2:
+            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('push-v1')))
+        elif env_ind == 3:
+            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('reach-v1')))
+        elif env_ind == 4:
+            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('pick-place-v1')))
     else:
         task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(env()))
     return task_samplers.sample(1)[0](), task_samplers
+
 
 class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
@@ -186,6 +190,7 @@ def run_garage(env, seed, log_dir):
     with LocalTFRunner(snapshot_config) as runner:
         env, task_samplers = _prepare_meta_env(env)
 
+
         policy = GaussianGRUPolicy(
             hidden_dims=hyper_parameters['hidden_sizes'],
             env_spec=env.spec,
@@ -234,9 +239,10 @@ def run_garage(env, seed, log_dir):
                         use_all_workers=hyper_parameters['use_all_workers'],
                         n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
-        # runner.setup_meta_evaluator(test_task_sampler=task_samplers,
-        #                             sampler_cls=hyper_parameters['sampler_cls'],
-        #                             n_test_tasks=hyper_parameters['n_test_tasks'])
+        runner.setup_meta_evaluator(test_task_sampler=task_samplers,
+                                    n_exploration_traj=hyper_parameters['rollout_per_task'],
+                                    n_test_rollouts=hyper_parameters['rollout_per_task'],
+                                    n_test_tasks=hyper_parameters['n_test_tasks'])
 
         runner.train(n_epochs=hyper_parameters['n_itr'],
             batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])

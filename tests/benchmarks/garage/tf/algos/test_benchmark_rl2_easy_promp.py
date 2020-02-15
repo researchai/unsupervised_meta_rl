@@ -31,6 +31,7 @@ from maml_zoo.envs.rl2_env import rl2env
 from maml_zoo.algos.ppo import PPO
 from maml_zoo.trainer import Trainer
 from maml_zoo.samplers.maml_sampler import MAMLSampler
+from maml_zoo.samplers.maml_test_sampler import MAMLTestSampler
 from maml_zoo.samplers.rl2_sample_processor import RL2SampleProcessor
 from maml_zoo.policies.gaussian_rnn_policy import GaussianRNNPolicy
 from maml_zoo.logger import logger
@@ -45,17 +46,16 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 # 2 : ML1-push
 # 3 : ML1-reach
 # 4 : ML1-pick-place
-env_ind = 0
+env_ind = 2
 ML = env_ind in [2, 3, 4]
 
 hyper_parameters = {
-    'meta_batch_size': 50,
+    'meta_batch_size': 40,
     'hidden_sizes': [64],
     'gae_lambda': 1,
     'discount': 0.99,
     'max_path_length': 150,
     'n_itr': 1000 if ML else 500, # total it will run [n_itr * steps_per_epoch] for garage
-    'steps_per_epoch': 1,
     'rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
@@ -67,13 +67,6 @@ hyper_parameters = {
     'cell_type': 'gru'
 }
 
-def _prepare_meta_env(env):
-    if ML:
-        task_samplers = task_sampler.EnvPoolSampler([RL2Env(env)])
-        task_samplers.grow_pool(hyper_parameters['meta_batch_size'])
-    else:
-        task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(env()))
-    return task_samplers.sample(1)[0](), task_samplers
 
 class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
     """Compare benchmarks between garage and baselines."""
@@ -165,8 +158,8 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
 
 def run_promp(env, seed, log_dir):
     deterministic.set_seed(seed)
-    logger.configure(dir=log_dir, format_strs=['stdout', 'log', 'csv'],
-                     snapshot_mode='gap', snapshot_gap=hyper_parameters['steps_per_epoch'])
+    logger.configure(dir=log_dir, format_strs=['stdout', 'log', 'csv', 'tensorboard'],
+                     snapshot_mode='gap', snapshot_gap=10)
 
     baseline = LinearFeatureBaseline()
     env = rl2env(env)
@@ -185,6 +178,16 @@ def run_promp(env, seed, log_dir):
         policy=policy,
         rollouts_per_meta_task=hyper_parameters['rollout_per_task'],
         meta_batch_size=hyper_parameters['meta_batch_size'],
+        max_path_length=hyper_parameters['max_path_length'],
+        parallel=True,
+        envs_per_task=1,
+    )
+
+    test_sampler = MAMLTestSampler(
+        env=env,
+        policy=policy,
+        rollouts_per_meta_task=hyper_parameters['rollout_per_task'],
+        meta_batch_size=hyper_parameters['n_test_tasks'],
         max_path_length=hyper_parameters['max_path_length'],
         parallel=True,
         envs_per_task=1,
@@ -210,8 +213,9 @@ def run_promp(env, seed, log_dir):
         policy=policy,
         env=env,
         sampler=sampler,
+        test_sampler=test_sampler,
         sample_processor=sample_processor,
-        n_itr=hyper_parameters['n_itr'] * hyper_parameters['steps_per_epoch'],
+        n_itr=hyper_parameters['n_itr'],
     )
     trainer.train()
 

@@ -34,7 +34,7 @@ class RL2Env(gym.Wrapper):
         self.max_obs_dim = max_obs_dim
         action_space = akro.from_gym(self.env.action_space)
         observation_space = akro.from_gym(self._create_rl2_obs_space(env))
-        self.spec = EnvSpec(action_space=action_space,
+        self._spec = EnvSpec(action_space=action_space,
                             observation_space=observation_space)
 
     def _create_rl2_obs_space(self, env):
@@ -60,6 +60,10 @@ class RL2Env(gym.Wrapper):
         next_obs = np.concatenate([next_obs, action, [reward], [done]])
         return next_obs, reward, done, info
 
+    @property
+    def spec(self):
+        return self._spec
+    
     @property
     def num_tasks(self):
         return self.env.num_tasks
