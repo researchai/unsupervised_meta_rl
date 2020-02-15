@@ -9,6 +9,11 @@ class TaskIdWrapper(gym.Wrapper):
             env = env.env
         return env
 
+    def log_diagnostics(self, *args, **kwargs): pass
+
+    def sample_tasks(self, num_tasks):
+        return self.env.sample_tasks(num_tasks)
+
     @property
     def task_names(self):
         return self._hidden_env._task_names

@@ -26,7 +26,7 @@ from meta_policy_search.baselines.linear_baseline import LinearFeatureBaseline a
 from meta_policy_search.envs.normalized_env import normalize as PM_normalize
 from meta_policy_search.meta_algos.trpo_maml import TRPOMAML
 from meta_policy_search.meta_trainer import Trainer
-from meta_policy_search.samplers.meta_sampler import MetaSampler
+from meta_policy_search.samplers.meta_sampler2 import MetaSampler2
 from meta_policy_search.samplers.meta_sample_processor import MetaSampleProcessor
 from meta_policy_search.policies.meta_gaussian_mlp_policy import MetaGaussianMLPPolicy
 from meta_policy_search.utils import logger as PM_logger
@@ -44,8 +44,8 @@ from garage.torch.policies import GaussianMLPPolicy
 from tests import benchmark_helper
 import tests.helpers as Rh
 
-test_garage = True
-test_promp = False
+test_garage = False
+test_promp = True
 
 # Same as promp:full_code/config/trpo_maml_config.json
 hyper_parameters = {
@@ -108,10 +108,12 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
             if test_promp:
                 with tf.Graph().as_default():
                     # Run promp algorithm
-                    promp_env = PM_normalize(meta_train_env)
-                    promp_csv = run_promp(promp_env, seed, promp_dir)
+                    promp_train_env = PM_normalize(meta_train_env)
+                    promp_test_env = PM_normalize(meta_test_env)
+                    promp_csv = run_promp(promp_train_env, promp_test_env, seed, promp_dir)
                 promp_csvs.append(promp_csv)
-                promp_env.close()
+                promp_train_env.close()
+                promp_test_env.close()
 
         if test_garage and test_promp:
             benchmark_helper.plot_average_over_trials(
@@ -220,11 +222,11 @@ def run_garage(train_env, test_env_cls, seed, log_dir):
     return tabular_log_file
 
 
-def run_promp(env, seed, log_dir):
+def run_promp(train_env, test_env, seed, log_dir):
     """Create ProMP model and training.
 
     Args:
-        env (dict): Environment of the task.
+        train_env : Environment of the task.
         seed (int): Random positive integer for the trial.
         log_dir (str): Log dir path.
 
@@ -243,14 +245,15 @@ def run_promp(env, seed, log_dir):
 
     policy = MetaGaussianMLPPolicy(
         name='meta-policy',
-        obs_dim=np.prod(env.observation_space.shape),
-        action_dim=np.prod(env.action_space.shape),
+        obs_dim=np.prod(train_env.observation_space.shape),
+        action_dim=np.prod(train_env.action_space.shape),
         meta_batch_size=hyper_parameters['meta_batch_size'],
         hidden_sizes=hyper_parameters['hidden_sizes'],
     )
 
-    sampler = MetaSampler(
-        env=env,
+    sampler = MetaSampler2(
+        train_env=train_env,
+        test_env=test_env,
         policy=policy,
         rollouts_per_meta_task=hyper_parameters['fast_batch_size'],
         meta_batch_size=hyper_parameters['meta_batch_size'],
@@ -278,7 +281,7 @@ def run_promp(env, seed, log_dir):
     trainer = Trainer(
         algo=algo,
         policy=policy,
-        env=env,
+        env=train_env,
         sampler=sampler,
         sample_processor=sample_processor,
         n_itr=hyper_parameters['n_epochs'],
