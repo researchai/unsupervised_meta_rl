@@ -25,6 +25,7 @@ from garage.tf.policies import GaussianMLPPolicy
 from metaworld.envs.mujoco.env_dict import EASY_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT
 from garage import wrap_experiment
+from tests.fixtures import snapshot_config
 
 MT10_envs_by_id = {
     task: env(*EASY_MODE_ARGS_KWARGS[task]['args'],
@@ -44,7 +45,7 @@ def ppo_mt10(ctxt=None, seed=1):
 
     """Run task."""
     set_seed(seed)
-    with LocalTFRunner(snapshot_config=ctxt) as runner:
+    with LocalTFRunner(snapshot_config=snapshot_config) as runner:
         env = MultiEnvSamplingWrapper(MT10_envs, env_ids, len(env_ids)-1, sample_strategy=round_robin_strategy)
 
         policy = GaussianMLPPolicy(
@@ -80,7 +81,9 @@ def ppo_mt10(ctxt=None, seed=1):
         )
 
         runner.setup(algo, env)
-        runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150, plot=False)
+        # runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150, plot=False)
+        runner.train(n_epochs=2, batch_size=2, plot=False)
 
+for s in [1, 2]:
 
-ppo_mt10(seed=931)
+    ppo_mt10(seed=s)

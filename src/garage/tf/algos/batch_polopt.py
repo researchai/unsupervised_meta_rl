@@ -5,7 +5,7 @@ import collections
 from dowel import logger, tabular
 import numpy as np
 
-from garage import log_performance, TrajectoryBatch
+from garage import log_performance, TrajectoryBatch, log_multitask_performance
 from garage.misc import tensor_utils as np_tensor_utils
 from garage.np.algos import RLAlgorithm
 from garage.sampler import OnPolicyVectorizedSampler
@@ -56,7 +56,8 @@ class BatchPolopt(RLAlgorithm):
                  center_adv=True,
                  positive_adv=False,
                  fixed_horizon=False,
-                 flatten_input=True):
+                 flatten_input=True,
+                 task_names=None,):
         self.env_spec = env_spec
         self.policy = policy
         self.baseline = baseline
@@ -68,6 +69,7 @@ class BatchPolopt(RLAlgorithm):
         self.positive_adv = positive_adv
         self.fixed_horizon = fixed_horizon
         self.flatten_input = flatten_input
+        self.task_names = task_names
 
         self.episode_reward_mean = collections.deque(maxlen=100)
         if policy.vectorized:
@@ -162,10 +164,10 @@ class BatchPolopt(RLAlgorithm):
             dic[path['env_infos']['task_name'][0]].append(path)
 
         for task_name, sep_paths in dic.items():
-            undiscounted_returns = log_performance(
+            undiscounted_returns = log_multitask_performance(
                 itr,
                 TrajectoryBatch.from_trajectory_list(self.env_spec, sep_paths),
-                discount=self.discount, prefix=task_name)
+                discount=self.discount, task_names=self.task_names)
 
         if self.flatten_input:
             paths = [

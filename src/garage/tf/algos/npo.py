@@ -105,7 +105,8 @@ class NPO(BatchPolopt):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  flatten_input=True,
-                 name='NPO'):
+                 name='NPO',
+                 task_names=None,):
         self._name = name
         self._name_scope = tf.name_scope(self._name)
         self._use_softplus_entropy = use_softplus_entropy
@@ -146,7 +147,8 @@ class NPO(BatchPolopt):
                          center_adv=center_adv,
                          positive_adv=positive_adv,
                          fixed_horizon=fixed_horizon,
-                         flatten_input=flatten_input)
+                         flatten_input=flatten_input,
+                         task_names=None,)
 
     def init_opt(self):
         """Initialize optimizater."""
