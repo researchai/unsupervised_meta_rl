@@ -28,15 +28,18 @@ class RL2NPO(NPO):
         paths = samples_data['paths']
         valids = samples_data['valids']
 
-        baselines = []
+        # baselines = []
         # Fit baseline
         logger.log('Fitting baseline...')
         for ind, path in enumerate(paths):
             path['rewards'] = rewards_tensor[ind][valids[ind].astype(np.bool)]
             path['returns'] = returns_tensor[ind][valids[ind].astype(np.bool)]
-            self.baseline.fit([path])
-            baseline = self.baseline.predict(path)
-            baselines.append(baseline)
+
+        self.baseline.fit(paths)
+        baselines = [self.baseline.predict(path) for path in paths]
+            # self.baseline.fit([path])
+            # baseline = self.baseline.predict(path)
+            # baselines.append(baseline)
 
         baselines = np_tensor_utils.pad_tensor_n(baselines, self.max_path_length)
         samples_data['baselines'] = baselines
