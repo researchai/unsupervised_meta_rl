@@ -57,6 +57,7 @@ hyper_parameters = {
     'max_path_length': 100,
     'fast_batch_size': 10,  # num of rollouts per task
     'meta_batch_size': 20,  # num of tasks
+    'envs_per_task': 2,
     'n_epochs': 1250,
     # 'n_epochs': 1,
     'n_trials': 5,
@@ -257,6 +258,7 @@ def run_promp(train_env, test_env, seed, log_dir):
         policy=policy,
         rollouts_per_meta_task=hyper_parameters['fast_batch_size'],
         meta_batch_size=hyper_parameters['meta_batch_size'],
+        envs_per_task=hyper_parameters['envs_per_task'],
         max_path_length=hyper_parameters['max_path_length'],
         parallel=hyper_parameters['n_parallel'],
     )
