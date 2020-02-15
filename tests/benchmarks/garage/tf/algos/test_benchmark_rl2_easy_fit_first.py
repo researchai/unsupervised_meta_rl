@@ -73,11 +73,11 @@ hyper_parameters = {
 def _prepare_meta_env(env):
     if ML:
         if env_ind == 2:
-            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('push-v1')))
+            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('push-v1'), random_init=False))
         elif env_ind == 3:
-            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('reach-v1')))
+            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('reach-v1'), random_init=False))
         elif env_ind == 4:
-            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('pick-place-v1')))
+            task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(ML1.get_train_tasks('pick-place-v1'), random_init=False))
     else:
         task_samplers = task_sampler.SetTaskSampler(lambda: RL2Env(env()))
     return task_samplers.sample(1)[0](), task_samplers
@@ -240,6 +240,8 @@ def run_garage(env, seed, log_dir):
                         n_paths_per_trial=hyper_parameters['rollout_per_task']))
 
         runner.setup_meta_evaluator(test_task_sampler=task_samplers,
+                                    sampler_cls=hyper_parameters['sampler_cls'],
+                                    rollout_per_task=hyper_parameters['rollout_per_task'],
                                     n_exploration_traj=hyper_parameters['rollout_per_task'],
                                     n_test_rollouts=hyper_parameters['rollout_per_task'],
                                     n_test_tasks=hyper_parameters['n_test_tasks'])
