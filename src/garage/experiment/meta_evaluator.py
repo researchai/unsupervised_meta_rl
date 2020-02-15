@@ -4,6 +4,7 @@ from dowel import tabular
 
 from garage import log_multitask_performance, TrajectoryBatch
 from garage.sampler import LocalSampler
+from garage.sampler import RaySampler
 
 
 class MetaEvaluator:
@@ -51,8 +52,8 @@ class MetaEvaluator:
         self._n_test_rollouts = n_test_rollouts
         self._max_path_length = max_path_length
         self._test_sampler = runner.make_sampler(
-            LocalSampler,
-            n_workers=1,
+            RaySampler,
+            n_workers=n_test_tasks,
             max_path_length=max_path_length,
             env=self._test_task_sampler._env,
             policy=runner._algo.get_exploration_policy())
