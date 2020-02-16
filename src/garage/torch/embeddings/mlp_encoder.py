@@ -38,11 +38,10 @@ class MLPEncoder(MLPModule):
             layer_normalization (bool): Bool for using layer normalization or
                 not.
 
-
     """
 
     def reset(self, num_tasks=1):
-        """Reset task size. Not applicable to this encoder.
+        """Reset hidden state task size. Not applicable to this encoder.
 
         Args:
             num_tasks (int): Size of tasks.

@@ -1,4 +1,4 @@
-# pylint: disable=attribute-defined-outside-init
+# pylint: disable=attribute-defined-outside-init, protected-access
 """A policy used in training meta reinforcement learning algorithms.
 
 It is used in PEARL (Probabilistic Embeddings for Actor-Critic Reinforcement
@@ -13,21 +13,6 @@ import torch.nn.functional as F
 
 import garage.torch.utils as tu
 
-def _product_of_gaussians(mus, sigmas_squared):
-    """Compute mu, sigma of product of gaussians.
-    
-    Args:
-        mus (torch.Tensor): Means.
-        sigmas_squared (torch.Tensor): Variances.
-
-    Returns:
-        torch.Tensor: Mu and sigma of product of gaussians
-    """
-    sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
-    sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
-    mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
-    return mu, sigma_squared
-
 
 class ContextConditionedPolicy(nn.Module):
     """A policy that outputs actions based on observation and latent context.
@@ -40,11 +25,11 @@ class ContextConditionedPolicy(nn.Module):
 
     Args:
         latent_dim (int): Latent context variable dimension.
-        context_encoder (garage.torch.algo.RecurrentEncoder): Recurrent or
+        context_encoder (garage.torch.embeddings): Recurrent or
             permutation-invariant context encoder.
         policy (garage.torch.policies.Policy): Policy used to train the
             network.
-        use_ib (bool): True if latent context is notdeterministic; false
+        use_ib (bool): True if latent context is not deterministic; false
             otherwise
         use_next_obs (bool): True if next observation is used in context
             for distinguishing tasks; false otherwise.
@@ -57,7 +42,6 @@ class ContextConditionedPolicy(nn.Module):
         self._latent_dim = latent_dim
         self._context_encoder = context_encoder
         self._policy = policy
-
         self._use_ib = use_ib
         self._use_next_obs = use_next_obs
 
@@ -117,8 +101,7 @@ class ContextConditionedPolicy(nn.Module):
             inputs (dict): Dictionary of transition information in np arrays .
 
         """
-
-        o, a, r, no, d, info = inputs
+        o, a, r, no, _, _ = inputs
         o = tu.from_numpy(o[None, None, ...])
         a = tu.from_numpy(a[None, None, ...])
         r = tu.from_numpy(np.array([r])[None, None, ...])
@@ -129,21 +112,6 @@ class ContextConditionedPolicy(nn.Module):
         else:
             data = torch.cat([o, a, r], dim=2)
 
-        """
-        #LWM
-        o, a, r, no, _, _ = inputs
-        o = from_numpy(o)
-        a = from_numpy(a)
-        r = from_numpy(np.array([r]))
-        no = from_numpy(no)
-
-        if self._use_next_obs:
-            data = torch.cat([o, a, r, no], dim=0)
-        else:
-            data = torch.cat([o, a, r], dim=0)
-
-        data = torch.unsqueeze(torch.unsqueeze(data, 0), 0)
-        """
         if self._context is None:
             self._context = data
         else:
@@ -157,12 +125,16 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         params = self._context_encoder(context)
-        params = params.view(context.size(0), -1, self._context_encoder._output_dim)
+        params = params.view(context.size(0), -1,
+                             self._context_encoder._output_dim)
         # with probabilistic z, predict mean and variance of q(z | c)
         if self._use_ib:
             mu = params[..., :self._latent_dim]
             sigma_squared = F.softplus(params[..., self._latent_dim:])
-            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+            z_params = [
+                _product_of_gaussians(m, s)
+                for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))
+            ]
             self.z_means = torch.stack([p[0] for p in z_params])
             self.z_vars = torch.stack([p[1] for p in z_params])
         else:
@@ -193,9 +165,8 @@ class ContextConditionedPolicy(nn.Module):
         task_z = torch.cat(task_z, dim=0)
 
         # run policy, get log probs and new actions
-        in_ = torch.cat([obs, task_z.detach()], dim=1)
-        #policy_outputs = self._policy(in_, reparameterize=True, return_log_prob=True)
-        dist = self._policy(in_)
+        obs_z = torch.cat([obs, task_z.detach()], dim=1)
+        dist = self._policy(obs_z)
         pre_tanh, actions = dist.rsample_with_pre_tanh_value()
         log_pi = dist.log_prob(value=actions, pre_tanh_value=pre_tanh)
         log_pi = log_pi.unsqueeze(1)
@@ -209,7 +180,6 @@ class ContextConditionedPolicy(nn.Module):
 
         Args:
             obs (torch.Tensor): Observation values.
-            deterministic (bool): Whether or not policy is deterministic.
 
         Returns:
             torch.Tensor: Output action values.
@@ -247,13 +217,13 @@ class ContextConditionedPolicy(nn.Module):
         """Reset the environment.
 
         Args:
-            dones (numpy.ndarray): Reset values
+            dones (numpy.ndarray): Reset values.
 
         """
 
     def log_diagnostics(self, eval_statistics):
         """Log data about encodings to eval_statistics dictionary.
-       
+
         Args:
             eval_statistics (dict): Dictionary for logging info.
 
@@ -272,7 +242,7 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         return [self._context_encoder, self._policy]
-  
+
     @property
     def context(self):
         """Return context.
@@ -282,3 +252,19 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         return self._context
+
+
+def _product_of_gaussians(mus, sigmas_squared):
+    """Compute mu, sigma of product of gaussians.
+
+    Args:
+        mus (torch.Tensor): Means.
+        sigmas_squared (torch.Tensor): Variances.
+
+    Returns:
+        torch.Tensor: Mu and sigma of product of gaussians.
+    """
+    sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
+    sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
+    mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
+    return mu, sigma_squared
