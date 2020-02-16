@@ -56,14 +56,14 @@ class MetaEvaluator:
         self._rollout_per_task = rollout_per_task
         self._max_path_length = max_path_length
         self._test_sampler = runner.make_sampler(
-            sampler_cls=sampler_cls,
-            n_workers=n_test_tasks,
+            LocalSampler,
+            n_workers=1,
             max_path_length=max_path_length,
             worker_class=RL2Worker,
             policy=runner._algo.get_exploration_policy(),
             env=self._test_task_sampler._env,
             sampler_args=dict(
-                n_paths_per_trial=rollout_per_task)
+                n_paths_per_trial=1)
             )
         self._eval_itr = 0
         self._prefix = prefix

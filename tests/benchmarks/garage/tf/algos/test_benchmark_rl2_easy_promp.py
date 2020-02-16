@@ -63,7 +63,7 @@ hyper_parameters = {
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
-    'n_test_tasks': 10,
+    'n_test_tasks': 1,
     'cell_type': 'gru'
 }
 
@@ -80,10 +80,10 @@ class TestBenchmarkRL2:  # pylint: disable=too-few-public-methods
                 env_ids = ['ML1-push-v1']
             elif env_ind == 3:
                 envs = [ML1.get_train_tasks('reach-v1')]
-                env_ids = 'ML1-reach-v1'
+                env_ids = ['ML1-reach-v1']
             elif env_ind == 4:
                 envs = [ML1.get_train_tasks('pick-place-v1')]
-                env_ids = 'ML1-pick-place-v1'
+                env_ids = ['ML1-pick-place-v1']
             else:
                 raise ValueError("Env index is wrong")
         else:
@@ -162,7 +162,7 @@ def run_promp(env, seed, log_dir):
                      snapshot_mode='gap', snapshot_gap=10)
 
     baseline = LinearFeatureBaseline()
-    env = rl2env(env)
+    env = rl2env(env, random_init=False)
     obs_dim = np.prod(env.observation_space.shape) + np.prod(env.action_space.shape) + 1 + 1
     policy = GaussianRNNPolicy(
             name="meta-policy",
