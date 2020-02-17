@@ -16,6 +16,7 @@ from garage import wrap_experiment
 from garage.envs import normalize
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
+from garage.tf.algos import RL2PPO
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
@@ -55,7 +56,7 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
         # NOTE: make sure when setting entropy_method to 'max', set
         # center_adv to False and turn off policy gradient. See
         # tf.algos.NPO for detailed documentation.
-        algo = PPO(
+        algo = RL2PPO(
             env_spec=env.spec,
             policy=policy,
             baseline=baseline,
