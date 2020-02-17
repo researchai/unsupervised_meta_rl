@@ -14,7 +14,7 @@ import torch
 from garage import log_performance, log_multitask_performance, TrajectoryBatch
 from garage.misc.tensor_utils import discount_cumsum
 from garage.np.algos.meta_rl_algorithm import MetaRLAlgorithm
-from garage.replay_buffer.meta_replay_buffer import MetaReplayBuffer
+from garage.replay_buffer.path_buffer import PathBuffer
 from garage.sampler.pearl_sampler import PEARLSampler
 import garage.torch.utils as tu
 
@@ -82,9 +82,6 @@ class PEARLSAC(MetaRLAlgorithm):
             data during training (in trajectories).
         eval_deterministic (bool): Whether to make policy deterministic during
             evaluation.
-        render_eval_paths (bool): Whether or not to render paths during
-            evaluation.
-        plotter (object): Plotter.
 
     """
 
@@ -131,7 +128,6 @@ class PEARLSAC(MetaRLAlgorithm):
             num_exp_traj_eval=2,
             update_post_train=1,
             eval_deterministic=True,
-            render_eval_paths=False,
             multi_env=False,
     ):
 
@@ -171,9 +167,7 @@ class PEARLSAC(MetaRLAlgorithm):
         self._reward_scale = reward_scale
         self._num_exp_traj_eval = num_exp_traj_eval
         self._update_post_train = update_post_train
-
         self._eval_deterministic = eval_deterministic
-        self._render_eval_paths = render_eval_paths
 
         self._total_env_steps = 0
         self._total_train_steps = 0
@@ -201,18 +195,14 @@ class PEARLSAC(MetaRLAlgorithm):
         self._test_tasks_idx = range(num_test_tasks)
 
         # buffer for training RL update
-        self.replay_buffer = {
-            i: MetaReplayBuffer(max_replay_buffer_size=replay_buffer_size,
-                                observation_dim=env.observation_space.low.size,
-                                action_dim=env.action_space.low.size)
-            for i in self._train_tasks_idx
+        self._replay_buffers = {
+            i: PathBuffer(replay_buffer_size)
+            for i in range(num_train_tasks)
         }
-        # buffer for training encoder update
-        self.context_replay_buffer = {
-            i: MetaReplayBuffer(max_replay_buffer_size=replay_buffer_size,
-                                observation_dim=env.observation_space.low.size,
-                                action_dim=env.action_space.low.size)
-            for i in self._train_tasks_idx
+
+        self._context_replay_buffers = {
+            i: PathBuffer(replay_buffer_size)
+            for i in range(num_train_tasks)
         }
 
         self.target_vf = copy.deepcopy(self._vf)
@@ -247,8 +237,8 @@ class PEARLSAC(MetaRLAlgorithm):
 
         """
         data = self.__dict__.copy()
-        del data['replay_buffer']
-        del data['context_replay_buffer']
+        del data['_replay_buffers']
+        del data['_context_replay_buffers']
         return data
 
     def train(self, runner):
@@ -279,7 +269,7 @@ class PEARLSAC(MetaRLAlgorithm):
                 self._task = self._train_tasks[idx]
                 self.env.set_task(self._task)
                 self.env.reset()
-                self.context_replay_buffer[idx].clear()
+                self._context_replay_buffers[idx].clear()
 
                 # obtain samples with z ~ prior
                 if self._num_steps_prior > 0:
@@ -375,7 +365,6 @@ class PEARLSAC(MetaRLAlgorithm):
             1. - terms_flat) * self._discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target)**2) + torch.mean(
             (q2_pred - q_target)**2)
-        #qf_loss.backward(retain_graph=True)
         qf_loss.backward()
 
         self.qf1_optimizer.step()
@@ -440,45 +429,12 @@ class PEARLSAC(MetaRLAlgorithm):
         indices = np.random.choice(self._train_tasks_idx,
                                    len(self._test_tasks_idx))
         # evaluate train tasks with posterior sampled from the training replay buffer
-        """
-        train_returns = []
-        for idx in indices:
-            self.task_idx = idx
-            self._task = self._train_tasks[idx]
-            self.env.set_task(self._task)
-            self.env.reset()
-            paths = []
-            for _ in range(self._num_steps_per_eval // self._max_path_length):
-                context = self.sample_context(idx)
-                self.policy.infer_posterior(context)
-                p, _ = self.sampler.obtain_samples(
-                    deterministic=self._eval_deterministic,
-                    max_samples=self._max_path_length,
-                    accum_context=False,
-                    max_trajs=1,
-                    resample=np.inf)
-                paths += p
-
-            returns = np.mean([sum(path['rewards']) for path in paths])
-            train_returns.append(returns)
-        train_returns = np.mean(train_returns)
-        # eval train tasks with on-policy data to match eval of test tasks
-        avg_train_return, train_success_rate = self.get_average_returns(
-            indices, False)
-        """
         self.get_average_returns(indices, False, epoch)
         # eval test tasks
         self.get_average_returns(self._test_tasks_idx, True, epoch)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
-        #self._eval_statistics['ZTrainAverageReturn'] = train_returns
-        #self._eval_statistics['TrainAverageReturn'] = avg_train_return
-        #self._eval_statistics['AverageReturn'] = avg_test_return
-        #if train_success_rate is not None:
-        #    self._eval_statistics['TrainSuccessRate'] = train_success_rate
-        #if test_success_rate is not None:
-        #    self._eval_statistics['SuccessRate'] = test_success_rate
 
         # record values
         for key, value in self._eval_statistics.items():
@@ -506,13 +462,12 @@ class PEARLSAC(MetaRLAlgorithm):
         success = []
         traj = []
         for idx in indices:
-            
             eval_paths = []
             for _ in range(self._num_evals):
                 paths = self.collect_paths(idx, test)
                 paths[-1]['terminals'] = paths[-1]['terminals'].squeeze()
                 paths[-1]['dones'] = paths[-1]['terminals']
-                #paths[-1]['env_infos']['task'] = paths[-1]['env_infos']['task']['velocity']
+                paths[-1]['env_infos']['task'] = paths[-1]['env_infos']['task']['velocity']
                 eval_paths.append(paths[-1])
                 discounted_returns.append(discount_cumsum(paths[-1]['rewards'], self._discount))
                 undiscounted_returns.append(sum(paths[-1]['rewards']))
@@ -520,7 +475,7 @@ class PEARLSAC(MetaRLAlgorithm):
                 # calculate success rate for metaworld tasks
                 if 'success' in paths[-1]['env_infos']:
                     success.append(paths[-1]['env_infos']['success'].any())
-            
+        
             temp_traj = TrajectoryBatch.from_trajectory_list(self.env, eval_paths)
             traj.append(temp_traj)
         
@@ -538,23 +493,6 @@ class PEARLSAC(MetaRLAlgorithm):
                         self._discount, task_names=self.env.task_names)
                 log_performance(epoch, TrajectoryBatch.concatenate(*traj), 
                     self._discount, prefix='Average')
-        
-        
-
-        """
-        avg_discounted_return = np.mean([rtn[0] for rtn in discounted_returns])
-        tabular.record('NumTrajs', len(discounted_returns))
-        tabular.record('AverageDiscountedReturn', avg_discounted_return)
-        tabular.record('AverageReturn', np.mean(undiscounted_returns))
-        tabular.record('StdReturn', np.std(undiscounted_returns))
-        tabular.record('MaxReturn', np.max(undiscounted_returns))
-        tabular.record('MinReturn', np.min(undiscounted_returns))
-        tabular.record('CompletionRate', np.mean(completion))
-        if success:
-            tabular.record('SuccessRate', np.mean(success))
-        """
-
-        
 
     def obtain_samples(self,
                        num_samples,
@@ -577,18 +515,22 @@ class PEARLSAC(MetaRLAlgorithm):
 
         while num_transitions < num_samples:
             paths, n_samples = self.sampler.obtain_samples(
-                max_samples=num_samples - num_transitions,
+                max_samples=num_samples-num_transitions,
                 max_trajs=update_posterior_rate,
                 accum_context=False,
                 resample=resample_z_rate)
             num_transitions += n_samples
+
             for path in paths:
-                self.replay_buffer[self.task_idx].add_path(path)
+                path['rewards'] = path['rewards'].reshape(-1, 1)
+                path.pop('agent_infos')
+                path.pop('env_infos')
+                path.pop('context')
+                self._replay_buffers[self.task_idx].add_path(path)
 
                 if add_to_enc_buffer:
-                    self.context_replay_buffer[self.task_idx].add_path(path)
+                    self._context_replay_buffers[self.task_idx].add_path(path)
 
-            
             if update_posterior_rate != np.inf:
                 context = self.sample_context(self.task_idx)
                 self.policy.infer_posterior(context)
@@ -606,16 +548,30 @@ class PEARLSAC(MetaRLAlgorithm):
 
         """
         # transitions sampled randomly from replay buffer
-        batches = [
-            tu.np_to_pytorch_batch(
-                self.replay_buffer[idx].sample_batch(self._batch_size))
-            for idx in indices
-        ]
-        unpacked = [self.unpack_batch(batch) for batch in batches]
-        # group like elements together
-        unpacked = [[x[i] for x in unpacked] for i in range(len(unpacked[0]))]
-        unpacked = [torch.cat(x, dim=0) for x in unpacked]
-        return unpacked
+        initialized = False
+        for idx in indices:
+            batch = self._replay_buffers[idx].sample_transitions(self._batch_size)
+            if not initialized:
+                o = batch['observations'][np.newaxis]
+                a = batch['actions'][np.newaxis]
+                r = batch['rewards'][np.newaxis]
+                no = batch['next_observations'][np.newaxis]
+                t = batch['terminals'][np.newaxis]
+                initialized = True
+            else:
+                o = np.vstack((o, batch['observations'][np.newaxis]))
+                a = np.vstack((a, batch['actions'][np.newaxis]))
+                r = np.vstack((r, batch['rewards'][np.newaxis]))
+                no = np.vstack((no, batch['next_observations'][np.newaxis]))
+                t = np.vstack((t, batch['terminals'][np.newaxis]))
+        
+        o = tu.from_numpy(o)
+        a = tu.from_numpy(a)
+        r = tu.from_numpy(r)
+        no = tu.from_numpy(no)
+        t = tu.from_numpy(t)
+
+        return o, a, r, no, t
 
     def sample_context(self, indices):
         """Sample batch of context from a list of tasks.
@@ -630,37 +586,28 @@ class PEARLSAC(MetaRLAlgorithm):
         # make method work given a single task index
         if not hasattr(indices, '__iter__'):
             indices = [indices]
-        batches = [
-            tu.np_to_pytorch_batch(
-                self.context_replay_buffer[idx].sample_batch(self._batch_size)) 
-            for idx in indices
-        ]
-        context = [self.unpack_batch(batch) for batch in batches]
-        # group like elements together
-        context = [[x[i] for x in context] for i in range(len(context[0]))]
-        context = [torch.cat(x, dim=0) for x in context]
-        if self._use_next_obs_in_context:
-            context = torch.cat(context[:-1], dim=2)
-        else:
-            context = torch.cat(context[:-2], dim=2)
-        return context
 
-    def unpack_batch(self, batch):
-        """Unpack a batch and return individual elements.
+        initialized = False
+        for idx in indices:
+            batch = self._context_replay_buffers[idx].sample_transitions(self._embedding_batch_size)
+            o = batch['observations']
+            a = batch['actions']
+            r = batch['rewards']
+            context = np.hstack((np.hstack((o, a)), r))
+            if self._use_next_obs_in_context:
+                context = np.hstack((context, batch['next_observations']))
 
-        Args:
-            batch (torch.Tensor): Data.
+            if not initialized:
+                final_context = context[np.newaxis]
+                initialized = True
+            else:
+                final_context = np.vstack((final_context, context[np.newaxis]))
 
-        Returns:
-            torch.Tensor: Unpacked data.
+        final_context = tu.from_numpy(final_context)
+        if len(indices) == 1:
+            final_context = final_context.unsqueeze(0)
 
-        """
-        o = batch['observations'][None, ...]
-        a = batch['actions'][None, ...]
-        r = batch['rewards'][None, ...]
-        no = batch['next_observations'][None, ...]
-        t = batch['terminals'][None, ...]
-        return [o, a, r, no, t]
+        return final_context
 
     def collect_paths(self, idx, test):
         """Collect paths for evaluation.
