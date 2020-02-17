@@ -55,7 +55,7 @@ class GaussianGRUPolicy(StochasticPolicy):
 
     def __init__(self,
                  env_spec,
-                 hidden_dim=32,
+                 hidden_dims=[32],
                  name='GaussianGRUPolicy',
                  hidden_nonlinearity=tf.nn.tanh,
                  hidden_w_init=tf.glorot_uniform_initializer(),
@@ -79,7 +79,7 @@ class GaussianGRUPolicy(StochasticPolicy):
         super().__init__(name, env_spec)
         self._obs_dim = env_spec.observation_space.flat_dim
         self._action_dim = env_spec.action_space.flat_dim
-        self._hidden_dim = hidden_dim
+        self._hidden_dims = hidden_dims
         self._state_include_action = state_include_action
 
         if state_include_action:
@@ -89,7 +89,7 @@ class GaussianGRUPolicy(StochasticPolicy):
 
         self.model = GaussianGRUModel(
             output_dim=self._action_dim,
-            hidden_dim=hidden_dim,
+            hidden_dims=hidden_dims,
             name='GaussianGRUModel',
             hidden_nonlinearity=hidden_nonlinearity,
             hidden_w_init=hidden_w_init,
@@ -118,7 +118,7 @@ class GaussianGRUPolicy(StochasticPolicy):
                                                   name='step_input',
                                                   dtype=tf.float32)
         step_hidden_var = tf.compat.v1.placeholder(shape=(None,
-                                                          self._hidden_dim),
+                                                          self._hidden_dims[0]),
                                                    name='step_hidden_input',
                                                    dtype=tf.float32)
 
@@ -188,7 +188,7 @@ class GaussianGRUPolicy(StochasticPolicy):
         if self._prev_actions is None or len(dones) != len(self._prev_actions):
             self._prev_actions = np.zeros(
                 (len(dones), self.action_space.flat_dim))
-            self._prev_hiddens = np.zeros((len(dones), self._hidden_dim))
+            self._prev_hiddens = np.zeros((len(dones), self._hidden_dims[0]))
 
         self._prev_actions[dones] = 0.
         self._prev_hiddens[dones] = self.model.networks[
@@ -233,17 +233,17 @@ class GaussianGRUPolicy(StochasticPolicy):
                         self._state_include_action is True.
 
         """
-        flat_obs = self.observation_space.flatten_n(observations)
+        # flat_obs = self.observation_space.flatten_n(observations)
         if self._state_include_action:
             assert self._prev_actions is not None
-            all_input = np.concatenate([flat_obs, self._prev_actions], axis=-1)
+            all_input = np.concatenate([observations, self._prev_actions], axis=-1)
         else:
-            all_input = flat_obs
+            all_input = observations
         means, log_stds, hidden_vec = self._f_step_mean_std(
             all_input, self._prev_hiddens)
         rnd = np.random.normal(size=means.shape)
         samples = rnd * np.exp(log_stds) + means
-        samples = self.action_space.unflatten_n(samples)
+        # samples = self.action_space.unflatten_n(samples)
         prev_actions = self._prev_actions
         self._prev_actions = samples
         self._prev_hiddens = hidden_vec
@@ -282,3 +282,4 @@ class GaussianGRUPolicy(StochasticPolicy):
         """See `Object.__setstate__`."""
         super().__setstate__(state)
         self._initialize()
+    

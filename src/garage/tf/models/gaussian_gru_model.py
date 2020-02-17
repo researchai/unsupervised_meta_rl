@@ -52,7 +52,7 @@ class GaussianGRUModel(Model):
 
     def __init__(self,
                  output_dim,
-                 hidden_dim=32,
+                 hidden_dims=[32],
                  name=None,
                  hidden_nonlinearity=tf.nn.tanh,
                  hidden_w_init=tf.glorot_uniform_initializer(),
@@ -70,7 +70,7 @@ class GaussianGRUModel(Model):
                  layer_normalization=False):
         super().__init__(name)
         self._output_dim = output_dim
-        self._hidden_dim = hidden_dim
+        self._hidden_dims = hidden_dims
         self._hidden_nonlinearity = hidden_nonlinearity
         self._hidden_w_init = hidden_w_init
         self._hidden_b_init = hidden_b_init
@@ -85,26 +85,31 @@ class GaussianGRUModel(Model):
         self._learn_std = learn_std
         self._std_share_network = std_share_network
         self._init_std_param = np.log(init_std)
+
         self._initialize()
 
     def _initialize(self):
+        self._mean_std_gru_cells = []
+        self._mean_gru_cells = []
         action_dim = self._output_dim
-        self._mean_std_gru_cell = tf.keras.layers.GRUCell(
-            units=self._hidden_dim,
-            activation=self._hidden_nonlinearity,
-            kernel_initializer=self._hidden_w_init,
-            bias_initializer=self._hidden_b_init,
-            recurrent_activation=self._recurrent_nonlinearity,
-            recurrent_initializer=self._recurrent_w_init,
-            name='mean_std_gru_layer')
-        self._mean_gru_cell = tf.keras.layers.GRUCell(
-            units=self._hidden_dim,
-            activation=self._hidden_nonlinearity,
-            kernel_initializer=self._hidden_w_init,
-            bias_initializer=self._hidden_b_init,
-            recurrent_activation=self._recurrent_nonlinearity,
-            recurrent_initializer=self._recurrent_w_init,
-            name='mean_gru_layer')
+        for hidden_dim in self._hidden_dims:
+            self._mean_std_gru_cells.append(tf.keras.layers.GRUCell(
+                units=hidden_dim,
+                activation=self._hidden_nonlinearity,
+                kernel_initializer=self._hidden_w_init,
+                bias_initializer=self._hidden_b_init,
+                recurrent_activation=self._recurrent_nonlinearity,
+                recurrent_initializer=self._recurrent_w_init,
+                name='mean_std_gru_layer'))
+        for hidden_dim in self._hidden_dims:
+            self._mean_gru_cells.append(tf.keras.layers.GRUCell(
+                units=hidden_dim,
+                activation=self._hidden_nonlinearity,
+                kernel_initializer=self._hidden_w_init,
+                bias_initializer=self._hidden_b_init,
+                recurrent_activation=self._recurrent_nonlinearity,
+                recurrent_initializer=self._recurrent_w_init,
+                name='mean_gru_layer'))
         self._mean_std_output_nonlinearity_layer = tf.keras.layers.Dense(
             units=action_dim * 2,
             activation=self._output_nonlinearity,
@@ -137,7 +142,7 @@ class GaussianGRUModel(Model):
                 # mean and std networks share an MLP
                 (outputs, step_outputs, step_hidden, hidden_init_var) = gru(
                     name='mean_std_network',
-                    gru_cell=self._mean_std_gru_cell,
+                    gru_cells=self._mean_std_gru_cells,
                     all_input_var=state_input,
                     step_input_var=step_input,
                     step_hidden_var=hidden_input,
@@ -158,7 +163,7 @@ class GaussianGRUModel(Model):
                 # mean network
                 (mean_var, step_mean_var, step_hidden, hidden_init_var) = gru(
                     name='mean_network',
-                    gru_cell=self._mean_gru_cell,
+                    gru_cells=self._mean_gru_cells,
                     all_input_var=state_input,
                     step_input_var=step_input,
                     step_hidden_var=hidden_input,
@@ -183,8 +188,8 @@ class GaussianGRUModel(Model):
     def __getstate__(self):
         """Object.__getstate__."""
         new_dict = super().__getstate__()
-        del new_dict['_mean_std_gru_cell']
-        del new_dict['_mean_gru_cell']
+        del new_dict['_mean_std_gru_cells']
+        del new_dict['_mean_gru_cells']
         del new_dict['_mean_std_output_nonlinearity_layer']
         del new_dict['_mean_output_nonlinearity_layer']
         return new_dict

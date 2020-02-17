@@ -9,6 +9,7 @@ import psutil
 
 from garage import TimeStep
 from garage.experiment.deterministic import get_seed, set_seed
+from garage.experiment.meta_evaluator import MetaEvaluator
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
 from garage.sampler.base import BaseSampler
@@ -143,6 +144,7 @@ class LocalRunner:
         self._policy = None
         self._sampler = None
         self._plotter = None
+        self._meta_eval = None
 
         self._start_time = None
         self._itr_start_time = None
@@ -156,7 +158,10 @@ class LocalRunner:
                      n_workers=psutil.cpu_count(logical=False),
                      max_path_length=None,
                      worker_class=DefaultWorker,
-                     sampler_args=None):
+                     sampler_args=None,
+                     worker_args=None,
+                     env=None,
+                     policy=None):
         """Construct a Sampler from a Sampler class.
 
         Args:
@@ -173,10 +178,16 @@ class LocalRunner:
             sampler_cls: An instance of the sampler class.
 
         """
+        if env is None:
+            env = self._env
+        if policy is None:
+            policy = self._algo.policy
         if max_path_length is None:
             max_path_length = self._algo.max_path_length
         if seed is None:
             seed = get_seed()
+        if worker_args is None:
+            worker_args = {}
         if sampler_args is None:
             sampler_args = {}
         if issubclass(sampler_cls, BaseSampler):
@@ -186,11 +197,13 @@ class LocalRunner:
                 seed=seed,
                 max_path_length=max_path_length,
                 n_workers=n_workers,
-                worker_class=worker_class),
-                                                   agents=self._algo.policy,
-                                                   envs=self._env)
+                worker_class=worker_class,
+                worker_args=worker_args),
+                                                   agents=policy,
+                                                   envs=env)
 
-    def setup(self, algo, env, sampler_cls=None, sampler_args=None):
+    def setup(self, algo, env, sampler_cls=None, sampler_args=None, n_workers=psutil.cpu_count(logical=False),
+              worker_class=DefaultWorker, worker_args=None):
         """Set up runner for algorithm and environment.
 
         This method saves algo and env within runner and creates a sampler.
@@ -210,15 +223,23 @@ class LocalRunner:
         self._algo = algo
         self._env = env
         self._policy = self._algo.policy
-
+        self._n_workers = n_workers
+        self._worker_class = worker_class
+        if worker_args is None:
+            worker_args = {}
         if sampler_args is None:
             sampler_args = {}
         if sampler_cls is None:
             sampler_cls = algo.sampler_cls
         self._sampler = self.make_sampler(sampler_cls,
-                                          sampler_args=sampler_args)
+                                          n_workers=n_workers,
+                                          worker_class=worker_class,
+                                          sampler_args=sampler_args,
+                                          worker_args=worker_args)
 
+        self._use_all_worker = sampler_args['use_all_workers'] if 'use_all_workers' in sampler_args else False
         self._has_setup = True
+        self._worker_args = worker_args
 
         self._setup_args = SetupArgs(sampler_cls=sampler_cls,
                                      sampler_args=sampler_args,
@@ -239,7 +260,18 @@ class LocalRunner:
         if self._plot:
             self._plotter.close()
 
-    def obtain_samples(self, itr, batch_size=None):
+    def setup_meta_evaluator(self, test_task_sampler, n_exploration_traj=10, n_test_rollouts=10,
+                             n_workers=1, n_test_tasks=1, test_task_names={}):
+        self._meta_eval = MetaEvaluator(self,
+            test_task_sampler=test_task_sampler,
+            n_exploration_traj=n_exploration_traj,
+            n_test_rollouts=n_test_rollouts,
+            n_workers=n_workers,
+            max_path_length=self._algo.max_path_length,
+            n_test_tasks=n_test_tasks,
+            test_task_names=test_task_names)
+
+    def obtain_samples(self, itr, batch_size=None, agent_update=None, env_update=None):
         """Obtain one batch of samples.
 
         Args:
@@ -256,9 +288,19 @@ class LocalRunner:
             paths = self._sampler.obtain_samples(
                 itr, (batch_size or self._train_args.batch_size))
         else:
-            paths = self._sampler.obtain_samples(
-                itr, (batch_size or self._train_args.batch_size),
-                agent_update=self._algo.policy.get_param_values())
+            if agent_update is None:
+                agent_update = self._algo.policy.get_param_values()
+            if self._use_all_worker:
+                paths = self._sampler.obtain_exact_trajectories(
+                    n_traj_per_worker=1,
+                    agent_update=agent_update,
+                    env_update=env_update)
+            else:
+                paths = self._sampler.obtain_samples(
+                    itr, (batch_size or self._train_args.batch_size),
+                    agent_update=agent_update,
+                    env_update=env_update)
+
             paths = paths.to_trajectory_list()
 
         if isinstance(paths[0], TimeStep):
@@ -286,11 +328,14 @@ class LocalRunner:
         # Save arguments
         params['setup_args'] = self._setup_args
         params['train_args'] = self._train_args
+        params['worker_args'] = self._worker_args
         params['stats'] = self._stats
 
         # Save states
         params['env'] = self._env
         params['algo'] = self._algo
+        params['n_worker'] = self._algo
+        params['worker_class'] = self._algo
 
         self._snapshotter.save_itr_params(epoch, params)
 
@@ -320,6 +365,9 @@ class LocalRunner:
 
         self.setup(env=saved['env'],
                    algo=saved['algo'],
+                   n_worker=saved['n_worker'],
+                   worker_class=saved['worker_class'],
+                   worker_args=saved['worker_args'],
                    sampler_cls=self._setup_args.sampler_cls,
                    sampler_args=self._setup_args.sampler_args)
 
@@ -442,6 +490,9 @@ class LocalRunner:
                 self._stats.last_path = save_path
                 self._stats.total_epoch = epoch
                 self._stats.total_itr = self.step_itr
+
+                if self._meta_eval is not None:
+                    self._meta_eval.evaluate(self._algo)
 
                 self.save(epoch)
                 self.log_diagnostics(self._train_args.pause_for_plot)

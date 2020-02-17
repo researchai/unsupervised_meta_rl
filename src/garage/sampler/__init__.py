@@ -11,6 +11,7 @@ from garage.sampler.parallel_vec_env_executor import ParallelVecEnvExecutor
 from garage.sampler.pearl_sampler import PEARLSampler
 from garage.sampler.ray_sampler import RaySampler, SamplerWorker
 from garage.sampler.rl2_sampler import RL2Sampler
+from garage.sampler.rl2_worker import RL2Worker
 from garage.sampler.sampler import Sampler
 from garage.sampler.simple_sampler import SimpleSampler
 from garage.sampler.stateful_pool import singleton_pool
@@ -29,6 +30,7 @@ __all__ = [
     'PEARLSampler',
     'RaySampler',
     'RL2Sampler',
+    'RL2Worker',
     'Sampler',
     'SamplerWorker',
     'SimpleSampler',

@@ -192,7 +192,12 @@ class NPO(BatchPolopt):
         pol_ent = self._f_policy_entropy(*policy_opt_input_values)
         tabular.record('{}/Entropy'.format(self.policy.name), np.mean(pol_ent))
 
-        self._fit_baseline(samples_data)
+        self._fit_baseline_with_data(samples_data)
+
+        ev = np_tensor_utils.explained_variance_1d(samples_data['baselines'],
+                                                   samples_data['returns'],
+                                                   samples_data['valids'])
+        tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
 
     def _build_inputs(self):
         """Build input variables.
@@ -562,7 +567,7 @@ class NPO(BatchPolopt):
 
         return policy_entropy
 
-    def _fit_baseline(self, samples_data):
+    def _fit_baseline_with_data(self, samples_data):
         """Update baselines from samples.
 
         Args:
@@ -579,7 +584,6 @@ class NPO(BatchPolopt):
 
         paths = samples_data['paths']
         valids = samples_data['valids']
-        baselines = [path['baselines'] for path in paths]
 
         # Recompute parts of samples_data
         aug_rewards = []
@@ -590,15 +594,14 @@ class NPO(BatchPolopt):
             path['returns'] = ret[val.astype(np.bool)]
             aug_rewards.append(path['rewards'])
             aug_returns.append(path['returns'])
-        aug_rewards = concat_tensor_list(aug_rewards)
-        aug_returns = concat_tensor_list(aug_returns)
-        samples_data['rewards'] = aug_rewards
-        samples_data['returns'] = aug_returns
-
-        # Calculate explained variance
-        ev = np_tensor_utils.explained_variance_1d(np.concatenate(baselines),
-                                                   aug_returns)
-        tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
+        # aug_rewards = concat_tensor_list(aug_rewards)
+        # aug_returns = concat_tensor_list(aug_returns)
+        # samples_data['rewards'] = aug_rewards
+        # samples_data['returns'] = aug_returns
+        samples_data['rewards'] = np_tensor_utils.pad_tensor_n(
+            aug_rewards, self.max_path_length)
+        samples_data['returns'] = np_tensor_utils.pad_tensor_n(
+            aug_returns, self.max_path_length)
 
         # Fit baseline
         logger.log('Fitting baseline...')
