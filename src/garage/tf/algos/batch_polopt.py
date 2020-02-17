@@ -163,11 +163,15 @@ class BatchPolopt(RLAlgorithm):
                        for name in path['env_infos']['task_name'])
             dic[path['env_infos']['task_name'][0]].append(path)
 
+        avg_success = 0
         for task_name, sep_paths in dic.items():
-            undiscounted_returns = log_multitask_performance(
+            undiscounted_returns, success = log_multitask_performance(
                 itr,
                 TrajectoryBatch.from_trajectory_list(self.env_spec, sep_paths),
                 discount=self.discount, task_names=self.task_names)
+            avg_success += success
+        avg_success /= len(dic)
+        tabular.record('AverageSuccessRate', avg_success)
 
         if self.flatten_input:
             paths = [

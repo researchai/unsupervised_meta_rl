@@ -86,4 +86,4 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         # if len(success) > 0:
         tabular.record('SuccessRate', np.mean(success))
 
-    return undiscounted_returns
+    return undiscounted_returns, np.mean(success)

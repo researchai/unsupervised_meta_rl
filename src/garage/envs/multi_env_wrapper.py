@@ -157,6 +157,7 @@ class MultiEnvWrapper(gym.Wrapper):
         """
         self._active_task_index = self._sample_strategy(
             self._num_tasks, self._active_task_index)
+
         self.env = self._task_envs[self._active_task_index]
         obs = self.env.reset(**kwargs)
         obs = self._augment_observation(obs)

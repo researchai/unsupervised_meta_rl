@@ -96,7 +96,6 @@ class NormalizedRewardEnv(gym.Wrapper):
 
         """
         scaled_action = action
-
         next_obs, reward, done, info = self.env.step(scaled_action)
 
         if self._normalize_rewards:

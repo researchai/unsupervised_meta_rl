@@ -16,7 +16,7 @@ from garage.tf.policies import GaussianMLPPolicy
 
 # env_id = 'push-v1'
 # env_id = 'reach-v1'
-env_id = 'pick-place-v1'
+# env_id = 'pick-place-v1'
 
 @wrap_experiment
 def trpo_ml1(ctxt=None, seed=1):
@@ -38,7 +38,7 @@ def trpo_ml1(ctxt=None, seed=1):
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(64, 64),
-                use_trust_region=False,
+                use_trust_region=False
             ),
         )
 
@@ -48,16 +48,15 @@ def trpo_ml1(ctxt=None, seed=1):
                     max_path_length=150,
                     discount=0.99,
                     gae_lambda=0.97,
-                    max_kl_step=0.01,
-                    task_names=Ml1_reach_envs.keys())
+                    max_kl_step=0.01)
 
-        timesteps = 5000000
+        timesteps = 6000000
         batch_size = 150 * env.num_tasks
         epochs = timesteps // batch_size
 
         print (f'epochs: {epochs}, batch_size: {batch_size}')
 
-        runner.setup(algo, env)
+        runner.setup(algo, env, sampler_args={'n_envs': 1})
         runner.train(n_epochs=epochs, batch_size=batch_size, plot=False)
 
 
@@ -68,9 +67,17 @@ def get_ML1_envs_test(name):
     for task in tasks:
         new_bench = bench.clone(bench)
         new_bench.set_task(task)
-        ret[("goal"+str(task['goal']))] = GarageEnv(normalize_reward(new_bench.active_env))
+        ret[(env_id+"_"+str(task['goal']))] = GarageEnv(normalize_reward(new_bench.active_env))
     return ret
 
 
-s = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+# env_id = 'push-v1'
+# env_id = 'reach-v1'
+# env_id = 'pick-place-v1'
+
+assert len(sys.argv) > 1
+
+env_id = sys.argv[1]
+s = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+
 trpo_ml1(seed=s)
