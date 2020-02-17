@@ -105,4 +105,4 @@ def mtsac_ml1_reach(ctxt=None, seed=1):
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
 s = np.random.randint(0, 1000)
-mtsac_ml1_pick_place(seed=s)
+mtsac_ml1_reach(seed=s)
