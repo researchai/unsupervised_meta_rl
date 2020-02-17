@@ -38,7 +38,7 @@ def mt10_sac_normalize_reward(ctxt=None, seed=1):
     runner = LocalRunner(ctxt)
     MT10_envs_by_id = {}
     MT10_envs_test = {}
-    
+
     for env_name, args in EASY_MODE_ARGS_KWARGS.items():
         EASY_MODE_ARGS_KWARGS[env_name]['kwargs']['random_init'] = False
     for (task, env) in EASY_MODE_CLS_DICT.items():
@@ -97,4 +97,4 @@ def mt10_sac_normalize_reward(ctxt=None, seed=1):
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
 s = np.random.randint(0, 1000)
-mt10_sac_vanilla(seed=s)
+mt10_sac_normalize_reward(seed=s)
