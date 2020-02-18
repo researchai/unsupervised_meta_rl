@@ -24,8 +24,13 @@ class RL2Env(gym.Wrapper):
 
     """
 
-    def __init__(self, env, max_obs_dim=None):
+    def __init__(self, env, max_obs_dim=None, random_init=None):
         super().__init__(env)
+        if random_init is not None:
+            _env = env
+            while (not hasattr(_env, 'active_env')):
+                _env = _env._env
+            _env.active_env.random_init = random_init
         self._max_obs_dim = max_obs_dim
         action_space = akro.from_gym(self.env.action_space)
         observation_space = self._create_rl2_obs_space(env)
