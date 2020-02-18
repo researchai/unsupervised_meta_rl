@@ -60,8 +60,7 @@ class MAMLTRPO(MAML):
                  stop_entropy_gradient=False,
                  entropy_method='no_entropy',
                  meta_batch_size=40,
-                 num_grad_updates=1,
-                 meta_evaluator=None):
+                 num_grad_updates=1):
         inner_algo = VPG(env.spec,
                          policy,
                          baseline,
@@ -89,5 +88,4 @@ class MAMLTRPO(MAML):
                          meta_batch_size=meta_batch_size,
                          inner_lr=inner_lr,
                          outer_lr=outer_lr,
-                         num_grad_updates=num_grad_updates,
-                         meta_evaluator=meta_evaluator)
+                         num_grad_updates=num_grad_updates)

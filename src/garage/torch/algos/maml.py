@@ -48,15 +48,13 @@ class MAML(MetaRLAlgorithm):
                  meta_batch_size=40,
                  inner_lr=0.1,
                  outer_lr=1e-3,
-                 num_grad_updates=1,
-                 meta_evaluator=None):
+                 num_grad_updates=1):
         if policy.vectorized:
             self.sampler_cls = OnPolicyVectorizedSampler
         else:
             self.sampler_cls = BatchSampler
 
         self.max_path_length = inner_algo.max_path_length
-        self._meta_evaluator = meta_evaluator
         self._policy = policy
         self._env = env
         self._baseline = baseline
@@ -91,10 +89,6 @@ class MAML(MetaRLAlgorithm):
             runner.step_itr += 1
 
         return last_return
-
-    def test_once(self):
-        if self._meta_evaluator:
-            self._meta_evaluator.evaluate(self)
 
     def train_once(self, runner, all_samples, all_params):
         """Train the algorithm once.
@@ -457,11 +451,6 @@ class MAML(MetaRLAlgorithm):
         self._policy = old_policy
         self._inner_algo.policy = self._inner_optimizer.module = old_policy
         return exploration_policy
-
-    def __getstate__(self):
-        data = self.__dict__.copy()
-        del data['_meta_evaluator']
-        return data
 
 
 class MAMLTrajectoryBatch(
