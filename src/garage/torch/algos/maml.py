@@ -85,7 +85,6 @@ class MAML(MetaRLAlgorithm):
             all_samples, all_params = self._obtain_samples(runner)
             tabular.record('TotalEnvSteps', runner.total_env_steps)
             last_return = self.train_once(runner, all_samples, all_params)
-            self.test_once()
             runner.step_itr += 1
 
         return last_return
