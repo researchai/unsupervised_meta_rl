@@ -1,12 +1,12 @@
-"""PEARL HalfCheetahVel example."""
+"""PEARL ML1 example."""
 
 import akro
+from metaworld.benchmarks import ML1
 import numpy as np
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
-from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import LocalRunner, run_experiment
 from garage.experiment.task_sampler import SetTaskSampler
 from garage.sampler import PEARLSampler
@@ -18,24 +18,24 @@ from garage.torch.policies import ContextConditionedPolicy, \
 import garage.torch.utils as tu
 
 params = dict(
-    num_epochs=500,
-    num_train_tasks=100,
-    num_test_tasks=30,
-    latent_size=5,
+    num_epochs=1000,
+    num_train_tasks=50,
+    num_test_tasks=10,
+    latent_size=7,
     net_size=300,
     meta_batch_size=16,
-    num_steps_per_epoch=2000,
-    num_initial_steps=2000,
-    num_tasks_sample=5,
-    num_steps_prior=400,
-    num_extra_rl_steps_posterior=600,
-    num_evals=1,
-    num_steps_per_eval=600,
+    num_steps_per_epoch=4000,
+    num_initial_steps=4000,
+    num_tasks_sample=15,
+    num_steps_prior=750,
+    num_extra_rl_steps_posterior=750,
+    num_evals=5,
+    num_steps_per_eval=450,
     batch_size=256,
-    embedding_batch_size=100,
-    embedding_mini_batch_size=100,
-    max_path_length=200,
-    reward_scale=5.,
+    embedding_batch_size=64,
+    embedding_mini_batch_size=64,
+    max_path_length=150,
+    reward_scale=10.,
     use_information_bottleneck=True,
     use_next_obs_in_context=False,
     use_gpu=True,
@@ -53,16 +53,14 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = GarageEnv(normalize(HalfCheetahVelEnv()))
-    runner = LocalRunner(snapshot_config)
-
     env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
+        normalize(ML1.get_train_tasks('push-v1'))))
     env = env_sampler.sample(params['num_train_tasks'])
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
+        normalize(ML1.get_test_tasks('push-v1'))))
     test_env = test_env_sampler.sample(params['num_train_tasks'])
 
+    runner = LocalRunner(snapshot_config)
     obs_dim = int(np.prod(env[0]().observation_space.shape))
     action_dim = int(np.prod(env[0]().action_space.shape))
     reward_dim = 1

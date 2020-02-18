@@ -1,13 +1,17 @@
-"""PEARL HalfCheetahDir example."""
+"""PEARL ML10 example."""
 
 import akro
+from metaworld.benchmarks import ML10
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 import numpy as np
 
 from garage.envs import normalize
+from garage.envs import TaskIdWrapper
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
-from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
 from garage.experiment import LocalRunner, run_experiment
+from garage.experiment.task_sampler import EnvPoolSampler
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
@@ -16,25 +20,30 @@ from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
 
+ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
+ML10_ENVS = MEDIUM_MODE_CLS_DICT
+
 params = dict(
-    num_epochs=500,
-    num_train_tasks=2,
-    num_test_tasks=2,
-    latent_size=5,
+    num_epochs=1000,
+    num_train_tasks=10,
+    num_test_tasks=5,
+    latent_size=7,
     net_size=300,
-    meta_batch_size=4,
-    num_steps_per_epoch=2000,
-    num_initial_steps=2000,
-    num_tasks_sample=5,
-    num_steps_prior=1000,
-    num_extra_rl_steps_posterior=1000,
-    num_evals=4,
-    num_steps_per_eval=600,
+    meta_batch_size=16,
+    num_steps_per_epoch=4000,
+    num_initial_steps=4000,
+    num_tasks_sample=15,
+    num_steps_prior=750,
+    num_extra_rl_steps_posterior=750,
+    num_evals=5,
+    num_steps_per_eval=450,
     batch_size=256,
-    embedding_batch_size=256,
-    embedding_mini_batch_size=256,
-    max_path_length=200,
-    reward_scale=5.,
+    embedding_batch_size=64,
+    embedding_mini_batch_size=64,
+    max_path_length=150,
+    reward_scale=10.,
+    use_information_bottleneck=True,
+    use_next_obs_in_context=False,
     use_gpu=True,
 )
 
@@ -50,10 +59,37 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = GarageEnv(normalize(HalfCheetahDirEnv()))
+    ML_train_envs = [
+        TaskIdWrapper(GarageEnv(
+            normalize(
+                env(*ML10_ARGS['train'][task]['args'],
+                    **ML10_ARGS['train'][task]['kwargs']))),
+                      task_id=task_id,
+                      task_name=task)
+        for (task_id, (task, env)) in enumerate(ML10_ENVS['train'].items())
+    ]
+
+    ML_test_envs = [
+        TaskIdWrapper(GarageEnv(
+            normalize(
+                env(*ML10_ARGS['test'][task]['args'],
+                    **ML10_ARGS['test'][task]['kwargs']))),
+                      task_id=task_id,
+                      task_name=task)
+        for (task_id, (task, env)) in enumerate(ML10_ENVS['test'].items())
+    ]
+
+    train_task_names = ML10.get_train_tasks()._task_names
+    test_task_names = ML10.get_test_tasks()._task_names
+
+    env_sampler = EnvPoolSampler(ML_train_envs)
+    env = env_sampler.sample(params['num_train_tasks'])
+    test_env_sampler = EnvPoolSampler(ML_test_envs)
+    test_env = test_env_sampler.sample(params['num_test_tasks'])
+
     runner = LocalRunner(snapshot_config)
-    obs_dim = int(np.prod(env.observation_space.shape))
-    action_dim = int(np.prod(env.action_space.shape))
+    obs_dim = int(np.prod(env[0]().observation_space.shape))
+    action_dim = int(np.prod(env[0]().action_space.shape))
     reward_dim = 1
 
     # instantiate networks
@@ -65,7 +101,10 @@ def run_task(snapshot_config, *_):
                                  output_dim=encoder_out_dim,
                                  hidden_sizes=[200, 200, 200])
 
-    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+params['latent_size'], ), dtype=np.float32)
+    space_a = akro.Box(low=-1,
+                       high=1,
+                       shape=(obs_dim + params['latent_size'], ),
+                       dtype=np.float32)
     space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
     augmented_env = EnvSpec(space_a, space_b)
 
@@ -76,15 +115,17 @@ def run_task(snapshot_config, *_):
                                  hidden_sizes=[net_size, net_size, net_size])
 
     obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
-    action_space = akro.Box(low=-1, high=1, shape=(params['latent_size'], ), dtype=np.float32)
+    action_space = akro.Box(low=-1,
+                            high=1,
+                            shape=(params['latent_size'], ),
+                            dtype=np.float32)
     vf_env = EnvSpec(obs_space, action_space)
 
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
     policy = TanhGaussianMLPPolicy2(
-        env_spec=augmented_env,
-        hidden_sizes=[net_size, net_size, net_size])
+        env_spec=augmented_env, hidden_sizes=[net_size, net_size, net_size])
 
     context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=params['latent_size'],
@@ -96,6 +137,7 @@ def run_task(snapshot_config, *_):
 
     pearlsac = PEARLSAC(
         env=env,
+        test_env=test_env,
         policy=context_conditioned_policy,
         qf1=qf1,
         qf2=qf2,
@@ -116,15 +158,20 @@ def run_task(snapshot_config, *_):
         embedding_mini_batch_size=params['embedding_mini_batch_size'],
         max_path_length=params['max_path_length'],
         reward_scale=params['reward_scale'],
+        train_task_names=train_task_names,
+        test_task_names=test_task_names,
     )
 
     tu.set_gpu_mode(params['use_gpu'], gpu_id=0)
     if params['use_gpu']:
         pearlsac.to()
 
-    runner.setup(algo=pearlsac, env=env, sampler_cls=PEARLSampler,
-        sampler_args=dict(max_path_length=params['max_path_length']))
-    runner.train(n_epochs=params['num_epochs'], batch_size=params['batch_size'])
+    runner.setup(algo=pearlsac,
+                 env=env,
+                 sampler_cls=PEARLSampler,
+                 sampler_args=dict(max_path_length=params['max_path_length']))
+    runner.train(n_epochs=params['num_epochs'],
+                 batch_size=params['batch_size'])
 
 
 run_experiment(

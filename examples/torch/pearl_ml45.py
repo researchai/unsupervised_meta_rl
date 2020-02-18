@@ -1,14 +1,17 @@
-"""PEARL HalfCheetahVel example."""
+"""PEARL ML10 example."""
 
 import akro
+from metaworld.benchmarks import ML45
+from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
 import numpy as np
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
-from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
+from garage.envs import TaskIdWrapper
 from garage.experiment import LocalRunner, run_experiment
-from garage.experiment.task_sampler import SetTaskSampler
+from garage.experiment.task_sampler import EnvPoolSampler
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
@@ -17,25 +20,28 @@ from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
 
+ML45_ARGS = HARD_MODE_ARGS_KWARGS
+ML45_ENVS = HARD_MODE_CLS_DICT
+
 params = dict(
-    num_epochs=500,
-    num_train_tasks=100,
-    num_test_tasks=30,
-    latent_size=5,
+    num_epochs=1000,
+    num_train_tasks=10,
+    num_test_tasks=5,
+    latent_size=7,
     net_size=300,
     meta_batch_size=16,
-    num_steps_per_epoch=2000,
-    num_initial_steps=2000,
-    num_tasks_sample=5,
-    num_steps_prior=400,
-    num_extra_rl_steps_posterior=600,
-    num_evals=1,
-    num_steps_per_eval=600,
+    num_steps_per_epoch=4000,
+    num_initial_steps=4000,
+    num_tasks_sample=15,
+    num_steps_prior=750,
+    num_extra_rl_steps_posterior=750,
+    num_evals=5,
+    num_steps_per_eval=1650,
     batch_size=256,
-    embedding_batch_size=100,
-    embedding_mini_batch_size=100,
-    max_path_length=200,
-    reward_scale=5.,
+    embedding_batch_size=64,
+    embedding_mini_batch_size=64,
+    max_path_length=150,
+    reward_scale=10.,
     use_information_bottleneck=True,
     use_next_obs_in_context=False,
     use_gpu=True,
@@ -53,17 +59,40 @@ def run_task(snapshot_config, *_):
 
     """
     # create multi-task environment and sample tasks
-    env = GarageEnv(normalize(HalfCheetahVelEnv()))
-    runner = LocalRunner(snapshot_config)
+    ML_train_envs = [
+        TaskIdWrapper(GarageEnv(
+            normalize(
+                env(*ML45_ARGS['train'][task]['args'],
+                    **ML45_ARGS['train'][task]['kwargs']))),
+                      task_id=task_id,
+                      task_name=task,
+                      pad=True)
+        for (task_id, (task, env)) in enumerate(ML45_ENVS['train'].items())
+    ]
 
-    env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
+    ML_test_envs = [
+        TaskIdWrapper(GarageEnv(
+            normalize(
+                env(*ML45_ARGS['test'][task]['args'],
+                    **ML45_ARGS['test'][task]['kwargs']))),
+                      task_id=task_id,
+                      task_name=task,
+                      pad=True)
+        for (task_id, (task, env)) in enumerate(ML45_ENVS['test'].items())
+    ]
+
+    train_task_names = ML45.get_train_tasks()._task_names
+    test_task_names = ML45.get_test_tasks()._task_names
+
+    env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(params['num_train_tasks'])
-    test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
-    test_env = test_env_sampler.sample(params['num_train_tasks'])
+    test_env_sampler = EnvPoolSampler(ML_test_envs)
+    test_env = test_env_sampler.sample(params['num_test_tasks'])
 
-    obs_dim = int(np.prod(env[0]().observation_space.shape))
+    runner = LocalRunner(snapshot_config)
+    obs_dim = max(
+        int(np.prod(env[i]().observation_space.shape))
+        for i in range(params['num_train_tasks']))
     action_dim = int(np.prod(env[0]().action_space.shape))
     reward_dim = 1
 
@@ -133,6 +162,8 @@ def run_task(snapshot_config, *_):
         embedding_mini_batch_size=params['embedding_mini_batch_size'],
         max_path_length=params['max_path_length'],
         reward_scale=params['reward_scale'],
+        train_task_names=train_task_names,
+        test_task_names=test_task_names,
     )
 
     tu.set_gpu_mode(params['use_gpu'], gpu_id=0)

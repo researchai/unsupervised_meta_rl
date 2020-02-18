@@ -88,6 +88,7 @@ class PEARLSAC(MetaRLAlgorithm):
     def __init__(
             self,
             env,
+            test_env,
             policy,
             qf1,
             qf2,
@@ -95,7 +96,6 @@ class PEARLSAC(MetaRLAlgorithm):
             num_train_tasks,
             num_test_tasks,
             latent_dim,
-            test_env=None,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
@@ -128,10 +128,12 @@ class PEARLSAC(MetaRLAlgorithm):
             num_exp_traj_eval=2,
             update_post_train=1,
             eval_deterministic=True,
-            multi_env=False,
+            train_task_names=None,
+            test_task_names=None,
     ):
 
         self.env = env
+        self.test_env = test_env
         self.policy = policy
         self._qf1 = qf1
         self._qf2 = qf2
@@ -172,27 +174,14 @@ class PEARLSAC(MetaRLAlgorithm):
         self._total_env_steps = 0
         self._total_train_steps = 0
         self._eval_statistics = None
-        self._multi_env = multi_env
+        self._train_task_names = train_task_names
+        self._test_task_names = test_task_names
 
         self.sampler = PEARLSampler(
-            env=env,
+            env=env[0](),
             policy=policy,
             max_path_length=max_path_length,
         )
-
-        self._num_total_tasks = num_train_tasks + num_test_tasks
-        if test_env is None:
-            self.test_env = env
-            tasks = env.sample_tasks(self._num_total_tasks)
-            self._train_tasks = tasks[:num_train_tasks]
-            self._test_tasks = tasks[num_train_tasks:]
-        else:
-            self.test_env = test_env
-            self._train_tasks = env.sample_tasks(num_train_tasks)
-            self._test_tasks = self.test_env.sample_tasks(num_test_tasks)
-        
-        self._train_tasks_idx = range(num_train_tasks)
-        self._test_tasks_idx = range(num_test_tasks)
 
         # buffer for training RL update
         self._replay_buffers = {
@@ -255,20 +244,16 @@ class PEARLSAC(MetaRLAlgorithm):
 
             # obtain initial set of samples from all train tasks
             if epoch == 0:
-                for idx in self._train_tasks_idx:
-                    self.task_idx = idx
-                    self._task = self._train_tasks[idx]
-                    self.env.set_task(self._task)
-                    self.env.reset()
+                for idx in range(self._num_train_tasks):
+                    self._task_idx = idx
+                    self.sampler.env = self.env[idx]()
                     self.obtain_samples(self._num_initial_steps, 1, np.inf)
 
             # obtain samples from random tasks
             for _ in range(self._num_tasks_sample):
-                idx = np.random.randint(len(self._train_tasks_idx))
-                self.task_idx = idx
-                self._task = self._train_tasks[idx]
-                self.env.set_task(self._task)
-                self.env.reset()
+                idx = np.random.randint(self._num_train_tasks)
+                self._task_idx = idx
+                self.sampler.env = self.env[idx]()
                 self._context_replay_buffers[idx].clear()
 
                 # obtain samples with z ~ prior
@@ -288,7 +273,7 @@ class PEARLSAC(MetaRLAlgorithm):
             logger.log('Training...')
             # sample train tasks and optimize networks
             for _ in range(self._num_steps_per_epoch):
-                indices = np.random.choice(self._train_tasks_idx,
+                indices = np.random.choice(range(self._num_train_tasks),
                                            self._meta_batch_size)
                 self.train_once(indices)
                 self._total_train_steps += 1
@@ -383,7 +368,7 @@ class PEARLSAC(MetaRLAlgorithm):
         vf_loss.backward()
         self.vf_optimizer.step()
         self._update_target_network()
-        
+
         # optimize policy
         log_policy_target = min_q
         policy_loss = (log_pi - log_policy_target).mean()
@@ -425,18 +410,15 @@ class PEARLSAC(MetaRLAlgorithm):
         if self._eval_statistics is None:
             self._eval_statistics = OrderedDict()
 
-        # evaluate on a subset of train tasks
-        indices = np.random.choice(self._train_tasks_idx,
-                                   len(self._test_tasks_idx))
+        indices = np.random.choice(range(self._num_train_tasks),
+                                   self._num_test_tasks)
         # evaluate train tasks with posterior sampled from the training replay buffer
-        self.get_average_returns(indices, False, epoch)
-        # eval test tasks
-        self.get_average_returns(self._test_tasks_idx, True, epoch)
+        self.log_performance(indices, False, epoch)
+        # evaluate test tasks
+        self.log_performance(range(self._num_test_tasks), True, epoch)
 
         # log stats
         self.policy.log_diagnostics(self._eval_statistics)
-
-        # record values
         for key, value in self._eval_statistics.items():
             tabular.record(key, value)
         self._eval_statistics = None
@@ -445,15 +427,11 @@ class PEARLSAC(MetaRLAlgorithm):
         tabular.record('TotalTrainSteps', self._total_train_steps)
         tabular.record('TotalEnvSteps', self._total_env_steps)
 
-    def get_average_returns(self, indices, test, epoch):
+    def log_performance(self, indices, test, epoch):
         """Get average returns for specific tasks.
 
         Args:
             indices (list): List of tasks.
-
-        Returns:
-            float: Average return.
-            float: Success rate.
 
         """
         discounted_returns = []
@@ -467,32 +445,53 @@ class PEARLSAC(MetaRLAlgorithm):
                 paths = self.collect_paths(idx, test)
                 paths[-1]['terminals'] = paths[-1]['terminals'].squeeze()
                 paths[-1]['dones'] = paths[-1]['terminals']
-                paths[-1]['env_infos']['task'] = paths[-1]['env_infos']['task']['velocity']
+                # HalfCheetahVel env
+                if 'task' in paths[-1]['env_infos'].keys():
+                    paths[-1]['env_infos']['task'] = paths[-1]['env_infos'][
+                        'task']['velocity']
                 eval_paths.append(paths[-1])
-                discounted_returns.append(discount_cumsum(paths[-1]['rewards'], self._discount))
+                discounted_returns.append(
+                    discount_cumsum(paths[-1]['rewards'], self._discount))
                 undiscounted_returns.append(sum(paths[-1]['rewards']))
                 completion.append(float(paths[-1]['terminals'].any()))
                 # calculate success rate for metaworld tasks
                 if 'success' in paths[-1]['env_infos']:
                     success.append(paths[-1]['env_infos']['success'].any())
-        
-            temp_traj = TrajectoryBatch.from_trajectory_list(self.env, eval_paths)
+
+            if test:
+                env = self.test_env[idx]()
+                temp_traj = TrajectoryBatch.from_trajectory_list(
+                    env, eval_paths)
+            else:
+                env = self.env[idx]()
+                temp_traj = TrajectoryBatch.from_trajectory_list(
+                    env, eval_paths)
             traj.append(temp_traj)
-        
+
         if test:
-            with tabular.prefix("Test/"):
-                if self._multi_env:
-                    log_multitask_performance(epoch, TrajectoryBatch.concatenate(*traj), 
-                        self._discount, task_names=self.test_env.task_names)
-                log_performance(epoch, TrajectoryBatch.concatenate(*traj), 
-                    self._discount, prefix='Average')
+            with tabular.prefix('Test/'):
+                if self._test_task_names:
+                    log_multitask_performance(
+                        epoch,
+                        TrajectoryBatch.concatenate(*traj),
+                        self._discount,
+                        task_names=self._test_task_names)
+                log_performance(epoch,
+                                TrajectoryBatch.concatenate(*traj),
+                                self._discount,
+                                prefix='Average')
         else:
-            with tabular.prefix("Train/"):
-                if self._multi_env:
-                    log_multitask_performance(epoch, TrajectoryBatch.concatenate(*traj), 
-                        self._discount, task_names=self.env.task_names)
-                log_performance(epoch, TrajectoryBatch.concatenate(*traj), 
-                    self._discount, prefix='Average')
+            with tabular.prefix('Train/'):
+                if self._train_task_names:
+                    log_multitask_performance(
+                        epoch,
+                        TrajectoryBatch.concatenate(*traj),
+                        self._discount,
+                        task_names=self._train_task_names)
+                log_performance(epoch,
+                                TrajectoryBatch.concatenate(*traj),
+                                self._discount,
+                                prefix='Average')
 
     def obtain_samples(self,
                        num_samples,
@@ -515,10 +514,10 @@ class PEARLSAC(MetaRLAlgorithm):
 
         while num_transitions < num_samples:
             paths, n_samples = self.sampler.obtain_samples(
-                max_samples=num_samples-num_transitions,
+                max_samples=num_samples - num_transitions,
                 max_trajs=update_posterior_rate,
                 accum_context=False,
-                resample=resample_z_rate)
+                resample_rate=resample_z_rate)
             num_transitions += n_samples
 
             for path in paths:
@@ -526,13 +525,13 @@ class PEARLSAC(MetaRLAlgorithm):
                 path.pop('agent_infos')
                 path.pop('env_infos')
                 path.pop('context')
-                self._replay_buffers[self.task_idx].add_path(path)
+                self._replay_buffers[self._task_idx].add_path(path)
 
                 if add_to_enc_buffer:
-                    self._context_replay_buffers[self.task_idx].add_path(path)
+                    self._context_replay_buffers[self._task_idx].add_path(path)
 
             if update_posterior_rate != np.inf:
-                context = self.sample_context(self.task_idx)
+                context = self.sample_context(self._task_idx)
                 self.policy.infer_posterior(context)
 
         self._total_env_steps += num_transitions
@@ -550,7 +549,8 @@ class PEARLSAC(MetaRLAlgorithm):
         # transitions sampled randomly from replay buffer
         initialized = False
         for idx in indices:
-            batch = self._replay_buffers[idx].sample_transitions(self._batch_size)
+            batch = self._replay_buffers[idx].sample_transitions(
+                self._batch_size)
             if not initialized:
                 o = batch['observations'][np.newaxis]
                 a = batch['actions'][np.newaxis]
@@ -564,7 +564,7 @@ class PEARLSAC(MetaRLAlgorithm):
                 r = np.vstack((r, batch['rewards'][np.newaxis]))
                 no = np.vstack((no, batch['next_observations'][np.newaxis]))
                 t = np.vstack((t, batch['terminals'][np.newaxis]))
-        
+
         o = tu.from_numpy(o)
         a = tu.from_numpy(a)
         r = tu.from_numpy(r)
@@ -589,7 +589,8 @@ class PEARLSAC(MetaRLAlgorithm):
 
         initialized = False
         for idx in indices:
-            batch = self._context_replay_buffers[idx].sample_transitions(self._embedding_batch_size)
+            batch = self._context_replay_buffers[idx].sample_transitions(
+                self._embedding_batch_size)
             o = batch['observations']
             a = batch['actions']
             r = batch['rewards']
@@ -619,16 +620,11 @@ class PEARLSAC(MetaRLAlgorithm):
             list: A list containing paths.
 
         """
-        self.task_idx = idx
-        if test: 
-            self._task = self._test_tasks[idx]
-            self.test_env.set_task(self._task)
-            self.sampler.env = self.test_env
-            self.test_env.reset()
+        self._task_idx = idx
+        if test:
+            self.sampler.env = self.test_env[idx]()
         else:
-            self._task = self._train_tasks[idx]
-            self.env.set_task(self._task)
-            self.env.reset()
+            self.sampler.env = self.env[idx]()
         self.policy.reset_belief()
         paths = []
         num_transitions = 0
@@ -647,7 +643,6 @@ class PEARLSAC(MetaRLAlgorithm):
                 context = self.policy.context
                 self.policy.infer_posterior(context)
 
-        self.sampler.env = self.env
         return paths
 
     def _update_target_network(self):

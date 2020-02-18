@@ -1,5 +1,5 @@
 # pylint: disable=unnecessary-pass
-"""A sampler that does not perform serialization for sampling."""
+"""A sampler for PEARL."""
 import numpy as np
 
 from garage.sampler.utils import rollout
@@ -35,7 +35,7 @@ class PEARLSampler:
                        max_trajs=np.inf,
                        deterministic=False,
                        accum_context=True,
-                       resample=1):
+                       resample_rate=1):
         """Obtain samples in the environment up to max_samples or max_trajs.
 
         Args:
@@ -44,7 +44,7 @@ class PEARLSampler:
             deterministic (bool): Whether or not policy is deterministic.
             accum_context (bool): Whether or not to accumulate the collected
                 context.
-            resample (int): How often (in trajectories) to resample context.
+            resample_rate (int): How often (in trajectories) to resample context.
 
         Returns:
             list: A list of paths.
@@ -70,6 +70,6 @@ class PEARLSampler:
             n_trajs += 1
 
             # resample z every transition
-            if n_trajs % resample == 0:
+            if n_trajs % resample_rate == 0:
                 self.policy.sample_from_belief()
         return paths, n_steps_total

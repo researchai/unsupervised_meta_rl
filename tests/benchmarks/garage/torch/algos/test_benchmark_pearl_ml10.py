@@ -11,6 +11,8 @@ from dowel import logger as dowel_logger
 import numpy as np
 import pytest
 from metaworld.benchmarks import ML10
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 
 from garage.envs import normalize
 from garage.envs import TaskIdWrapper
@@ -18,6 +20,7 @@ from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import deterministic, LocalRunner
 from garage.experiment.snapshotter import SnapshotConfig
+from garage.experiment.task_sampler import EnvPoolSampler
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
@@ -27,6 +30,9 @@ from garage.torch.policies import ContextConditionedPolicy, \
 import garage.torch.utils as tu
 from tests import benchmark_helper
 import tests.helpers as Rh
+
+ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
+ML10_ENVS = MEDIUM_MODE_CLS_DICT
 
 # hyperparams for garage
 params = dict(
@@ -50,7 +56,7 @@ params = dict(
     reward_scale=10.,
     use_information_bottleneck=True,
     use_next_obs_in_context=False,
-    n_trials=1,
+    n_trials=3,
     use_gpu=True,
 )
 
@@ -62,8 +68,30 @@ class TestBenchmarkPEARL:
     def test_benchmark_pearl(self):
         """Run benchmarks for garage PEARL."""
 
-        env = ML10.get_train_tasks()
-        test_env = ML10.get_test_tasks()
+        ML_train_envs = [
+            TaskIdWrapper(GarageEnv(
+                normalize(
+                    env(*ML10_ARGS['train'][task]['args'],
+                        **ML10_ARGS['train'][task]['kwargs']))),
+                          task_id=task_id,
+                          task_name=task)
+            for (task_id, (task, env)) in enumerate(ML10_ENVS['train'].items())
+        ]
+        ML_test_envs = [
+            TaskIdWrapper(GarageEnv(
+                normalize(
+                    env(*ML10_ARGS['test'][task]['args'],
+                        **ML10_ARGS['test'][task]['kwargs']))),
+                          task_id=task_id,
+                          task_name=task)
+            for (task_id, (task, env)) in enumerate(ML10_ENVS['test'].items())
+        ]
+
+        env_sampler = EnvPoolSampler(ML_train_envs)
+        env = env_sampler.sample(params['num_train_tasks'])
+        test_env_sampler = EnvPoolSampler(ML_test_envs)
+        test_env = test_env_sampler.sample(params['num_test_tasks'])
+
         env_id = 'ML10'
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
@@ -71,8 +99,7 @@ class TestBenchmarkPEARL:
         result_json = {}
         seeds = random.sample(range(100), params['n_trials'])
         task_dir = osp.join(benchmark_dir, env_id)
-        plt_file = osp.join(benchmark_dir,
-                            '{}_benchmark.png'.format(env_id))
+        plt_file = osp.join(benchmark_dir, '{}_benchmark.png'.format(env_id))
         garage_csvs = []
 
         for trial in range(params['n_trials']):
@@ -80,8 +107,7 @@ class TestBenchmarkPEARL:
             trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
             garage_dir = trial_dir + '/garage'
 
-            garage_csv = run_garage(env, seed, garage_dir,
-                test_env=test_env)
+            garage_csv = run_garage(env, test_env, seed, garage_dir)
             garage_csvs.append(garage_csv)
 
         env.close()
@@ -109,19 +135,17 @@ class TestBenchmarkPEARL:
         Rh.write_file(result_json, 'PEARL')
 
 
-def run_garage(env, seed, log_dir, test_env=None):
+def run_garage(env, test_env, seed, log_dir):
     """Create garage model and training."""
 
     deterministic.set_seed(seed)
-    env = TaskIdWrapper(GarageEnv(normalize(env)))
-    test_env = TaskIdWrapper(GarageEnv(normalize(test_env)))
     snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
                                      snapshot_mode='gap',
                                      snapshot_gap=10)
     runner = LocalRunner(snapshot_config)
 
-    obs_dim = int(np.prod(env.observation_space.shape))
-    action_dim = int(np.prod(env.action_space.shape))
+    obs_dim = int(np.prod(env[0]().observation_space.shape))
+    action_dim = int(np.prod(env[0]().action_space.shape))
     reward_dim = 1
 
     # instantiate networks
@@ -133,7 +157,10 @@ def run_garage(env, seed, log_dir, test_env=None):
                                  output_dim=encoder_out_dim,
                                  hidden_sizes=[200, 200, 200])
 
-    space_a = akro.Box(low=-1, high=1, shape=(obs_dim+params['latent_size'], ), dtype=np.float32)
+    space_a = akro.Box(low=-1,
+                       high=1,
+                       shape=(obs_dim + params['latent_size'], ),
+                       dtype=np.float32)
     space_b = akro.Box(low=-1, high=1, shape=(action_dim, ), dtype=np.float32)
     augmented_env = EnvSpec(space_a, space_b)
 
@@ -144,15 +171,17 @@ def run_garage(env, seed, log_dir, test_env=None):
                                  hidden_sizes=[net_size, net_size, net_size])
 
     obs_space = akro.Box(low=-1, high=1, shape=(obs_dim, ), dtype=np.float32)
-    action_space = akro.Box(low=-1, high=1, shape=(params['latent_size'], ), dtype=np.float32)
+    action_space = akro.Box(low=-1,
+                            high=1,
+                            shape=(params['latent_size'], ),
+                            dtype=np.float32)
     vf_env = EnvSpec(obs_space, action_space)
 
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
     policy = TanhGaussianMLPPolicy2(
-        env_spec=augmented_env,
-        hidden_sizes=[net_size, net_size, net_size])
+        env_spec=augmented_env, hidden_sizes=[net_size, net_size, net_size])
 
     context_conditioned_policy = ContextConditionedPolicy(
         latent_dim=params['latent_size'],
@@ -161,6 +190,9 @@ def run_garage(env, seed, log_dir, test_env=None):
         use_ib=params['use_information_bottleneck'],
         use_next_obs=params['use_next_obs_in_context'],
     )
+
+    train_task_names = ML10.get_train_tasks()._task_names
+    test_task_names = ML10.get_test_tasks()._task_names
 
     pearlsac = PEARLSAC(
         env=env,
@@ -185,6 +217,8 @@ def run_garage(env, seed, log_dir, test_env=None):
         embedding_mini_batch_size=params['embedding_mini_batch_size'],
         max_path_length=params['max_path_length'],
         reward_scale=params['reward_scale'],
+        train_task_names=train_task_names,
+        test_task_names=test_task_names,
     )
 
     tu.set_gpu_mode(params['use_gpu'], gpu_id=0)
@@ -197,9 +231,12 @@ def run_garage(env, seed, log_dir, test_env=None):
     dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
     dowel_logger.add_output(dowel.TensorBoardOutput(tensorboard_log_dir))
 
-    runner.setup(algo=pearlsac, env=env, sampler_cls=PEARLSampler,
-        sampler_args=dict(max_path_length=params['max_path_length']))
-    runner.train(n_epochs=params['num_epochs'], batch_size=params['batch_size'])
+    runner.setup(algo=pearlsac,
+                 env=env,
+                 sampler_cls=PEARLSampler,
+                 sampler_args=dict(max_path_length=params['max_path_length']))
+    runner.train(n_epochs=params['num_epochs'],
+                 batch_size=params['batch_size'])
 
     dowel_logger.remove_all()
 
