@@ -55,12 +55,14 @@ hyper_parameters = {
     'max_path_length': 150,
     'n_itr': 1000 if ML else 500,
     'rollout_per_task': 10,
+    'test_rollout_per_task': 10,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
+    'n_test_tasks': 1,
     'cell_type': 'gru',
     'sampler_cls': RaySampler, 
     'use_all_workers': True
@@ -233,6 +235,12 @@ def run_garage(env, seed, log_dir):
                         use_all_workers=hyper_parameters['use_all_workers']),
                      worker_args=dict(
                         n_paths_per_trial=hyper_parameters['rollout_per_task']))
+
+        runner.setup_meta_evaluator(test_task_sampler=task_samplers,
+                                    n_exploration_traj=hyper_parameters['rollout_per_task'],
+                                    n_test_rollouts=hyper_parameters['test_rollout_per_task'],
+                                    n_test_tasks=hyper_parameters['n_test_tasks'],
+                                    n_workers=hyper_parameters['n_test_tasks'])
 
         runner.train(n_epochs=hyper_parameters['n_itr'],
             batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])

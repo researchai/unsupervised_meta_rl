@@ -45,9 +45,6 @@ from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
 ML10_ENVS = MEDIUM_MODE_CLS_DICT
 
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-
 
 hyper_parameters = {
     'meta_batch_size': 40,
@@ -57,12 +54,14 @@ hyper_parameters = {
     'max_path_length': 150,
     'n_itr': 1500,
     'rollout_per_task': 10,
+    'test_rollout_per_task': 2,
     'positive_adv': False,
     'normalize_adv': True,
     'optimizer_lr': 1e-3,
     'lr_clip_range': 0.2,
     'optimizer_max_epochs': 5,
     'n_trials': 1,
+    'n_test_tasks': 5,
     'cell_type': 'gru',
     'sampler_cls': RaySampler,
     'use_all_workers': True
@@ -201,6 +200,24 @@ def run_garage(env, envs, tasks, seed, log_dir):
                 use_all_workers=hyper_parameters['use_all_workers']),
             worker_args=dict(
                 n_paths_per_trial=hyper_parameters['rollout_per_task']))
+
+        # meta evaluator
+        ML_test_envs = [
+            TaskIdWrapper(RL2Env(env(*ML10_ARGS['test'][task]['args'],
+                **ML10_ARGS['test'][task]['kwargs'])), task_id=task_id, task_name=task)
+            for (task_id, (task, env)) in enumerate(ML10_ENVS['test'].items())
+        ]
+        test_tasks = task_sampler.EnvPoolSampler(ML_test_envs)
+        test_tasks.grow_pool(hyper_parameters['n_test_tasks'])
+
+        test_task_names = list(ML10_ENVS['test'].keys())
+
+        runner.setup_meta_evaluator(test_task_sampler=test_tasks,
+                                    n_exploration_traj=hyper_parameters['rollout_per_task'],
+                                    n_test_rollouts=hyper_parameters['test_rollout_per_task'],
+                                    n_test_tasks=hyper_parameters['n_test_tasks'],
+                                    n_workers=hyper_parameters['n_test_tasks'],
+                                    test_task_names=None if hyper_parameters['n_test_tasks'] >= len(test_task_names) else test_task_names)
 
         runner.train(n_epochs=hyper_parameters['n_itr'],
             batch_size=hyper_parameters['meta_batch_size'] * hyper_parameters['rollout_per_task'] * hyper_parameters['max_path_length'])

@@ -1,5 +1,7 @@
 """Evaluator which tests Meta-RL algorithms on test environments."""
-from garage import log_performance, TrajectoryBatch
+from dowel import logger, tabular
+
+from garage import log_multitask_performance, TrajectoryBatch
 from garage.sampler import LocalSampler
 
 
@@ -35,18 +37,27 @@ class MetaEvaluator:
                  *,
                  test_task_sampler,
                  max_path_length,
-                 n_test_tasks=None,
+                 n_test_tasks=1,
+                 n_workers=1,
                  n_exploration_traj=1,
-                 prefix='MetaTest'):
+                 n_test_rollouts=1,
+                 prefix='MetaTest',
+                 test_task_names=None):
         self._test_task_sampler = test_task_sampler
         if n_test_tasks is None:
             n_test_tasks = test_task_sampler.n_tasks
         self._n_test_tasks = n_test_tasks
+        self._n_test_rollouts = n_test_rollouts
         self._n_exploration_traj = n_exploration_traj
         self._test_sampler = runner.make_sampler(
-            LocalSampler, n_workers=1, max_path_length=max_path_length)
+            LocalSampler,
+            n_workers=n_workers,
+            max_path_length=max_path_length,
+            policy=runner._algo.get_exploration_policy(),
+            env=self._test_task_sampler.sample(self._n_test_tasks))
         self._eval_itr = 0
         self._prefix = prefix
+        self._test_task_names = test_task_names
 
     def evaluate(self, algo):
         """Evaluate the Meta-RL algorithm on the test tasks.
@@ -56,6 +67,7 @@ class MetaEvaluator:
 
         """
         adapted_trajectories = []
+        logger.log('Sampling for adapation and meta-testing...')
         for env_up in self._test_task_sampler.sample(self._n_test_tasks):
             policy = algo.get_exploration_policy()
             traj = TrajectoryBatch.concatenate(*[
@@ -64,11 +76,21 @@ class MetaEvaluator:
                 for _ in range(self._n_exploration_traj)
             ])
             adapted_policy = algo.adapt_policy(policy, traj)
-            adapted_traj = self._test_sampler.obtain_samples(
-                self._eval_itr, 1, adapted_policy)
-            adapted_trajectories.append(adapted_traj)
-        log_performance(self._eval_itr,
-                        TrajectoryBatch.concatenate(*adapted_trajectories),
-                        getattr(algo, 'discount', 1.0),
-                        prefix=self._prefix)
+            adapted_hidden_state = adapted_policy._prev_hiddens[:]
+
+            for _ in range(self._n_test_rollouts):
+                policy._policy._prev_hiddens = adapted_hidden_state[:]
+                adapted_traj = self._test_sampler.obtain_samples(
+                    self._eval_itr,
+                    1,
+                    adapted_policy.get_param_values())
+                adapted_trajectories.append(adapted_traj)
+        logger.log('Finished meta-testing...')
+
+        with tabular.prefix(self._prefix + '/' if self._prefix else ''):
+            log_multitask_performance(self._eval_itr,
+                                      TrajectoryBatch.concatenate(
+                                          *adapted_trajectories),
+                                      getattr(algo, 'discount', 1.0),
+                                      task_names=self._test_task_names)
         self._eval_itr += 1

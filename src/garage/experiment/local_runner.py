@@ -8,6 +8,7 @@ from dowel import logger, tabular
 import psutil
 
 from garage.experiment.deterministic import get_seed, set_seed
+from garage.experiment.meta_evaluator import MetaEvaluator
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
 from garage.sampler.base import BaseSampler
@@ -142,6 +143,7 @@ class LocalRunner:
         self._policy = None
         self._sampler = None
         self._plotter = None
+        self._meta_eval = None
 
         self._start_time = None
         self._itr_start_time = None
@@ -156,7 +158,9 @@ class LocalRunner:
                      max_path_length=None,
                      worker_class=DefaultWorker,
                      sampler_args=None,
-                     worker_args=None):
+                     worker_args=None,
+                     env=None,
+                     policy=None):
         """Construct a Sampler from a Sampler class.
 
         Args:
@@ -173,6 +177,10 @@ class LocalRunner:
             sampler_cls: An instance of the sampler class.
 
         """
+        if env is None:
+            env = self._env
+        if policy is None:
+            policy = self._algo.policy
         if max_path_length is None:
             max_path_length = self._algo.max_path_length
         if seed is None:
@@ -190,8 +198,8 @@ class LocalRunner:
                 n_workers=n_workers,
                 worker_class=worker_class,
                 worker_args=worker_args),
-                                                   agents=self._algo.policy,
-                                                   envs=self._env)
+                                                   agents=policy,
+                                                   envs=env)
 
     def setup(self, algo, env, sampler_cls=None, sampler_args=None, n_workers=psutil.cpu_count(logical=False),
               worker_class=DefaultWorker, worker_args=None):
@@ -250,6 +258,17 @@ class LocalRunner:
         self._sampler.shutdown_worker()
         if self._plot:
             self._plotter.close()
+
+    def setup_meta_evaluator(self, test_task_sampler, n_exploration_traj=10, n_test_rollouts=10,
+                             n_workers=1, n_test_tasks=1, test_task_names={}):
+        self._meta_eval = MetaEvaluator(self,
+            test_task_sampler=test_task_sampler,
+            n_exploration_traj=n_exploration_traj,
+            n_test_rollouts=n_test_rollouts,
+            n_workers=n_workers,
+            max_path_length=self._algo.max_path_length,
+            n_test_tasks=n_test_tasks,
+            test_task_names=test_task_names)
 
     def obtain_samples(self, itr, batch_size=None, agent_update=None, env_update=None):
         """Obtain one batch of samples.
@@ -468,6 +487,9 @@ class LocalRunner:
                 self._stats.last_path = save_path
                 self._stats.total_epoch = epoch
                 self._stats.total_itr = self.step_itr
+
+                if self._meta_eval is not None:
+                    self._meta_eval.evaluate(self._algo)
 
                 self.save(epoch)
                 self.log_diagnostics(self._train_args.pause_for_plot)
