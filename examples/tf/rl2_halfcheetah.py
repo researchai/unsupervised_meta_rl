@@ -33,13 +33,13 @@ def rl2_ppo_halfcheetah(ctxt=None, seed=1):
         episode_per_task = 4
 
         # ---- For ML1-push
-        # env = RL2Env(ML1.get_train_tasks('push-v1'))
-        # tasks = task_sampler.EnvPoolSampler([env])
-        # tasks.grow_pool(meta_batch_size)
+        from metaworld.benchmarks import ML1        
+        tasks = task_sampler.SetTaskSampler(lambda: RL2Env(
+            env=ML1.get_train_tasks('push-v1')))
 
         # ---- For HalfCheetahVel
-        tasks = task_sampler.SetTaskSampler(lambda: RL2Env(
-            env=HalfCheetahVelEnv()))
+        # tasks = task_sampler.SetTaskSampler(lambda: RL2Env(
+        #     env=HalfCheetahVelEnv()))
 
         env_spec = tasks.sample(1)[0]().spec
         policy = GaussianGRUPolicy(name='policy',
@@ -50,7 +50,7 @@ def rl2_ppo_halfcheetah(ctxt=None, seed=1):
         baseline = LinearFeatureBaseline(env_spec=env_spec)
 
         inner_algo = RL2PPO(
-            env_spec=env.spec,
+            env_spec=env_spec,
             policy=policy,
             baseline=baseline,
             max_path_length=max_path_length * episode_per_task,

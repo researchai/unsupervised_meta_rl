@@ -113,7 +113,8 @@ class LocalTFRunner(LocalRunner):
                      n_workers=psutil.cpu_count(logical=False),
                      max_path_length=None,
                      worker_class=DefaultWorker,
-                     sampler_args=None):
+                     sampler_args=None,
+                     worker_args=None):
         """Construct a Sampler from a Sampler class.
 
         Args:
@@ -137,9 +138,11 @@ class LocalTFRunner(LocalRunner):
             n_workers=n_workers,
             max_path_length=max_path_length,
             worker_class=TFWorkerClassWrapper(worker_class),
-            sampler_args=sampler_args)
+            sampler_args=sampler_args,
+            worker_args=worker_args)
 
-    def setup(self, algo, env, sampler_cls=None, sampler_args=None):
+    def setup(self, algo, env, sampler_cls=None, sampler_args=None, n_workers=psutil.cpu_count(logical=False),
+              worker_class=DefaultWorker, worker_args=None):
         """Set up runner and sessions for algorithm and environment.
 
         This method saves algo and env within runner and creates a sampler,
@@ -159,7 +162,7 @@ class LocalTFRunner(LocalRunner):
         """
         self.initialize_tf_vars()
         logger.log(self.sess.graph)
-        super().setup(algo, env, sampler_cls, sampler_args)
+        super().setup(algo, env, sampler_cls, sampler_args, n_workers, worker_class, worker_args)
 
     def initialize_tf_vars(self):
         """Initialize all uninitialized variables in session."""

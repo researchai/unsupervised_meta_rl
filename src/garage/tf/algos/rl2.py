@@ -7,7 +7,7 @@ import numpy as np
 import garage
 
 from dowel import logger, tabular
-from garage import log_performance
+from garage import log_multitask_performance
 from garage import TrajectoryBatch
 from garage.misc import tensor_utils as np_tensor_utils
 from garage.np.algos import MetaRLAlgorithm
@@ -26,7 +26,7 @@ class RL2(MetaRLAlgorithm):
     """
 
     def __init__(self, *, policy, inner_algo, max_path_length, meta_batch_size,
-                 task_sampler):
+                 task_sampler, task_names=None):
         assert isinstance(inner_algo, garage.tf.algos.BatchPolopt)
         self._inner_algo = inner_algo
         self._max_path_length = max_path_length
@@ -36,6 +36,7 @@ class RL2(MetaRLAlgorithm):
         self._discount = inner_algo.discount
         self._meta_batch_size = meta_batch_size
         self._task_sampler = task_sampler
+        self._task_names = task_names
 
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
@@ -164,9 +165,10 @@ class RL2(MetaRLAlgorithm):
         ent = np.sum(self._policy.distribution.entropy(agent_infos) *
                      valids) / np.sum(valids)
 
-        undiscounted_returns = log_performance(
-            itr, TrajectoryBatch.from_trajectory_list(self._env_spec, paths),
-            self._inner_algo.discount)
+        undiscounted_returns = log_multitask_performance(itr,
+            TrajectoryBatch.from_trajectory_list(self._env_spec, paths),
+            self._inner_algo.discount,
+            task_names=self._task_names)
 
         tabular.record('Entropy', ent)
         tabular.record('Perplexity', np.exp(ent))
