@@ -44,7 +44,6 @@ import tests.helpers as Rh
 test_garage = True
 test_promp = False
 
-# Same as promp:full_code/config/trpo_maml_config.json
 hyper_parameters = {
     'hidden_sizes': [100, 100],
     'max_kl': 0.01,
