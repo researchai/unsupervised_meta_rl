@@ -14,7 +14,11 @@ def log_multitask_performance(itr, batch, discount, name_map={}, task_names=None
         try:
             task_name = trajectory.env_infos['task_name'][0]
         except KeyError:
-            task_name = name_map[trajectory.env_infos['task_id'][0]]
+            try:
+                task_id = trajectory.env_infos['task_id'][0]
+                task_name = name_map[task_id]
+            except KeyError:
+                task_name = 'Task #{}'.format(task_id)
         traj_by_name[task_name].append(trajectory)
     if task_names is None:
         for (task_name, trajectories) in traj_by_name.items():
@@ -80,4 +84,4 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
         if success:
             tabular.record('SuccessRate', np.mean(success))
 
-    return undiscounted_returns
+    return undiscounted_returns, np.mean(success)

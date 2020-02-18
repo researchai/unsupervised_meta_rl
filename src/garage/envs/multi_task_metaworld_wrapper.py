@@ -25,7 +25,7 @@ class MTMetaWorldWrapper(MultiEnvWrapper):
         for name, env in envs.items():
             self._names.append(name)
             self._task_envs.append(env)
-        super().__init__(self._task_envs, sample_strategy)
+        super().__init__(self._task_envs, self._names, sample_strategy)
 
 
     def _compute_env_one_hot(self, task_number):

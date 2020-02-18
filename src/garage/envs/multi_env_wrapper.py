@@ -53,12 +53,13 @@ class MultiEnvWrapper(gym.Wrapper):
 
     """
 
-    def __init__(self, envs, sample_strategy=uniform_random_strategy):
+    def __init__(self, envs, task_name=None, sample_strategy=uniform_random_strategy):
 
         self._sample_strategy = sample_strategy
         self._num_tasks = len(envs)
         self._active_task_index = None
         self._observation_space = None
+        self._envs_names_list = task_name or dict()
         max_flat_dim = np.prod(envs[0].observation_space.shape)
         for i, env in enumerate(envs):
             assert len(env.observation_space.shape) == 1
@@ -156,6 +157,7 @@ class MultiEnvWrapper(gym.Wrapper):
         """
         self._active_task_index = self._sample_strategy(
             self._num_tasks, self._active_task_index)
+
         self.env = self._task_envs[self._active_task_index]
         obs = self.env.reset(**kwargs)
         obs = self._augment_observation(obs)
@@ -188,6 +190,7 @@ class MultiEnvWrapper(gym.Wrapper):
         obs = self._augment_observation(obs)
         oh_obs = self._obs_with_one_hot(obs)
         info['task_id'] = self._active_task_index
+        info['task_name'] = self._envs_names_list[self._active_task_index]
         return oh_obs, reward, done, info
 
     def close(self):

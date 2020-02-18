@@ -141,7 +141,6 @@ class FirstOrderOptimizer:
                                extra_inputs=extra_inputs)
 
         sess = tf.compat.v1.get_default_session()
-
         for epoch in range(self._max_epochs):
             if self._verbose:
                 logger.log('Epoch {}'.format(epoch))

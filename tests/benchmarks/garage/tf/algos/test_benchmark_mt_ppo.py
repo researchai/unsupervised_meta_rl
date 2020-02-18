@@ -22,6 +22,7 @@ import tensorflow as tf
 import torch
 
 from garage.envs import normalize
+from garage.envs.multi_env_wrapper import MultiEnvWrapper
 from garage.experiment import deterministic, LocalRunner
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import PPO as TF_PPO
@@ -36,7 +37,31 @@ from tests import benchmark_helper
 from tests import helpers as Rh
 from tests.fixtures import snapshot_config
 from tests.wrappers import AutoStopEnv
+from metaworld.benchmarks import ML1
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
 
+MT10_envs_by_id = {
+    task: env(*MEDIUM_MODE_ARGS_KWARGS[kind][task]['args'],
+        **MEDIUM_MODE_ARGS_KWARGS[kind][task]['kwargs'])
+    for kind in ['train', 'test']
+    for (task, env) in MEDIUM_MODE_CLS_DICT[kind].items()
+}
+
+MT10_env_ids = [
+    'pick-place-v1',
+    'push-v1',
+    'reach-v1',
+    'door-open-v1',
+    'button-press-v1',
+    'peg-insert-side-v1',
+    'window-open-v1',
+    'window-close-v1',
+    'drawer-open-v1',
+    'drawer-close-v1'
+]
+
+MT10_envs = [MT10_envs_by_id[i] for i in MT10_env_ids]
 
 hyper_parameters = {
     'hidden_sizes': [64, 64],
@@ -70,6 +95,7 @@ class TestBenchmarkPPO:
     """
     # pylint: disable=too-few-public-methods
 
+
     @pytest.mark.huge
     def test_benchmark_ppo(self):
         """Compare benchmarks between garage and baselines.
@@ -78,54 +104,54 @@ class TestBenchmarkPPO:
 
         """
         # pylint: disable=no-self-use
-        mujoco1m = benchmarks.get_benchmark('Mujoco1M')
+        # mujoco1m = benchmarks.get_benchmark('Mujoco1M')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = './data/local/benchmarks/ppo/%s/' % timestamp
         result_json = {}
-        for task in mujoco1m['tasks']:
-            env_id = task['env_id']
 
-            env = gym.make(env_id)
-            baseline_env = AutoStopEnv(
-                env_name=env_id,
-                max_path_length=hyper_parameters['max_path_length'])
+        env = MultiEnvWrapper(MT10_envs)
 
-            seeds = random.sample(range(100), hyper_parameters['n_trials'])
+        env = ML1.get_train_tasks(env_id)  # Create an environment with task `pick_place`
+        tasks = env.sample_tasks(1)  # Sample a task (in this case, a goal variation)
+        env.set_task(tasks[0])  # Set task
 
-            task_dir = osp.join(benchmark_dir, env_id)
-            plt_file = osp.join(benchmark_dir,
-                                '{}_benchmark.png'.format(env_id))
+        baseline_env = AutoStopEnv(
+            env,
+            max_path_length=hyper_parameters['max_path_length'])
 
-            baselines_csvs = []
-            garage_tf_csvs = []
-            garage_pytorch_csvs = []
+        seeds = random.sample(range(100), hyper_parameters['n_trials'])
 
-            for trial in range(hyper_parameters['n_trials']):
-                seed = seeds[trial]
+        task_dir = osp.join(benchmark_dir, env_id)
+        plt_file = osp.join(benchmark_dir,
+                            '{}_benchmark.png'.format(env_id))
 
-                trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
-                garage_tf_dir = trial_dir + '/garage/tf'
-                garage_pytorch_dir = trial_dir + '/garage/pytorch'
-                baselines_dir = trial_dir + '/baselines'
+        baselines_csvs = []
+        garage_tf_csvs = []
+        garage_pytorch_csvs = []
 
-                # pylint: disable=not-context-manager
-                with tf.Graph().as_default():
-                    # Run baselines algorithms
-                    baseline_env.reset()
-                    baseline_csv = run_baselines(baseline_env, seed,
-                                                 baselines_dir)
+            trial_dir = task_dir + '/trial'
+            garage_tf_dir = trial_dir + '/garage/tf'
+            garage_pytorch_dir = trial_dir + '/garage/pytorch'
+            baselines_dir = trial_dir + '/baselines'
 
-                    # Run garage algorithms
-                    env.reset()
-                    garage_tf_csv = run_garage_tf(env, seed, garage_tf_dir)
+            # pylint: disable=not-context-manager
+            with tf.Graph().as_default():
+                # Run baselines algorithms
+                baseline_env.reset()
+                baseline_csv = run_baselines(baseline_env, seed,
+                                             baselines_dir)
 
-                # env.reset()
-                # garage_pytorch_csv = run_garage_pytorch(
-                #     env, seed, garage_pytorch_dir)
+                # Run garage algorithms
+                env.reset()
+                garage_tf_csv = run_garage_tf(env, seed, garage_tf_dir)
 
-                baselines_csvs.append(baseline_csv)
-                garage_tf_csvs.append(garage_tf_csv)
-                # garage_pytorch_csvs.append(garage_pytorch_csv)
+            # env.reset()
+            # garage_pytorch_csv = run_garage_pytorch(
+            #     env, seed, garage_pytorch_dir)
+
+            baselines_csvs.append(baseline_csv)
+            garage_tf_csvs.append(garage_tf_csv)
+            # garage_pytorch_csvs.append(garage_pytorch_csv)
 
             env.close()
 
@@ -175,7 +201,7 @@ class TestBenchmarkPPO:
             #            trials=hyper_parameters['n_trials'],
             #            seeds=seeds,
             #            plt_file=plt_file,
-            #            env_id=env_id,
+            #            env_id=task,
             #            x_label='EnvTimeStep',
             #            y_label='Performance')
 
@@ -185,8 +211,8 @@ class TestBenchmarkPPO:
                 ['total_timesteps', 'TotalEnvSteps'],
                 plt_file=plt_file,
                 env_id=env_id,
-                x_label='EnvTimeStep',
-                y_label='Performance',
+                x_label='Iteration',
+                y_label='Evaluation/AverageReturn',
                 names=['baseline', 'garage-TensorFlow'],
             )
 
@@ -382,5 +408,3 @@ def run_baselines(env, seed, log_dir):
                total_timesteps=hyper_parameters['batch_size'] * hyper_parameters['n_epochs'])  # yapf: disable  # noqa: E501
 
     return osp.join(log_dir, 'progress.csv')
-
-

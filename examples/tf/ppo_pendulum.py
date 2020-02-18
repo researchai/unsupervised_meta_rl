@@ -48,7 +48,7 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
         baseline = GaussianMLPBaseline(
             env_spec=env.spec,
             regressor_args=dict(
-                hidden_sizes=(32, 32),
+                hidden_sizes=(64, 64),
                 use_trust_region=True,
             ),
         )
@@ -67,16 +67,18 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
             optimizer_args=dict(
                 batch_size=32,
                 max_epochs=10,
+                learning_rate=1e-3,
             ),
             stop_entropy_gradient=True,
             entropy_method='max',
-            policy_ent_coeff=0.02,
+            policy_ent_coeff=0.002,
             center_adv=False,
         )
 
         runner.setup(algo, env)
 
-        runner.train(n_epochs=120, batch_size=2048, plot=False)
+        runner.train(n_epochs=120, batch_size=4096, plot=False)
+
 
 
 tf_ppo_pendulum(seed=1)

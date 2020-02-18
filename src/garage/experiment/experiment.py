@@ -479,7 +479,7 @@ class LogEncoder(json.JSONEncoder):
         elif isinstance(o, enum.Enum):
             return {
                 '$enum':
-                o.__module__ + '.' + o.__class__.__name__ + '.' + o.name
+                    o.__module__ + '.' + o.__class__.__name__ + '.' + o.name
             }
         elif callable(o):
             return {'$function': o.__module__ + '.' + o.__name__}

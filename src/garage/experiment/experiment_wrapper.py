@@ -4,7 +4,6 @@ import argparse
 import ast
 import base64
 import datetime
-import gc
 import json
 import os
 import pathlib
