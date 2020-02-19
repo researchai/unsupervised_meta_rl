@@ -97,4 +97,4 @@ def mt10_sac_normalize_reward(ctxt=None, seed=1):
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
 s = np.random.randint(0, 1000)
-mt10_sac_vanilla(seed=s)
+mt10_sac_normalize_reward(seed=s)

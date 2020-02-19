@@ -30,7 +30,7 @@ from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
 @wrap_experiment(snapshot_mode='none')
-def mt10_sac_normalize_reward(ctxt=None, seed=1):
+def mt10_sac_mw2(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=int,default=0,help='gpu id')
@@ -97,4 +97,4 @@ def mt10_sac_normalize_reward(ctxt=None, seed=1):
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
 s = np.random.randint(0, 1000)
-mt10_sac_vanilla(seed=s)
+mt10_sac_mw2(seed=s)
