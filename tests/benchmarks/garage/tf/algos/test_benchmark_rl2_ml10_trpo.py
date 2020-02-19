@@ -35,7 +35,7 @@ from garage.tf.policies import GaussianGRUPolicy
 from garage.sampler import LocalSampler
 from garage.sampler import RaySampler
 from garage.sampler.rl2_worker import RL2Worker
-from garage.envs.TaskIdWrapper import TaskIdWrapper
+from garage.envs import TaskIdWrapper
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
 

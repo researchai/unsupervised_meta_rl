@@ -11,7 +11,7 @@ class TaskIdWrapper(gym.Wrapper):
         self.task_id = task_id
         self.task_name = task_name
         self.pad = pad
-        if pad & np.prod(env.observation_space.shape) < 9:
+        if pad and np.prod(env.observation_space.shape) < 9:
             self.observation_space = akro.Box(low=-1, high=1, shape=(9, ))
 
     def step(self, action):
@@ -23,7 +23,7 @@ class TaskIdWrapper(gym.Wrapper):
 
     def _augment_observation(self, obs):
         # zero-pad observation
-        if self.pad & np.prod(obs.shape) < 9:
+        if self.pad and np.prod(obs.shape) < 9:
             zeros = np.zeros(shape=(9 - np.prod(obs.shape), ))
             obs = np.concatenate([obs, zeros])
         return obs

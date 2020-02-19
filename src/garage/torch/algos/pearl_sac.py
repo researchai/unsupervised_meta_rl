@@ -164,6 +164,7 @@ class PEARLSAC(MetaRLAlgorithm):
         self._embedding_batch_size = embedding_batch_size
         self._embedding_mini_batch_size = embedding_mini_batch_size
         self._max_path_length = max_path_length
+        self.max_path_length = max_path_length
         self._discount = discount
         self._replay_buffer_size = replay_buffer_size
         self._reward_scale = reward_scale

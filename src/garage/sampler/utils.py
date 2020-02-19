@@ -126,7 +126,6 @@ def rollout_pearl(env,
                 non-flattened `agent_info` arrays.
             * env_infos(Dict[str, np.array]): Dictionary of stacked,
                 non-flattened `env_info` arrays.
-            * dones(np.array): Array of termination signals.
 
     """
     observations = []
@@ -135,7 +134,6 @@ def rollout_pearl(env,
     terminals = []
     agent_infos = []
     env_infos = []
-    dones = []
     o = env.reset()
     next_o = None
     agent.reset()
@@ -156,7 +154,6 @@ def rollout_pearl(env,
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
-        dones.append(d)
         path_length += 1
         if d:
             break
@@ -188,7 +185,6 @@ def rollout_pearl(env,
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
         env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
-        dones=np.array(dones),
     )
 
 

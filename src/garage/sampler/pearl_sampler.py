@@ -2,10 +2,11 @@
 """A sampler for PEARL."""
 import numpy as np
 
-from garage.sampler.utils import rollout
+from garage.sampler.utils import rollout_pearl
+from garage.sampler.base import BaseSampler
 
 
-class PEARLSampler:
+class PEARLSampler(BaseSampler):
     """A sampler used in meta-RL algorithms involving context.
 
     It stores context and resample belief in the policy every step.
@@ -57,11 +58,11 @@ class PEARLSampler:
         n_trajs = 0
 
         while n_steps_total < max_samples and n_trajs < max_trajs:
-            path = rollout(self.env,
-                           self.policy,
-                           max_path_length=self.max_path_length,
-                           deterministic=deterministic,
-                           accum_context=accum_context)
+            path = rollout_pearl(self.env,
+                                 self.policy,
+                                 max_path_length=self.max_path_length,
+                                 deterministic=deterministic,
+                                 accum_context=accum_context)
 
             # save the latent context that generated this trajectory
             path['context'] = self.policy.z.detach().cpu().numpy()

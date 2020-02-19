@@ -24,7 +24,7 @@ import tests.helpers as Rh
 from garage.envs import RL2Env
 from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
-from garage.envs.TaskIdWrapper import TaskIdWrapper
+from garage.envs import TaskIdWrapper
 from garage.experiment import task_sampler
 from garage.experiment.snapshotter import SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline as GarageLinearFeatureBaseline
