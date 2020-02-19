@@ -1,7 +1,6 @@
 # THIS DATA IS *SECRET*
 # **DO NOT SHARE**
 # TODO Move data to public S3
-import boto3
 import os
 import subprocess
 import time
