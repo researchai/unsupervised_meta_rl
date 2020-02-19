@@ -32,7 +32,7 @@ from meta_policy_search.utils import logger as PM_logger
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
-from garage.envs.TaskIdWrapper import TaskIdWrapper
+from garage.envs import TaskIdWrapper2
 from garage.experiment import deterministic, LocalRunner, SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline
 from garage.torch.algos import MAMLPPO
@@ -71,7 +71,7 @@ class TestBenchmarkMAML:  # pylint: disable=too-few-public-methods
         benchmark_dir = './data/local/benchmarks/mamlppo-ml10/%s/' % timestamp
         result_json = {}
         env_id = 'ML10'
-        meta_env = TaskIdWrapper(ML10WithPinnedGoal.get_train_tasks())
+        meta_env = TaskIdWrapper2(ML10WithPinnedGoal.get_train_tasks())
 
         seeds = random.sample(range(100), hyper_parameters['n_trials'])
         task_dir = osp.join(benchmark_dir, env_id)
