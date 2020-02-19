@@ -1,4 +1,4 @@
-from metaworld.benchmarks import ML10WithPinnedGoal
+from garage.envs.ml_wrapper import ML10WithPinnedGoal
 
 from garage.experiment.meta_test_helper import MetaTestHelper
 

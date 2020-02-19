@@ -1,6 +1,6 @@
 from functools import partial
 
-from metaworld.benchmarks import ML1WithPinnedGoal
+from garage.envs.ml_wrapper import ML1WithPinnedGoal
 
 from garage.experiment.meta_test_helper import MetaTestHelper
 

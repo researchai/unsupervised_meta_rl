@@ -19,7 +19,7 @@ import pytest
 import torch
 import tensorflow as tf
 
-from metaworld.benchmarks import ML1WithPinnedGoal
+from garage.envs.ml_wrapper import ML1WithPinnedGoal
 
 from meta_policy_search.baselines.linear_baseline import LinearFeatureBaseline as PM_LinearFeatureBaseline
 from meta_policy_search.envs.normalized_env import normalize as PM_normalize
@@ -32,7 +32,7 @@ from meta_policy_search.utils import logger as PM_logger
 
 from garage.envs import normalize
 from garage.envs.base import GarageEnv
-from garage.envs import TaskIdWrapper
+from garage.envs import TaskIdWrapper2
 from garage.experiment import deterministic, LocalRunner, SnapshotConfig
 from garage.np.baselines import LinearFeatureBaseline
 from garage.torch.algos import MAMLTRPO

@@ -19,7 +19,7 @@ import pytest
 import torch
 import tensorflow as tf
 
-from metaworld.benchmarks import ML10WithPinnedGoal
+from garage.envs.ml_wrapper import ML10WithPinnedGoal
 
 from meta_policy_search.baselines.linear_baseline import LinearFeatureBaseline as PM_LinearFeatureBaseline
 from meta_policy_search.envs.normalized_env import normalize as PM_normalize

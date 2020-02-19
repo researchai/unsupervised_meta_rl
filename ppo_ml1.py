@@ -16,7 +16,7 @@ import numpy as np
 import tensorflow as tf
 from garage import wrap_experiment
 from garage.envs import GarageEnv, normalize_reward
-from garage.envs.ml1_wrapper import ML1WithPinnedGoal
+from garage.envs.ml_wrapper import ML1WithPinnedGoal
 from garage.envs.multi_task_metaworld_wrapper import MTMetaWorldWrapper
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
