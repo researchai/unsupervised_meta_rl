@@ -159,8 +159,6 @@ class MTSAC(OffPolicyRLAlgorithm):
         return last_return
 
     def train_once(self, itr, paths):
-        """
-        """
         if self.replay_buffer.n_transitions_stored >= self.min_buffer_size:  # noqa: E501
             samples = self.replay_buffer.sample(self.buffer_batch_size)
             samples = tu.np_to_pytorch_batch(samples)
@@ -175,16 +173,6 @@ class MTSAC(OffPolicyRLAlgorithm):
             alpha = self.log_alpha.detach().exp()
             ret = torch.mm(one_hots, alpha.unsqueeze(0).t()).squeeze()
             assert ret.size() == torch.Size([self.buffer_batch_size])
-            # test works when self.log_alpha inited to [1,2,3,4,5,6,7,8,9,10]
-            # for index, i in enumerate(ret):
-            #     index_one_hot = (one_hots[index] == 1).nonzero().flatten().item()
-            #     try:
-            #         assert (index_one_hot + 1) == int(i.log().item())
-            #     except:
-            #         import ipdb; ipdb.set_trace()
-            #         curr_alpha = float(index_one_hot + 1)
-            #         c_alpha = (i.log().item)
-            # import ipdb; ipdb.set_trace()
             return ret
 
     def temperature_objective(self, obs, log_pi):
@@ -288,10 +276,7 @@ class MTSAC(OffPolicyRLAlgorithm):
         tabular.record("policy_loss", policy_loss.item())
         tabular.record("qf_loss/{}".format("qf1_loss"), float(qf1_loss))
         tabular.record("qf_loss/{}".format("qf2_loss"), float(qf2_loss))
-        # tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
         tabular.record("local/normalized_avg_return", np.mean(self.episode_rewards))
-        # for index, alpha in enumerate(self.log_alpha):
-        #     tabular.record("local/alpha_{i}".format(i=index), float((alpha).detach().exp().item()))
 
     @property
     def networks(self):
@@ -312,4 +297,3 @@ class MTSAC(OffPolicyRLAlgorithm):
             net.to(device)
         self.log_alpha = torch.tensor([self.initial_log_entropy] * self._num_tasks, dtype=torch.float).to(device).requires_grad_()
         self.alpha_optimizer = self.optimizer([self.log_alpha], lr=self.policy_lr)
-

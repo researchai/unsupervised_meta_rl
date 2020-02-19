@@ -6,7 +6,6 @@ import torch
 from torch import nn
 
 from garage.torch.distributions import TanhNormal
-from garage.torch.modules.mlp_module import MLPModule
 from garage.torch.modules.multi_headed_mlp_module import MultiHeadedMLPModule
 
 
@@ -125,7 +124,7 @@ class TanhGaussianMLPBaseModule2(nn.Module):
         if max_std is not None:
             self._max_std_param = torch.Tensor([max_std]).log()
             self.register_buffer('max_std_param', self._max_std_param)
-    
+
     def to(self, *args, **kwargs):
         super().to(*args, **kwargs)
         buffers = dict(self.named_buffers())

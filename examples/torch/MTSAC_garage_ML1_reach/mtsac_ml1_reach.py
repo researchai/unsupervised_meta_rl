@@ -14,12 +14,10 @@ from torch.nn import functional as F  # NOQA
 from torch import nn as nn
 
 from garage import wrap_experiment
-from garage.envs import normalize
-from metaworld.envs.mujoco.env_dict import EASY_MODE_ARGS_KWARGS
-from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT
 from garage.envs import GarageEnv
 from garage.envs.multi_task_metaworld_wrapper import MTMetaWorldWrapper
 from garage.envs import normalize_reward
+from garage.envs import ML1WithPinnedGoal
 from garage.experiment import LocalRunner, run_experiment
 from garage.replay_buffer import SimpleReplayBuffer, SACReplayBuffer
 from garage.torch.algos import MTSAC
@@ -29,26 +27,36 @@ import argparse
 from garage.sampler import SimpleSampler
 import garage.torch.utils as tu
 
+def get_ML1_envs(name):
+    bench = ML1WithPinnedGoal.get_train_tasks(name)
+    tasks = [{'task': 0, 'goal': i} for i in range(50)]
+    ret = {}
+    for task in tasks:
+        new_bench = bench.clone(bench)
+        new_bench.set_task(task)
+        ret[("goal"+str(task['goal']))] = GarageEnv(normalize_reward(new_bench.active_env))
+    return ret
+
+def get_ML1_envs_test(name):
+    bench = ML1WithPinnedGoal.get_train_tasks(name)
+    tasks = [{'task': 0, 'goal': i} for i in range(50)]
+    ret = {}
+    for task in tasks:
+        new_bench = bench.clone(bench)
+        new_bench.set_task(task)
+        ret[("goal"+str(task['goal']))] = GarageEnv((new_bench.active_env))
+    return ret
+
 @wrap_experiment(snapshot_mode='none')
-def mt10_sac_normalize_reward(ctxt=None, seed=1):
+def mtsac_ml1_reach(ctxt=None, seed=1):
     """Set up environment and algorithm and run the task."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=int,default=0,help='gpu id')
+    parser.add_argument('--gpu', type=int, default=0, help='gpu id')
     options = parser.parse_args()
     runner = LocalRunner(ctxt)
-    MT10_envs_by_id = {}
-    MT10_envs_test = {}
-
-    for env_name, args in EASY_MODE_ARGS_KWARGS.items():
-        EASY_MODE_ARGS_KWARGS[env_name]['kwargs']['random_init'] = False
-    for (task, env) in EASY_MODE_CLS_DICT.items():
-        MT10_envs_by_id[task] = GarageEnv(normalize_reward(env(*EASY_MODE_ARGS_KWARGS[task]['args'],
-                                    **EASY_MODE_ARGS_KWARGS[task]['kwargs'])))
-        # python 3.6 dicts are ordered
-        MT10_envs_test[task] = GarageEnv(env(*EASY_MODE_ARGS_KWARGS[task]['args'],
-                                    **EASY_MODE_ARGS_KWARGS[task]['kwargs']))
-
-    env = MTMetaWorldWrapper(MT10_envs_by_id)
+    Ml1_reach_envs = get_ML1_envs("pick-place-v1")
+    Ml1_reach_test_envs = get_ML1_envs_test("pick-place-v1")
+    env = MTMetaWorldWrapper(Ml1_reach_envs)
 
     policy = TanhGaussianMLPPolicy2(env_spec=env.spec,
                                hidden_sizes=[400, 400, 400],
@@ -76,7 +84,7 @@ def mt10_sac_normalize_reward(ctxt=None, seed=1):
     epoch_cycles = epochs // num_evaluation_points
     epochs = epochs // epoch_cycles
     sac = MTSAC(env=env,
-                eval_env_dict=MT10_envs_test,
+                eval_env_dict=Ml1_reach_test_envs,
                 env_spec=env.spec,
                 policy=policy,
                 qf1=qf1,
@@ -97,4 +105,4 @@ def mt10_sac_normalize_reward(ctxt=None, seed=1):
     runner.train(n_epochs=epochs, batch_size=batch_size)
 
 s = np.random.randint(0, 1000)
-mt10_sac_normalize_reward(seed=s)
+mtsac_ml1_reach(seed=s)
