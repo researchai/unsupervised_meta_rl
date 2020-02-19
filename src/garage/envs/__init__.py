@@ -13,6 +13,7 @@ from garage.envs.point_env import PointEnv
 from garage.envs.rl2_env import RL2Env
 from garage.envs.task_id_wrapper import TaskIdWrapper
 from garage.envs.task_id_wrapper2 import TaskIdWrapper2
+from garage.envs.ignore_done_wrapper import IgnoreDoneWrapper
 from garage.envs.task_onehot_wrapper import TaskOnehotWrapper
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     'HalfCheetahDirEnv',
     'HalfCheetahVelEnv',
     'ML1WithPinnedGoal',
+    'IgnoreDoneWrapper',
     'normalize',
     'normalize_reward',
     'PointEnv',
