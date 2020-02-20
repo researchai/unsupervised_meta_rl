@@ -1,4 +1,4 @@
-"""PEARL ML45 benchmark script."""
+"""PEARL benchmark script."""
 
 import datetime
 import os
@@ -10,17 +10,14 @@ import dowel
 from dowel import logger as dowel_logger
 import numpy as np
 import pytest
-from metaworld.benchmarks import ML45
-from metaworld.envs.mujoco.env_dict import HARD_MODE_ARGS_KWARGS
-from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
+from metaworld.benchmarks import ML1
 
 from garage.envs import normalize
-from garage.envs import TaskIdWrapper
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import deterministic, LocalRunner
+from garage.experiment.task_sampler import SetTaskSampler
 from garage.experiment.snapshotter import SnapshotConfig
-from garage.experiment.task_sampler import EnvPoolSampler
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
 from garage.torch.embeddings import MLPEncoder
@@ -31,14 +28,11 @@ import garage.torch.utils as tu
 from tests import benchmark_helper
 import tests.helpers as Rh
 
-ML45_ARGS = HARD_MODE_ARGS_KWARGS
-ML45_ENVS = HARD_MODE_CLS_DICT
-
 # hyperparams for garage
 params = dict(
     num_epochs=1000,
-    num_train_tasks=10,
-    num_test_tasks=5,
+    num_train_tasks=50,
+    num_test_tasks=10,
     latent_size=7,
     net_size=300,
     meta_batch_size=16,
@@ -48,7 +42,7 @@ params = dict(
     num_steps_prior=750,
     num_extra_rl_steps_posterior=750,
     num_evals=5,
-    num_steps_per_eval=1650,
+    num_steps_per_eval=450,
     batch_size=256,
     embedding_batch_size=64,
     embedding_mini_batch_size=64,
@@ -62,37 +56,21 @@ params = dict(
 
 
 class TestBenchmarkPEARL:
-    """Run benchmarks for garage PEARL."""
+    '''Compare benchmarks between garage and baselines.'''
 
     @pytest.mark.huge
     def test_benchmark_pearl(self):
-        """Run benchmarks for garage PEARL."""
-
-        ML_train_envs = [
-            TaskIdWrapper(GarageEnv(
-                normalize(
-                    env(*ML45_ARGS['train'][task]['args'],
-                        **ML45_ARGS['train'][task]['kwargs']))),
-                          task_id=task_id,
-                          task_name=task)
-            for (task_id, (task, env)) in enumerate(ML45_ENVS['train'].items())
-        ]
-        ML_test_envs = [
-            TaskIdWrapper(GarageEnv(
-                normalize(
-                    env(*ML45_ARGS['test'][task]['args'],
-                        **ML45_ARGS['test'][task]['kwargs']))),
-                          task_id=task_id,
-                          task_name=task)
-            for (task_id, (task, env)) in enumerate(ML45_ENVS['test'].items())
-        ]
-
-        env_sampler = EnvPoolSampler(ML_train_envs)
+        '''
+        Compare benchmarks between garage and baselines.
+        :return:
+        '''
+        env_sampler = SetTaskSampler(lambda: GarageEnv(
+            normalize(ML1.get_train_tasks('push-v1'))))
         env = env_sampler.sample(params['num_train_tasks'])
-        test_env_sampler = EnvPoolSampler(ML_test_envs)
-        test_env = test_env_sampler.sample(params['num_test_tasks'])
-
-        env_id = 'ML45'
+        test_env_sampler = SetTaskSampler(lambda: GarageEnv(
+            normalize(ML1.get_test_tasks('push-v1'))))
+        test_env = test_env_sampler.sample(params['num_train_tasks'])
+        env_id = 'push-v1'
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'pearl', timestamp)
@@ -144,9 +122,7 @@ def run_garage(env, test_env, seed, log_dir):
                                      snapshot_gap=10)
     runner = LocalRunner(snapshot_config)
 
-    obs_dim = max(
-        int(np.prod(env[i]().observation_space.shape))
-        for i in range(params['num_train_tasks']))
+    obs_dim = int(np.prod(env[0]().observation_space.shape))
     action_dim = int(np.prod(env[0]().action_space.shape))
     reward_dim = 1
 
@@ -193,9 +169,6 @@ def run_garage(env, test_env, seed, log_dir):
         use_next_obs=params['use_next_obs_in_context'],
     )
 
-    train_task_names = ML45.get_train_tasks()._task_names
-    test_task_names = ML45.get_test_tasks()._task_names
-
     pearlsac = PEARLSAC(
         env=env,
         test_env=test_env,
@@ -219,8 +192,6 @@ def run_garage(env, test_env, seed, log_dir):
         embedding_mini_batch_size=params['embedding_mini_batch_size'],
         max_path_length=params['max_path_length'],
         reward_scale=params['reward_scale'],
-        train_task_names=train_task_names,
-        test_task_names=test_task_names,
     )
 
     tu.set_gpu_mode(params['use_gpu'], gpu_id=0)
@@ -243,3 +214,8 @@ def run_garage(env, test_env, seed, log_dir):
     dowel_logger.remove_all()
 
     return tabular_log_file
+
+
+if __name__ == '__main__':
+    test_cls = TestBenchmarkPEARL()
+    test_cls.test_benchmark_pearl()

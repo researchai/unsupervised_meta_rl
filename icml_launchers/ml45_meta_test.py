@@ -1,3 +1,4 @@
+"""This script is used for doing off-line meta testing."""
 from metaworld.benchmarks import ML45WithPinnedGoal
 
 from garage.experiment.meta_test_helper import MetaTestHelper

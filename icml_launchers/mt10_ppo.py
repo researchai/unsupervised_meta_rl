@@ -81,9 +81,7 @@ def ppo_mt10(ctxt=None, seed=1):
         )
 
         runner.setup(algo, env)
-        # runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150, plot=False)
-        runner.train(n_epochs=2, batch_size=2, plot=False)
+        runner.train(n_epochs=1500, batch_size=len(MT10_envs)*10*150, plot=False)
+        # runner.train(n_epochs=2, batch_size=2, plot=False)
 
-for s in [1, 2]:
-
-    ppo_mt10(seed=s)
+ppo_mt10(seed=1)

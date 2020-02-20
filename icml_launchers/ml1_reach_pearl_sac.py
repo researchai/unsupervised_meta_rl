@@ -65,12 +65,12 @@ class TestBenchmarkPEARL:
         :return:
         '''
         env_sampler = SetTaskSampler(lambda: GarageEnv(
-            normalize(ML1.get_train_tasks('pick-place-v1'))))
+            normalize(ML1.get_train_tasks('reach-v1'))))
         env = env_sampler.sample(params['num_train_tasks'])
         test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-            normalize(ML1.get_test_tasks('pick-place-v1'))))
+            normalize(ML1.get_test_tasks('reach-v1'))))
         test_env = test_env_sampler.sample(params['num_train_tasks'])
-        env_id = 'pick-place-v1'
+        env_id = 'reach-v1'
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
         benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
                                  'pearl', timestamp)
@@ -214,3 +214,8 @@ def run_garage(env, test_env, seed, log_dir):
     dowel_logger.remove_all()
 
     return tabular_log_file
+
+
+if __name__ == '__main__':
+    test_cls = TestBenchmarkPEARL()
+    test_cls.test_benchmark_pearl()

@@ -117,6 +117,4 @@ def trpo_mt50(ctxt=None, seed=1):
         runner.train(n_epochs=1500, batch_size=len(MT50_envs)*10*150)
 
 
-seeds = random.sample(range(100), 1)
-for seed in seeds:
-    trpo_mt50(seed=seed)
+trpo_mt50(seed=1)

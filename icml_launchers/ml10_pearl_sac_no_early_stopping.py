@@ -1,25 +1,16 @@
-"""PEARL ML10 benchmark script."""
-
-import datetime
-import os
-import os.path as osp
-import random
+"""PEARL ML10 example."""
 
 import akro
-import dowel
-from dowel import logger as dowel_logger
-import numpy as np
-import pytest
 from metaworld.benchmarks import ML10
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_ARGS_KWARGS
 from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT
+import numpy as np
 
-from garage.envs import normalize
+from garage.envs import normalize, IgnoreDoneWrapper
 from garage.envs import TaskIdWrapper
 from garage.envs.base import GarageEnv
 from garage.envs.env_spec import EnvSpec
-from garage.experiment import deterministic, LocalRunner
-from garage.experiment.snapshotter import SnapshotConfig
+from garage.experiment import LocalRunner, run_experiment
 from garage.experiment.task_sampler import EnvPoolSampler
 from garage.sampler import PEARLSampler
 from garage.torch.algos import PEARLSAC
@@ -28,13 +19,10 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.policies import ContextConditionedPolicy, \
     TanhGaussianMLPPolicy2
 import garage.torch.utils as tu
-from tests import benchmark_helper
-import tests.helpers as Rh
 
 ML10_ARGS = MEDIUM_MODE_ARGS_KWARGS
 ML10_ENVS = MEDIUM_MODE_CLS_DICT
 
-# hyperparams for garage
 params = dict(
     num_epochs=1000,
     num_train_tasks=10,
@@ -48,7 +36,7 @@ params = dict(
     num_steps_prior=750,
     num_extra_rl_steps_posterior=750,
     num_evals=5,
-    num_steps_per_eval=1650,
+    num_steps_per_eval=450,
     batch_size=256,
     embedding_batch_size=64,
     embedding_mini_batch_size=64,
@@ -56,94 +44,50 @@ params = dict(
     reward_scale=10.,
     use_information_bottleneck=True,
     use_next_obs_in_context=False,
-    n_trials=3,
     use_gpu=True,
 )
 
 
-class TestBenchmarkPEARL:
-    """Run benchmarks for garage PEARL."""
+def run_task(snapshot_config, *_):
+    """Set up environment and algorithm and run the task.
 
-    @pytest.mark.huge
-    def test_benchmark_pearl(self):
-        """Run benchmarks for garage PEARL."""
+    Args:
+        snapshot_config (garage.experiment.SnapshotConfig): The snapshot
+            configuration used by LocalRunner to create the snapshotter.
+            If None, it will create one with default settings.
+        _ : Unused parameters
 
-        ML_train_envs = [
-            TaskIdWrapper(GarageEnv(
-                normalize(
-                    env(*ML10_ARGS['train'][task]['args'],
-                        **ML10_ARGS['train'][task]['kwargs']))),
-                          task_id=task_id,
-                          task_name=task)
-            for (task_id, (task, env)) in enumerate(ML10_ENVS['train'].items())
-        ]
-        ML_test_envs = [
-            TaskIdWrapper(GarageEnv(
-                normalize(
-                    env(*ML10_ARGS['test'][task]['args'],
-                        **ML10_ARGS['test'][task]['kwargs']))),
-                          task_id=task_id,
-                          task_name=task)
-            for (task_id, (task, env)) in enumerate(ML10_ENVS['test'].items())
-        ]
+    """
+    # create multi-task environment and sample tasks
+    ML_train_envs = [
+        TaskIdWrapper(GarageEnv(
+            normalize(
+                env(*ML10_ARGS['train'][task]['args'],
+                    **ML10_ARGS['train'][task]['kwargs']))),
+                      task_id=task_id,
+                      task_name=task)
+        for (task_id, (task, env)) in enumerate(ML10_ENVS['train'].items())
+    ]
 
-        env_sampler = EnvPoolSampler(ML_train_envs)
-        env = env_sampler.sample(params['num_train_tasks'])
-        test_env_sampler = EnvPoolSampler(ML_test_envs)
-        test_env = test_env_sampler.sample(params['num_test_tasks'])
+    ML_test_envs = [
+        TaskIdWrapper(GarageEnv(
+            normalize(
+                env(*ML10_ARGS['test'][task]['args'],
+                    **ML10_ARGS['test'][task]['kwargs']))),
+                      task_id=task_id,
+                      task_name=task)
+        for (task_id, (task, env)) in enumerate(ML10_ENVS['test'].items())
+    ]
 
-        env_id = 'ML10'
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-        benchmark_dir = osp.join(os.getcwd(), 'data', 'local', 'benchmarks',
-                                 'pearl', timestamp)
-        result_json = {}
-        seeds = random.sample(range(100), params['n_trials'])
-        task_dir = osp.join(benchmark_dir, env_id)
-        plt_file = osp.join(benchmark_dir, '{}_benchmark.png'.format(env_id))
-        garage_csvs = []
+    train_task_names = ML10.get_train_tasks()._task_names
+    test_task_names = ML10.get_test_tasks()._task_names
 
-        for trial in range(params['n_trials']):
-            seed = seeds[trial]
-            trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
-            garage_dir = trial_dir + '/garage'
+    env_sampler = EnvPoolSampler(ML_train_envs)
+    env = IgnoreDoneWrapper(env_sampler.sample(params['num_train_tasks']))
+    test_env_sampler = EnvPoolSampler(ML_test_envs)
+    test_env = IgnoreDoneWrapper(test_env_sampler.sample(params['num_test_tasks']))
 
-            garage_csv = run_garage(env, test_env, seed, garage_dir)
-            garage_csvs.append(garage_csv)
-
-        env.close()
-
-        benchmark_helper.plot_average_over_trials(
-            [garage_csvs],
-            ys=['Test/Average/SuccessRate'],
-            plt_file=plt_file,
-            env_id=env_id,
-            x_label='TotalEnvSteps',
-            y_label='Test/Average/SuccessRate',
-            names=['garage_pearl'],
-        )
-
-        factor_val = params['meta_batch_size'] * params['max_path_length']
-        result_json[env_id] = benchmark_helper.create_json(
-            [garage_csvs],
-            seeds=seeds,
-            trials=params['n_trials'],
-            xs=['TotalEnvSteps'],
-            ys=['Test/Average/SuccessRate'],
-            factors=[factor_val],
-            names=['garage_pearl'])
-
-        Rh.write_file(result_json, 'PEARL')
-
-
-def run_garage(env, test_env, seed, log_dir):
-    """Create garage model and training."""
-
-    deterministic.set_seed(seed)
-    snapshot_config = SnapshotConfig(snapshot_dir=log_dir,
-                                     snapshot_mode='gap',
-                                     snapshot_gap=10)
     runner = LocalRunner(snapshot_config)
-
     obs_dim = int(np.prod(env[0]().observation_space.shape))
     action_dim = int(np.prod(env[0]().action_space.shape))
     reward_dim = 1
@@ -191,9 +135,6 @@ def run_garage(env, test_env, seed, log_dir):
         use_next_obs=params['use_next_obs_in_context'],
     )
 
-    train_task_names = ML10.get_train_tasks()._task_names
-    test_task_names = ML10.get_test_tasks()._task_names
-
     pearlsac = PEARLSAC(
         env=env,
         test_env=test_env,
@@ -225,12 +166,6 @@ def run_garage(env, test_env, seed, log_dir):
     if params['use_gpu']:
         pearlsac.to()
 
-    tabular_log_file = osp.join(log_dir, 'progress.csv')
-    tensorboard_log_dir = osp.join(log_dir)
-    dowel_logger.add_output(dowel.StdOutput())
-    dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
-    dowel_logger.add_output(dowel.TensorBoardOutput(tensorboard_log_dir))
-
     runner.setup(algo=pearlsac,
                  env=env,
                  sampler_cls=PEARLSampler,
@@ -238,6 +173,9 @@ def run_garage(env, test_env, seed, log_dir):
     runner.train(n_epochs=params['num_epochs'],
                  batch_size=params['batch_size'])
 
-    dowel_logger.remove_all()
 
-    return tabular_log_file
+run_experiment(
+    run_task,
+    snapshot_mode='last',
+    seed=1,
+)

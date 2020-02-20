@@ -1,3 +1,4 @@
+"""This script is used for doing off-line meta testing."""
 from functools import partial
 
 from garage.envs.ml_wrapper import ML1WithPinnedGoal

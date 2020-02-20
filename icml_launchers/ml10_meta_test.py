@@ -1,3 +1,4 @@
+"""This script is used for doing off-line meta testing."""
 from garage.envs.ml_wrapper import ML10WithPinnedGoal
 
 from garage.experiment.meta_test_helper import MetaTestHelper
