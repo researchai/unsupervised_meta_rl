@@ -74,7 +74,8 @@ class TestBenchmarkPEARL:
                     env(*ML45_ARGS['train'][task]['args'],
                         **ML45_ARGS['train'][task]['kwargs']))),
                           task_id=task_id,
-                          task_name=task)
+                          task_name=task,
+                          pad=True)
             for (task_id, (task, env)) in enumerate(ML45_ENVS['train'].items())
         ]
         ML_test_envs = [
@@ -83,7 +84,8 @@ class TestBenchmarkPEARL:
                     env(*ML45_ARGS['test'][task]['args'],
                         **ML45_ARGS['test'][task]['kwargs']))),
                           task_id=task_id,
-                          task_name=task)
+                          task_name=task,
+                          pad=True)
             for (task_id, (task, env)) in enumerate(ML45_ENVS['test'].items())
         ]
 
