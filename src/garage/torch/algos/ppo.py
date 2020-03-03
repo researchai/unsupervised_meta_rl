@@ -11,10 +11,11 @@ class PPO(VPG):
         env_spec (garage.envs.EnvSpec): Environment specification.
         policy (garage.torch.policies.base.Policy): Policy.
         baseline (garage.np.baselines.Baseline): The baseline.
-        optimizer (Union[type, tuple[type, dict]]): Type of optimizer.
+        optimizer (object): Type of optimizer.
             This can be an optimizer type such as `torch.optim.Adam` or a
             tuple of type and dictionary, where dictionary contains arguments
-            to initialize the optimizer e.g. `(torch.optim.Adam, {'lr' = 1e-3})`  # noqa: E501
+            to initialize the optimizer
+            e.g. `(torch.optim.Adam, {'lr' = 1e-3})`
         policy_lr (float): Learning rate for policy parameters.
         max_path_length (int): Maximum length of a single rollout.
         lr_clip_range (float): The limit on the likelihood ratio between
@@ -40,6 +41,8 @@ class PPO(VPG):
             dense entropy to the reward for each time step. 'regularized' adds
             the mean entropy to the surrogate objective. See
             https://arxiv.org/abs/1805.00909 for more details.
+        minibatch_size (int): Batch size for optimization.
+        max_optimization_epochs (int): Maximum number of epochs for update.
 
     """
 
@@ -48,7 +51,7 @@ class PPO(VPG):
                  policy,
                  baseline,
                  optimizer=torch.optim.Adam,
-                 policy_lr=_Default(3e-4),
+                 policy_lr=3e-4,
                  max_path_length=500,
                  lr_clip_range=2e-1,
                  num_train_per_epoch=1,
@@ -59,7 +62,9 @@ class PPO(VPG):
                  policy_ent_coeff=0.0,
                  use_softplus_entropy=False,
                  stop_entropy_gradient=False,
-                 entropy_method='no_entropy'):
+                 entropy_method='no_entropy',
+                 minibatch_size=128,
+                 max_optimization_epochs=10):
 
         super().__init__(env_spec=env_spec,
                          policy=policy,
@@ -75,16 +80,17 @@ class PPO(VPG):
                          policy_ent_coeff=policy_ent_coeff,
                          use_softplus_entropy=use_softplus_entropy,
                          stop_entropy_gradient=stop_entropy_gradient,
-                         entropy_method=entropy_method)
+                         entropy_method=entropy_method,
+                         minibatch_size=minibatch_size,
+                         max_optimization_epochs=max_optimization_epochs)
 
         self._lr_clip_range = lr_clip_range
 
-    def _compute_objective(self, advantages, valids, obs, actions, rewards):
+    def _compute_objective(self, advantages, obs, actions, rewards):
         """Compute objective using surrogate value and clipped surrogate value.
 
         Args:
             advantages (torch.Tensor): Expected rewards over the actions
-            valids (list[int]): length of the valid values for each path
             obs (torch.Tensor): Observation from the environment.
             actions (torch.Tensor): Predicted action.
             rewards (torch.Tensor): Feedback from the environment.

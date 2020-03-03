@@ -74,7 +74,7 @@ class TRPO(VPG):
                          stop_entropy_gradient=stop_entropy_gradient,
                          entropy_method=entropy_method)
 
-    def _compute_objective(self, advantages, valids, obs, actions, rewards):
+    def _compute_objective(self, advantages, obs, actions, rewards):
         """Compute the surrogate objective.
 
         Args:
@@ -99,8 +99,8 @@ class TRPO(VPG):
 
         return surrogate
 
-    def _optimize(self, itr, obs, actions, rewards, valids, baselines):
+    def _optimize(self, itr, obs, actions, rewards, baselines):
         self._optimizer.step(
             f_loss=lambda: self._compute_loss(itr, obs, actions, rewards,
-                                              valids, baselines),
+                                              baselines),
             f_constraint=lambda: self._compute_kl_constraint(obs))
