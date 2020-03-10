@@ -7,7 +7,9 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from garage import log_performance
 from garage.np.algos.off_policy_rl_algorithm import OffPolicyRLAlgorithm
+import garage.torch.utils as tu
 
 
 class SAC(OffPolicyRLAlgorithm):
@@ -31,6 +33,7 @@ class SAC(OffPolicyRLAlgorithm):
                  qf2,
                  replay_buffer,
                  gradient_steps_per_itr,
+                 plotting_frequency=1,
                  alpha=None,
                  target_entropy=None,
                  initial_log_entropy=0.,
@@ -55,6 +58,8 @@ class SAC(OffPolicyRLAlgorithm):
         self.qf_lr = qf_lr
         self.initial_log_entropy = initial_log_entropy
         self.gradient_steps = gradient_steps_per_itr
+        self._plotting_frequency = plotting_frequency
+        self._optimizer = optimizer
 
         super().__init__(env_spec=env_spec,
                          policy=policy,
@@ -71,10 +76,10 @@ class SAC(OffPolicyRLAlgorithm):
         # use 2 target q networks
         self.target_qf1 = copy.deepcopy(self.qf1)
         self.target_qf2 = copy.deepcopy(self.qf2)
-        self.policy_optimizer = optimizer(self.policy.parameters(),
+        self.policy_optimizer = self._optimizer(self.policy.parameters(),
                                           lr=self.policy_lr)
-        self.qf1_optimizer = optimizer(self.qf1.parameters(), lr=self.qf_lr)
-        self.qf2_optimizer = optimizer(self.qf2.parameters(), lr=self.qf_lr)
+        self.qf1_optimizer = self._optimizer(self.qf1.parameters(), lr=self.qf_lr)
+        self.qf2_optimizer = self._optimizer(self.qf2.parameters(), lr=self.qf_lr)
         # automatic entropy coefficient tuning
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning and not alpha:
@@ -91,45 +96,6 @@ class SAC(OffPolicyRLAlgorithm):
         self.episode_rewards = deque(maxlen=30)
         self.success_history = []
 
-    def _train(self, runner):
-        """Obtain samplers and start actual training for each epoch.
-
-        Args:
-            runner (LocalRunner): LocalRunner is passed to give algorithm
-                the access to runner.step_epochs(), which provides services
-                such as snapshotting and sampler control.
-
-        Returns:
-            The average return in last epoch cycle.
-
-        """
-        def train_helper(runner, batch_size):
-            runner.step_path = runner.obtain_samples(runner.step_itr, batch_size)
-            for sample in runner.step_path:
-                self.replay_buffer.store(obs=sample[1],
-                                         act=sample[2],
-                                         rew=sample[3],
-                                         next_obs=sample[4],
-                                         done=sample[5])
-            tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
-            self.episode_rewards.append(sum([sample[3] for sample in runner.step_path]))
-            tabular.record('average_return', np.mean(self.episode_rewards))
-            last_return = self.train_once(runner.step_itr,
-                                            runner.step_path)
-            
-            runner.step_itr += 1
-            return last_return
-
-        last_return = None
-
-        for epoch in runner.step_epochs():
-            if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
-                batch_size = self.min_buffer_size
-            else:
-                batch_size = None
-            train_helper(runner, batch_size)
-        return last_return
-    
     def train(self, runner):
         """Obtain samplers and start actual training for each epoch.
 
@@ -145,36 +111,37 @@ class SAC(OffPolicyRLAlgorithm):
         last_return = None
 
         for _ in runner.step_epochs():
-            if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
-                batch_size = self.min_buffer_size
-            else:
-                batch_size = None
-            runner.step_path = runner.obtain_samples(runner.step_itr, batch_size)
-            for sample in runner.step_path:
-                self.replay_buffer.store(obs=sample.observation,
-                                        act=sample.action,
-                                        rew=sample.reward,
-                                        next_obs=sample.next_observation,
-                                        done=sample.terminal)
-            self.episode_rewards.append(sum([sample.reward for sample in runner.step_path]))
-            for _ in range(self.gradient_steps):
-                last_return, policy_loss, qf1_loss, qf2_loss = self.train_once(runner.step_itr,
-                                              runner.step_path)
-            self.evaluate_performance(
-                runner.step_itr,
-                self._obtain_evaluation_samples(runner.get_env_copy(), num_trajs=10))
-            self.log_statistics(policy_loss, qf1_loss, qf2_loss)
-            tabular.record('TotalEnvSteps', runner.total_env_steps)
-            runner.step_itr += 1
+            for _ in range(self._plotting_frequency):
+                if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
+                    batch_size = self.min_buffer_size
+                else:
+                    batch_size = None
+                runner.step_path = runner.obtain_samples(runner.step_itr, batch_size)
+                for sample in runner.step_path:
+                    self.replay_buffer.store(obs=sample.observation,
+                                            act=sample.action,
+                                            rew=sample.reward,
+                                            next_obs=sample.next_observation,
+                                            done=sample.terminal)
+                self.episode_rewards.append(sum([sample.reward for sample in runner.step_path]))
+                for _ in range(self.gradient_steps):
+                    last_return, policy_loss, qf1_loss, qf2_loss = self.train_once()
+                log_performance(
+                    runner.step_itr,
+                    self._obtain_evaluation_samples(runner.get_env_copy(), num_trajs=10),
+                    discount=self.discount)
+                self.log_statistics(policy_loss, qf1_loss, qf2_loss)
+                tabular.record('TotalEnvSteps', runner.total_env_steps)
+                runner.step_itr += 1
 
         return last_return
 
-    def train_once(self, itr, paths):
-        """
-        """
+    def train_once(self):
+        """Complete 1 training iteration of SAC."""
         if self.replay_buffer.n_transitions_stored >= self.min_buffer_size:  # noqa: E501
             samples = self.replay_buffer.sample(self.buffer_batch_size)
-            policy_loss, qf1_loss, qf2_loss = self.optimize_policy(itr, samples)
+            samples = tu.dict_np_to_torch(samples)
+            policy_loss, qf1_loss, qf2_loss = self.optimize_policy(samples)
             self.update_targets()
 
         return 0, policy_loss, qf1_loss, qf2_loss
@@ -235,11 +202,10 @@ class SAC(OffPolicyRLAlgorithm):
                 t_param.data.copy_(t_param.data * (1.0 - self.tau) +
                                 param.data * self.tau)
 
-    def optimize_policy(self, itr, samples):
+    def optimize_policy(self, samples):
         """ Optimize the policy based on the policy objective from the sac paper.
 
         Args:
-            itr (int) - current training iteration
             samples() - samples recovered from the replay buffer
         Returns:
             None
@@ -283,3 +249,23 @@ class SAC(OffPolicyRLAlgorithm):
         tabular.record("qf_loss/{}".format("qf2_loss"), float(qf2_loss))
         tabular.record("buffer_size", self.replay_buffer.n_transitions_stored)
         tabular.record('local/average_return', np.mean(self.episode_rewards))
+
+    @property
+    def networks(self):
+        """Return all the networks within the model.
+        Returns:
+            list: A list of networks.
+        """
+        return [self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2]
+
+    def to(self, device=None):
+        """Put all the networks within the model on device.
+        Args:
+            device (str): ID of GPU or CPU.
+        """
+        if device is None:
+            device = tu.global_device()
+        for net in self.networks:
+            net.to(device)
+        self.log_alpha = torch.Tensor([self.initial_log_entropy]).to(device).requires_grad_()
+        self.alpha_optimizer = self._optimizer([self.log_alpha], lr=self.policy_lr)
