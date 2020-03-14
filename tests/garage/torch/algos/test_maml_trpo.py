@@ -1,8 +1,14 @@
 """This script is a test that fails when MAML-TRPO performance is too low."""
+import pytest
+try:
+    import mujoco_py  # noqa: F401
+except ImportError:
+    pytest.skip()
 import torch
 
-from garage.envs import HalfCheetahDirEnv, normalize
+from garage.envs import normalize
 from garage.envs.base import GarageEnv
+from garage.envs.mujoco import HalfCheetahDirEnv
 from garage.experiment import deterministic, LocalRunner
 from garage.np.baselines import LinearFeatureBaseline
 from garage.torch.algos import MAMLTRPO

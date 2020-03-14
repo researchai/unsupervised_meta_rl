@@ -1,10 +1,14 @@
+import pytest
+try:
+    import mujoco_py  # noqa: F401
+except ImportError:
+    pytest.skip()
 import functools
 import unittest.mock
 
 import numpy as np
-import pytest
 
-from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
+from garage.envs.mujoco.half_cheetah_vel_env import HalfCheetahVelEnv
 from garage.experiment import task_sampler
 
 

@@ -1,7 +1,11 @@
 import pytest
+try:
+    import mujoco_py
+except ImportError:
 
-from garage.envs.half_cheetah_dir_env import HalfCheetahDirEnv
-from garage.envs.half_cheetah_vel_env import HalfCheetahVelEnv
+    pytest.skip()
+from garage.envs.mujoco.half_cheetah_dir_env import HalfCheetahDirEnv
+from garage.envs.mujoco.half_cheetah_vel_env import HalfCheetahVelEnv
 
 
 class TestMetaHalfCheetahEnvs:

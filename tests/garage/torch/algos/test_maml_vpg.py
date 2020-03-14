@@ -1,8 +1,13 @@
 """This script is a test that fails when MAML-VPG performance is too low."""
+import pytest
 import torch
-
-from garage.envs import HalfCheetahDirEnv, normalize
+try:
+    import mujoco_py
+except ImportError:
+    pytest.skip()
+from garage.envs import normalize
 from garage.envs.base import GarageEnv
+from garage.envs.mujoco import HalfCheetahDirEnv
 from garage.experiment import deterministic, LocalRunner
 from garage.np.baselines import LinearFeatureBaseline
 from garage.torch.algos import MAMLVPG

@@ -1,7 +1,7 @@
 """Variant of the HalfCheetahEnv with different target directions."""
 import numpy as np
 
-from garage.envs.half_cheetah_env_meta_base import HalfCheetahEnvMetaBase
+from garage.envs.mujoco.half_cheetah_env_meta_base import HalfCheetahEnvMetaBase
 
 
 class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
