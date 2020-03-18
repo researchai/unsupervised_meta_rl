@@ -112,17 +112,25 @@ class SAC(OffPolicyRLAlgorithm):
 
         for _ in runner.step_epochs():
             for _ in range(self._plotting_frequency):
-                if self.replay_buffer.n_transitions_stored < self.min_buffer_size:
+                if not self._buffer_prefilled:
                     batch_size = self.min_buffer_size
                 else:
                     batch_size = None
-                runner.step_path = runner.obtain_samples(runner.step_itr, batch_size)
-                for sample in runner.step_path:
-                    self.replay_buffer.store(obs=sample.observation,
-                                            act=sample.action,
-                                            rew=sample.reward,
-                                            next_obs=sample.next_observation,
-                                            done=sample.terminal)
+                runner.step_path = runner.obtain_samples(runner.step_itr, int(batch_size))
+                for path in runner.step_path:
+                    self.replay_buffer.add_transitions(
+                                        observation=path["observations"],
+                                        action=path["actions"],
+                                        reward=path['rewards'],
+                                        next_observation=path["next_observations"],
+                                        terminal=path["dones"])
+
+                    # self.replay_buffer.store(obs=sample.observation,
+                    #                          act=sample.action,
+                    #                          rew=sample.reward,
+                    #                          next_obs=sample.next_observation,
+                    #                          done=sample.terminal)
+
                 self.episode_rewards.append(sum([sample.reward for sample in runner.step_path]))
                 for _ in range(self.gradient_steps):
                     last_return, policy_loss, qf1_loss, qf2_loss = self.train_once()

@@ -72,6 +72,7 @@ class ReplayBuffer(metaclass=abc.ABCMeta):
             kwargs (dict(str, [numpy.ndarray])): Dictionary that holds
                 the transitions.
         """
+        import ipdb; ipdb.set_trace()
         if not self._initialized_buffer:
             self._initialize_buffer(**kwargs)
 
