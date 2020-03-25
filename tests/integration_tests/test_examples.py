@@ -151,3 +151,13 @@ def test_pearl_ml1_push():
         '--embedding_mini_batch_size', '2', '--max_path_length', '1'
     ],
                           check=False).returncode == 0
+
+
+@pytest.mark.flaky
+@pytest.mark.no_cover
+@pytest.mark.timeout(50)
+def test_ppo_mt10():
+    """Test ppo_mt10.py"""
+    assert subprocess.run(
+        [EXAMPLES_ROOT_DIR / 'tf/ppo_mt10.py', '--n_epochs', '1'],
+        check=False).returncode == 0
