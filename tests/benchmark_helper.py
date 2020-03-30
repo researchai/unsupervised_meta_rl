@@ -43,7 +43,7 @@ def create_json(csvs, trials, seeds, xs, ys, factors, names):
     return task_result
 
 
-def plot_average_over_trials(csvs, ys, plt_file, env_id, x_label, y_label,
+def plot_average_over_trials(csvs, xs, ys, plt_file, env_id, x_label, y_label,
                              names):
     """Plot mean and confidence area of benchmark from csv files of algorithms.
 
@@ -56,7 +56,7 @@ def plot_average_over_trials(csvs, ys, plt_file, env_id, x_label, y_label,
     Args:
         csvs (list[list]): A list of list of csvs which contains all csv files
             for each algorithms in the task.
-        ys (list[int]): A list of Y column names of algorithms csv.
+        ys (list[str]): A list of Y column names of algorithms csv.
         plt_file (string): Path of the plot png file.
         env_id (string): String contains the id of the environment. (for title)
         x_label (string): label for x axis of the plot
@@ -66,16 +66,15 @@ def plot_average_over_trials(csvs, ys, plt_file, env_id, x_label, y_label,
     """
     assert all(len(x) == len(csvs[0]) for x in csvs)
 
-    for trials, y, name in zip(csvs, ys, names):
+    for trials, x, y, name in zip(csvs, xs, ys, names):
         y_vals = np.array([np.array(pd.read_csv(t)[y]) for t in trials])
         y_mean, y_std = y_vals.mean(axis=0), y_vals.std(axis=0)
+        x_val = np.array(pd.read_csv(trials[0])[x])
 
         # pylint: disable=unsubscriptable-object
-        plt.plot(list(range(y_vals.shape[-1])), y_mean, label=name)
+        plt.plot(x_val, y_mean, label=name)
         # pylint: disable=unsubscriptable-object
-        plt.fill_between(list(range(y_vals.shape[-1])), (y_mean - y_std),
-                         (y_mean + y_std),
-                         alpha=.1)
+        plt.fill_between(x_val, (y_mean - y_std), (y_mean + y_std), alpha=.1)
 
     plt.legend()
     plt.xlabel(x_label)
