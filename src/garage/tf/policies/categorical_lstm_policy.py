@@ -242,6 +242,22 @@ class CategoricalLSTMPolicy(StochasticPolicy):
         else:
             return []
 
+    def clone(self, name):
+        """Return a clone of the policy.
+
+        It only copies the configuration of the Q-function,
+        not the parameters.
+
+        Args:
+            name (str): Name of the newly created policy.
+
+        Returns:
+            garage.tf.policies.ContinuousMLPPolicy: Clone of this object
+
+        """
+        return self.__class__(name=name,
+                              env_spec=self._env_spec)
+
     def __getstate__(self):
         """Object.__getstate__."""
         new_dict = super().__getstate__()

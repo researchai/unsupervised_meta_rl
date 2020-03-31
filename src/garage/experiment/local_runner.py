@@ -258,7 +258,8 @@ class LocalRunner:
         if self._plot:
             # pylint: disable=import-outside-toplevel
             from garage.tf.plotter import Plotter
-            self._plotter = Plotter(self.get_env_copy(), self._policy)
+            import tensorflow as tf
+            self._plotter = Plotter(self.get_env_copy(), self._policy, sess=tf.get_default_session())
             self._plotter.start()
 
     def _shutdown_worker(self):
@@ -446,7 +447,8 @@ class LocalRunner:
 
         self._plot = plot
 
-        return self._algo.train(self)
+        self._algo.train(self)
+        self._shutdown_worker()
 
     def step_epochs(self):
         """Step through each epoch.

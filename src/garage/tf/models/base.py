@@ -197,6 +197,7 @@ class Model(BaseModel):
                     network._inputs = inputs
                     network._outputs = self._build(*inputs, name)
                 variables = self._get_variables().values()
+                # import pdb; pdb.set_trace()
                 tf.compat.v1.get_default_session().run(
                     tf.compat.v1.variables_initializer(variables))
                 if self._default_parameters:

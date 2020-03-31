@@ -46,7 +46,7 @@ def run_task(snapshot_config, *_):
                         base_eps=1e-5)))
 
         runner.setup(algo, env)
-        runner.train(n_epochs=100, batch_size=4000)
+        runner.train(n_epochs=2, batch_size=500, plot=True)
 
 
 run_experiment(

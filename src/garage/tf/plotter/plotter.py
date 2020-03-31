@@ -53,7 +53,7 @@ class Plotter:
                  rollout=default_rollout):
         Plotter.__plotters.append(self)
         self._env = env
-        self._policy = policy
+        self._policy = policy.clone('plotter_policy')
         self.sess = tf.compat.v1.Session() if sess is None else sess
 
         self.graph = tf.compat.v1.get_default_graph(
