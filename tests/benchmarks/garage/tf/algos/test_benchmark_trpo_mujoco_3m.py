@@ -22,6 +22,7 @@ from dowel import logger as dowel_logger
 import gym
 import pytest
 import tensorflow as tf
+import torch
 
 from garage.envs import normalize
 from garage.experiment import deterministic, LocalRunner
@@ -30,6 +31,8 @@ from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import GaussianMLPPolicy
+from garage.torch.algos import TRPO as PyTorch_TRPO
+from garage.torch.policies import GaussianMLPPolicy as PyTorch_GMP
 from tests import benchmark_helper
 from tests.fixtures import snapshot_config
 import tests.helpers as Rh
@@ -68,16 +71,20 @@ class TestBenchmarkTRPO:  # pylint: disable=too-few-public-methods
                                 '{}_benchmark.png'.format(env_id))
             baselines_csvs = []
             garage_tf_csvs = []
+            garage_pytorch_csvs = []
 
             for trial in range(hyper_parameters['n_trials']):
                 _PLACEHOLDER_CACHE.clear()
                 seed = seeds[trial]
                 trial_dir = task_dir + '/trial_%d_seed_%d' % (trial + 1, seed)
                 garage_tf_dir = trial_dir + '/garage'
+                garage_pytorch_dir = trial_dir + '/garage_pytorch'
                 baselines_dir = trial_dir + '/baselines'
 
                 # Run garage algorithms
                 env.reset()
+                garage_pytorch_csv = run_garage_pytorch(
+                    env, seed, garage_pytorch_dir)
 
                 # pylint: disable=not-context-manager
                 with tf.Graph().as_default():
@@ -90,20 +97,70 @@ class TestBenchmarkTRPO:  # pylint: disable=too-few-public-methods
                                                   baselines_dir)
 
                 garage_tf_csvs.append(garage_tf_csv)
+                garage_pytorch_csvs.append(garage_pytorch_csv)
                 baselines_csvs.append(baselines_csv)
 
             env.close()
 
             benchmark_helper.plot_average_over_trials(
-                [baselines_csvs, garage_tf_csvs],
-                xs=['TimestepsSoFar', 'TotalEnvSteps'],
-                ys=['EpRewMean', 'Evaluation/AverageReturn'],
+                [baselines_csvs, garage_tf_csvs, garage_pytorch_csvs],
+                xs=['TimestepsSoFar', 'TotalEnvSteps', 'TotalEnvSteps'],
+                ys=['EpRewMean', 'Evaluation/AverageReturn',
+                    'Evaluation/AverageReturn'
+                ],
                 plt_file=plt_file,
                 env_id=env_id,
                 x_label='TotalEnvSteps',
                 y_label='Evaluation/AverageReturn',
-                names=['baseline', 'garage-TensorFlow'],
+                names=['baseline', 'garage-TensorFlow', 'garage-PyTorch'],
             )
+
+def run_garage_pytorch(env, seed, log_dir):
+    """Create garage PyTorch PPO model and training.
+
+    Args:
+        env (dict): Environment of the task.
+        seed (int): Random positive integer for the trial.
+        log_dir (str): Log dir path.
+
+    Returns:
+        str: Path to output csv file
+
+    """
+    env = TfEnv(normalize(env))
+
+    deterministic.set_seed(seed)
+
+    runner = LocalRunner(snapshot_config)
+
+    policy = PyTorch_GMP(env.spec,
+                         hidden_sizes=hyper_parameters['hidden_sizes'],
+                         hidden_nonlinearity=torch.tanh,
+                         output_nonlinearity=None)
+
+    baseline = LinearFeatureBaseline(env_spec=env.spec)
+
+    algo = PyTorch_TRPO(env_spec=env.spec,
+                        policy=policy,
+                        baseline=baseline,
+                        max_kl_step=hyper_parameters['max_kl'],
+                        max_path_length=hyper_parameters['max_path_length'],
+                        discount=hyper_parameters['discount'],
+                        gae_lambda=hyper_parameters['gae_lambda'])
+
+    # Set up logger since we are not using run_experiment
+    tabular_log_file = osp.join(log_dir, 'progress.csv')
+    dowel_logger.add_output(dowel.StdOutput())
+    dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
+    dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
+
+    runner.setup(algo, env)
+    runner.train(n_epochs=hyper_parameters['n_epochs'],
+                 batch_size=hyper_parameters['batch_size'])
+
+    dowel_logger.remove_all()
+
+    return tabular_log_file
 
 
 def run_garage(env, seed, log_dir):
