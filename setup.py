@@ -20,6 +20,7 @@ REQUIRED = [
     'gym[atari,box2d,classic_control]' + GYM_VERSION,
     'joblib<0.13,>=0.12',
     'numpy>=1.14.5',
+    'loky==2.6.0',
     'psutil',
     # Pyglet 1.4.0 introduces some api change which breaks some
     # gym environments

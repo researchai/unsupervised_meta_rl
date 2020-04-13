@@ -1,10 +1,9 @@
 """A multiprocessing sampler which avoids waiting as much as possible."""
 from collections import defaultdict
 import itertools
-import multiprocessing as mp
 import queue
 
-import cloudpickle
+import loky
 import setproctitle
 
 from garage import TrajectoryBatch
@@ -35,10 +34,16 @@ class MultiprocessingSampler(Sampler):
         # pylint: disable=super-init-not-called
         self._factory = worker_factory
         self._agents = self._factory.prepare_worker_messages(
-            agents, cloudpickle.dumps)
+            agents, loky.backend.reduction.dumps)
         self._envs = self._factory.prepare_worker_messages(envs)
-        self._to_sampler = mp.Queue(2 * self._factory.n_workers)
-        self._to_worker = [mp.Queue(1) for _ in range(self._factory.n_workers)]
+        self._to_sampler = loky.backend.queues.Queue(
+            2 * self._factory.n_workers,
+            ctx=loky.backend.context.get_context())
+        self._to_worker = [
+            loky.backend.queues.Queue(1,
+                                      ctx=loky.backend.context.get_context())
+            for _ in range(self._factory.n_workers)
+        ]
         # If we crash from an exception, with full queues, we would rather not
         # hang forever, so we would like the process to close without flushing
         # the queues.
@@ -46,16 +51,17 @@ class MultiprocessingSampler(Sampler):
         for q in self._to_worker:
             q.cancel_join_thread()
         self._workers = [
-            mp.Process(target=run_worker,
-                       kwargs=dict(
-                           factory=self._factory,
-                           to_sampler=self._to_sampler,
-                           to_worker=self._to_worker[worker_number],
-                           worker_number=worker_number,
-                           agent=self._agents[worker_number],
-                           env=self._envs[worker_number],
-                       ),
-                       daemon=False)
+            loky.backend.process.LokyProcess(
+                target=run_worker,
+                kwargs=dict(
+                    factory=self._factory,
+                    to_sampler=self._to_sampler,
+                    to_worker=self._to_worker[worker_number],
+                    worker_number=worker_number,
+                    agent=self._agents[worker_number],
+                    env=self._envs[worker_number],
+                ),
+                daemon=False)
             for worker_number in range(self._factory.n_workers)
         ]
         self._agent_version = 0
@@ -149,7 +155,7 @@ class MultiprocessingSampler(Sampler):
         self._agent_version += 1
         updated_workers = set()
         agent_ups = self._factory.prepare_worker_messages(
-            agent_update, cloudpickle.dumps)
+            agent_update, loky.backend.reduction.dumps)
         env_ups = self._factory.prepare_worker_messages(env_update)
 
         while completed_samples < num_samples:
@@ -215,7 +221,7 @@ class MultiprocessingSampler(Sampler):
         self._agent_version += 1
         updated_workers = set()
         agent_ups = self._factory.prepare_worker_messages(
-            agent_update, cloudpickle.dumps)
+            agent_update, loky.backend.reduction.dumps)
         env_ups = self._factory.prepare_worker_messages(env_update)
         trajectories = defaultdict(list)
 
@@ -332,7 +338,7 @@ def run_worker(factory, to_worker, to_sampler, worker_number, agent, env):
     setproctitle.setproctitle('worker:' + setproctitle.getproctitle())
 
     inner_worker = factory(worker_number)
-    inner_worker.update_agent(cloudpickle.loads(agent))
+    inner_worker.update_agent(loky.backend.reduction.loads(agent))
     inner_worker.update_env(env)
 
     version = 0
@@ -354,7 +360,8 @@ def run_worker(factory, to_worker, to_sampler, worker_number, agent, env):
         if tag == 'start':
             # Update env and policy.
             agent_update, env_update, version = contents
-            inner_worker.update_agent(cloudpickle.loads(agent_update))
+            inner_worker.update_agent(
+                loky.backend.reduction.loads(agent_update))
             inner_worker.update_env(env_update)
             streaming_samples = True
         elif tag == 'stop':
