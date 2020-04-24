@@ -57,13 +57,13 @@ EXTRAS['all'] = list(set(sum(EXTRAS.values(), [])))
 # Development dependencies (*not* included in 'all')
 EXTRAS['dev'] = [
     # Please keep alphabetized
-    'baselines @ https://{}@api.github.com/repos/openai/baselines/tarball/ea25b9e8b234e6ee1bca43083f8f3cf974143998'.format(GARAGE_GH_TOKEN),  # noqa: E501
+    # 'baselines @ https://{}@api.github.com/repos/openai/baselines/tarball/ea25b9e8b234e6ee1bca43083f8f3cf974143998'.format(GARAGE_GH_TOKEN),  # noqa: E501
     'flake8',
     'flake8-docstrings>=1.5.0',
     'flake8-import-order',
     'gtimer',
     'matplotlib',
-    'metaworld @ https://{}@api.github.com/repos/rlworkgroup/metaworld/tarball/9a3ce2be718196447119e8f5445565d1c7f94770'.format(GARAGE_GH_TOKEN),  # noqa: E501
+    # 'metaworld @ https://{}@api.github.com/repos/rlworkgroup/metaworld/tarball/9a3ce2be718196447119e8f5445565d1c7f94770'.format(GARAGE_GH_TOKEN),  # noqa: E501
     'pandas',
     'pep8-naming==0.7.0',
     'pre-commit',
@@ -75,7 +75,7 @@ EXTRAS['dev'] = [
     'pytest-timeout',
     'pytest-xdist',
     'recommonmark',
-    'rlkit @ https://{}@api.github.com/repos/vitchyr/rlkit/tarball/1d469a509b797ca04a39b8734c1816ca7d108fc8'.format(GARAGE_GH_TOKEN),  # noqa: E501
+    # 'rlkit @ https://{}@api.github.com/repos/vitchyr/rlkit/tarball/1d469a509b797ca04a39b8734c1816ca7d108fc8'.format(GARAGE_GH_TOKEN),  # noqa: E501
     'seaborn',
     'sphinx==2.4.4',
     'sphinx_rtd_theme',
