@@ -15,11 +15,11 @@ import numpy as np
 
 from garage.experiment import deterministic
 from garage.misc import tensor_utils
-from garage.sampler.batch_sampler import BatchSampler
+from garage.sampler.base import BaseSampler
 from garage.sampler.vec_env_executor import VecEnvExecutor
 
 
-class OffPolicyVectorizedSampler(BatchSampler):
+class OffPolicyVectorizedSampler(BaseSampler):
     """This class implements OffPolicyVectorizedSampler.
 
     Args:

@@ -7,8 +7,7 @@ import numpy as np
 
 from garage.misc import tensor_utils as np_tensor_utils
 from garage.np.algos import RLAlgorithm
-from garage.sampler import OnPolicyVectorizedSampler
-from garage.tf.samplers import BatchSampler
+from garage.sampler import MultiprocessingSampler
 
 
 class BatchPolopt2(RLAlgorithm, abc.ABC):
@@ -68,10 +67,7 @@ class BatchPolopt2(RLAlgorithm, abc.ABC):
 
         self._episode_reward_mean = collections.deque(maxlen=100)
 
-        if policy.vectorized:
-            self._sampler_cls = OnPolicyVectorizedSampler
-        else:
-            self._sampler_cls = BatchSampler
+        self._sampler_cls = MultiprocessingSampler
         self.init_opt()
 
     @property
@@ -175,9 +171,9 @@ class BatchPolopt2(RLAlgorithm, abc.ABC):
                 - valids: (numpy.ndarray), shape [P, ], [i, j] entry is 1 if
                   the j-th sample in i-th path is valid, otherwise 0.
                 - agent_infos: (dict), see
-                  OnPolicyVectorizedSampler.obtain_samples()
+                  garage.Sampler.obtain_samples()
                 - env_infos: (dict), see
-                  OnPolicyVectorizedSampler.obtain_samples()
+                  garage.Sampler.obtain_samples()
                 - paths: (list[dict]) The original path with observation or
                   action flattened
                 - average_return: (numpy.float64)

@@ -8,8 +8,7 @@ import numpy as np
 from garage import log_performance, TrajectoryBatch
 from garage.misc import tensor_utils
 from garage.np.algos.base import RLAlgorithm
-from garage.sampler import OnPolicyVectorizedSampler
-from garage.tf.samplers import BatchSampler
+from garage.sampler import MultiprocessingSampler
 
 
 class BatchPolopt(RLAlgorithm):
@@ -42,10 +41,7 @@ class BatchPolopt(RLAlgorithm):
         self.n_samples = n_samples
 
         self.episode_reward_mean = collections.deque(maxlen=100)
-        if policy.vectorized:
-            self.sampler_cls = OnPolicyVectorizedSampler
-        else:
-            self.sampler_cls = BatchSampler
+        self.sampler_cls = MultiprocessingSampler
 
     @abc.abstractmethod
     def train_once(self, itr, paths):

@@ -144,18 +144,18 @@ sudo apt install -y \
 
 # Build GLFW because the Ubuntu 16.04 version is too old
 # See https://github.com/glfw/glfw/issues/1004
-sudo apt purge -y libglfw*
-GLFW_DIR="$(mktemp -d)/glfw"
-git clone https://github.com/glfw/glfw.git "${GLFW_DIR}"
-cd "${GLFW_DIR}"
-git checkout 0be4f3f75aebd9d24583ee86590a38e741db0904
-mkdir glfw-build
-cd glfw-build
-sudo cmake -DBUILD_SHARED_LIBS=ON -DGLFW_BUILD_EXAMPLES=OFF \
-  -DGLFW_BUILD_TESTS=OFF -DGLFW_BUILD_DOCS=OFF ..
-sudo make -j"$(nproc)"
-sudo make install
-cd "${GARAGE_DIR}"
+# sudo apt purge -y libglfw*
+# GLFW_DIR="$(mktemp -d)/glfw"
+# git clone https://github.com/glfw/glfw.git "${GLFW_DIR}"
+# cd "${GLFW_DIR}"
+# git checkout 0be4f3f75aebd9d24583ee86590a38e741db0904
+# mkdir glfw-build
+# cd glfw-build
+# sudo cmake -DBUILD_SHARED_LIBS=ON -DGLFW_BUILD_EXAMPLES=OFF \
+  # -DGLFW_BUILD_TESTS=OFF -DGLFW_BUILD_DOCS=OFF ..
+# sudo make -j"$(nproc)"
+# sudo make install
+# cd "${GARAGE_DIR}"
 
 # Leave a note in ~/.bashrc for the added environment variables
 if [[ "${_arg_modify_bashrc}" = on ]]; then

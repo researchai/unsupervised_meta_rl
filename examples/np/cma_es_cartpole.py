@@ -11,7 +11,7 @@ Results:
 from garage.experiment import run_experiment
 from garage.np.algos import CMAES
 from garage.np.baselines import LinearFeatureBaseline
-from garage.sampler import OnPolicyVectorizedSampler
+from garage.sampler import MultiprocessingSampler
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.policies import CategoricalMLPPolicy
@@ -43,7 +43,7 @@ def run_task(snapshot_config, *_):
                      max_path_length=100,
                      n_samples=n_samples)
 
-        runner.setup(algo, env, sampler_cls=OnPolicyVectorizedSampler)
+        runner.setup(algo, env, sampler_cls=MultiprocessingSampler)
         runner.train(n_epochs=100, batch_size=1000)
 
 

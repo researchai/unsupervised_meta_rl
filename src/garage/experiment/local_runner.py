@@ -9,7 +9,6 @@ import psutil
 
 from garage.experiment.deterministic import get_seed, set_seed
 from garage.experiment.snapshotter import Snapshotter
-from garage.sampler import parallel_sampler
 from garage.sampler.base import BaseSampler
 # This is avoiding a circular import
 from garage.sampler.worker import DefaultWorker
@@ -86,7 +85,6 @@ class LocalRunner:
         snapshot_config (garage.experiment.SnapshotConfig): The snapshot
             configuration used by LocalRunner to create the snapshotter.
             If None, it will create one with default settings.
-        max_cpus (int): The maximum number of parallel sampler workers.
 
     Note:
         For the use of any TensorFlow environments, policies and algorithms,
@@ -116,16 +114,10 @@ class LocalRunner:
 
     """
 
-    def __init__(self, snapshot_config, max_cpus=1):
+    def __init__(self, snapshot_config):
         self._snapshotter = Snapshotter(snapshot_config.snapshot_dir,
                                         snapshot_config.snapshot_mode,
                                         snapshot_config.snapshot_gap)
-
-        parallel_sampler.initialize(max_cpus)
-
-        seed = get_seed()
-        if seed is not None:
-            parallel_sampler.set_seed(seed)
 
         self._has_setup = False
         self._plot = False

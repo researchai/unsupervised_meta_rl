@@ -3,13 +3,12 @@ import ray
 import tensorflow as tf
 
 from garage.np.baselines import LinearFeatureBaseline
-from garage.sampler import LocalSampler, RaySampler, singleton_pool
+from garage.sampler import LocalSampler, MultiprocessingSampler, RaySampler
 from garage.tf.algos import VPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.plotter import Plotter
 from garage.tf.policies import CategoricalMLPPolicy
-from garage.tf.samplers import BatchSampler
 from tests.fixtures import snapshot_config, TfGraphTestCase
 
 
@@ -24,12 +23,6 @@ class TestLocalRunner(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=sess):
             assert tf.compat.v1.get_default_session() is sess, (
                 'LocalTFRunner(sess) should use sess as default session.')
-
-    def test_singleton_pool(self):
-        max_cpus = 8
-        with LocalTFRunner(snapshot_config, max_cpus=max_cpus):
-            assert max_cpus == singleton_pool.n_parallel, (
-                'LocalTFRunner(max_cpu) should set up singleton_pool.')
 
     def test_train(self):
         with LocalTFRunner(snapshot_config) as runner:
@@ -93,7 +86,7 @@ class TestLocalRunner(TfGraphTestCase):
             with LocalTFRunner(snapshot_config) as runner:
                 runner.save(0)
 
-    def test_make_sampler_batch_sampler(self):
+    def test_make_sampler_multiprocessign_sampler(self):
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(env_name='CartPole-v1')
 
@@ -111,11 +104,8 @@ class TestLocalRunner(TfGraphTestCase):
                        optimizer_args=dict(
                            tf_optimizer_args=dict(learning_rate=0.01, )))
 
-            runner.setup(algo,
-                         env,
-                         sampler_cls=BatchSampler,
-                         sampler_args=dict(n_envs=3))
-            assert isinstance(runner._sampler, BatchSampler)
+            runner.setup(algo, env, sampler_cls=MultiprocessingSampler)
+            assert isinstance(runner._sampler, MultiprocessingSampler)
             runner.train(n_epochs=1, batch_size=10)
 
     def test_make_sampler_local_sampler(self):
