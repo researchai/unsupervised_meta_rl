@@ -7,23 +7,21 @@ import gym
 import numpy as np
 import tensorflow as tf
 
-from garage import TaskEmbeddingTrajectoryBatch
 from garage.envs import EnvSpec
 from garage.envs import normalize
 from garage.envs import PointEnv
 from garage.envs.multi_env_wrapper import MultiEnvWrapper
 from garage.envs.multi_env_wrapper import round_robin_strategy
 from garage.experiment import run_experiment
-from garage.np.baselines import MultiTaskLinearFeatureBaseline
+from garage.np.baselines import LinearMultiFeatureBaseline
 from garage.sampler import LocalSampler
-from garage.sampler import TaskEmbeddingWorker
+from garage.tf.algos.te import TaskEmbeddingWorker
 from garage.tf.algos import PPOTaskEmbedding
-from garage.tf.embeddings import EmbeddingSpec
-from garage.tf.embeddings import GaussianMLPEmbedding
-from garage.tf.embeddings.utils import concat_spaces
+from garage import InOutSpec
+from garage.tf.embeddings import GaussianMLPEncoder
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPMultitaskPolicy
+from garage.tf.policies import GaussianMLPTaskEmbeddingPolicy
 
 
 def circle(r, n):
@@ -96,15 +94,15 @@ def run_task(snapshot_config, v, *_):
         traj_ub = np.stack([act_obs_ub] * v.inference_window)
         traj_space = akro.Box(traj_lb, traj_ub)
 
-        task_embed_spec = EmbeddingSpec(env.task_space, latent_space)
-        traj_embed_spec = EmbeddingSpec(traj_space, latent_space)
-        task_obs_space = concat_spaces(env.task_space, env.observation_space)
+        task_embed_spec = InOutSpec(env.task_space, latent_space)
+        traj_embed_spec = InOutSpec(traj_space, latent_space)
+        task_obs_space = akro.concat(env.task_space, env.observation_space)
         env_spec_embed = EnvSpec(task_obs_space, env.action_space)
 
-        inference = GaussianMLPEmbedding(
+        inference = GaussianMLPEncoder(
             name='inference',
             embedding_spec=traj_embed_spec,
-            hidden_sizes=(20, 10),  # was the same size as policy in Karol's paper
+            hidden_sizes=[20, 10],  # was the same size as policy in Karol's paper
             std_share_network=True,
             init_std=2.0,
             output_nonlinearity=tf.nn.tanh,
@@ -112,10 +110,10 @@ def run_task(snapshot_config, v, *_):
         )
 
         # Embeddings
-        task_embedding = GaussianMLPEmbedding(
+        task_encoder = GaussianMLPEncoder(
             name='embedding',
             embedding_spec=task_embed_spec,
-            hidden_sizes=(20, 20),
+            hidden_sizes=[20, 20],
             std_share_network=True,
             init_std=v.embedding_init_std,
             max_std=v.embedding_max_std,
@@ -124,19 +122,20 @@ def run_task(snapshot_config, v, *_):
         )
 
         # Multitask policy
-        policy = GaussianMLPMultitaskPolicy(
+        policy = GaussianMLPTaskEmbeddingPolicy(
             name='policy',
             env_spec=env.spec,
-            task_space=env.task_space,
-            embedding=task_embedding,
-            hidden_sizes=(32, 16),
+            encoder=task_encoder,
+            hidden_sizes=[32, 16],
             std_share_network=True,
             max_std=v.policy_max_std,
             init_std=v.policy_init_std,
             min_std=v.policy_min_std,
         )
 
-        baseline = MultiTaskLinearFeatureBaseline(env_spec=env.spec)
+        baseline = LinearMultiFeatureBaseline(
+            env_spec=env.spec,
+            features=['observations', 'tasks', 'latents'])
 
         algo = PPOTaskEmbedding(
             env_spec=env.spec,
