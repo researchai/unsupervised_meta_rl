@@ -144,7 +144,7 @@ class TEPPO(TENPO):
                          name=name)
 
     def _build_optimizer(self, optimizer, optimizer_args):
-        """Build up optimizer.
+        """Build up optimizer for policy.
 
         Args:
             optimizer (obj): Policy optimizer. Should be one of the optimizers
