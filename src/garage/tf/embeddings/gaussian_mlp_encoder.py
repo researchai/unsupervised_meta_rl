@@ -152,7 +152,7 @@ class GaussianMLPEncoder(StochasticEncoder, StochasticModule):
         return True
 
     def forward(self, input_value):
-        """Get an sample of embedding for the given input.
+        """Get a sample of embedding for the given input.
 
         Args:
             input_value (numpy.ndarray): Tensor to encode.
@@ -177,6 +177,32 @@ class GaussianMLPEncoder(StochasticEncoder, StochasticModule):
         log_std = self._embedding_spec.output_space.unflatten(
             np.squeeze(log_std, 1)[0])
         return sample, dict(mean=mean, log_std=log_std)
+
+    def forward_n(self, input_values):
+        """Get samples of embedding for the given inputs.
+
+        Args:
+            input_values (numpy.ndarray): Tensors to encode.
+
+        Returns:
+            numpy.ndarray: Embeddings sampled from embedding distribution.
+            dict: Embedding distribution information.
+
+        Note:
+            It returns an embedding and a dict, with keys
+            - mean (list[numpy.ndarray]): Means of the distribution.
+            - log_std (list[numpy.ndarray]): Log standard deviations of the
+                distribution.
+
+        """
+        flat_input = self._embedding_spec.input_space.flatten_n(input_values)
+        means, log_stds = self._f_dist(flat_input)
+        rnd = np.random.normal(size=means.shape)
+        samples = rnd * np.exp(log_stds) + means
+        samples = self._embedding_spec.output_space.unflatten_n(samples)
+        means = self._embedding_spec.output_space.unflatten_n(means)
+        log_stds = self._embedding_spec.output_space.unflatten_n(log_stds)
+        return samples, dict(mean=means, log_std=log_stds)
 
     @property
     def distribution(self):

@@ -43,7 +43,8 @@ class TaskEmbeddingWorker(DefaultWorker):
 
     def start_rollout(self):
         """Begin a new rollout."""
-        self._t = self.env.active_task_one_hot
+        # pylint: disable=protected-access
+        self._t = self.env._active_task_one_hot()
         self._z, self._latent_info = self.agent.get_latent(self._t)
         self._z = self.agent.latent_space.flatten(self._z)
         super().start_rollout()
@@ -57,8 +58,8 @@ class TaskEmbeddingWorker(DefaultWorker):
 
         """
         if self._path_length < self._max_path_length:
-            a, agent_info = self.agent.get_action_from_latent(
-                self._z, self._prev_obs)
+            a, agent_info = self.agent.get_action_given_latent(
+                self._prev_obs, self._z)
             next_o, r, d, env_info = self.env.step(a)
             self._observations.append(self._prev_obs)
             self._rewards.append(r)
