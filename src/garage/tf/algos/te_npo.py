@@ -1,7 +1,9 @@
+"""Natural Policy Optimization with Task Embeddings."""
+# pylint: disable=too-many-lines
 from dowel import Histogram, logger, tabular
 import numpy as np
-import tensorflow as tf
 import scipy.stats
+import tensorflow as tf
 
 from garage import log_performance, TrajectoryBatch
 from garage.misc import tensor_utils as np_tensor_utils
@@ -20,16 +22,19 @@ from garage.tf.misc.tensor_utils import flatten_inputs
 from garage.tf.misc.tensor_utils import graph_inputs
 from garage.tf.misc.tensor_utils import new_tensor
 from garage.tf.misc.tensor_utils import pad_tensor
-from garage.tf.misc.tensor_utils import pad_tensor_n
 from garage.tf.misc.tensor_utils import pad_tensor_dict
+from garage.tf.misc.tensor_utils import pad_tensor_n
 from garage.tf.misc.tensor_utils import positive_advs
 from garage.tf.misc.tensor_utils import stack_tensor_dict_list
 from garage.tf.optimizers import LbfgsOptimizer
 from garage.tf.policies import TaskEmbeddingPolicy
 
 
-class NPOTaskEmbedding(BatchPolopt):
+class TENPO(BatchPolopt):
     """Natural Policy Optimization with Task Embeddings.
+
+    See https://karolhausman.github.io/pdf/hausman17nips-ws2.pdf for algorithm
+    reference.
 
     Args:
         env_spec (garage.envs.EnvSpec): Environment specification.
@@ -61,12 +66,15 @@ class NPOTaskEmbedding(BatchPolopt):
         optimizer_args (dict): The arguments of the optimizer.
         policy_ent_coeff (float): The coefficient of the policy entropy.
             Setting it to zero would mean no entropy regularization.
+        encoder_ent_coeff (float): The coefficient of the policy encoder
+            entropy. Setting it to zero would mean no entropy regularization.
         use_softplus_entropy (bool): Whether to estimate the softmax
             distribution of the entropy to prevent the entropy from being
             negative.
         use_neg_logli_entropy (bool): Whether to estimate the entropy as the
             negative log likelihood of the action.
         stop_entropy_gradient (bool): Whether to stop the entropy gradient.
+        stop_ce_gradient (bool): Whether to stop the cross entropy gradient.
         entropy_method (str): A string from: 'max', 'regularized',
             'no_entropy'. The type of entropy method to use. 'max' adds the
             dense entropy to the reward for each time step. 'regularized' adds
@@ -75,10 +83,15 @@ class NPOTaskEmbedding(BatchPolopt):
         flatten_input (bool): Whether to flatten input along the observation
             dimension. If True, for example, an observation with shape (2, 4)
             will be flattened to 8.
-        inference (garage.tf.embedding.encoder.StochasticEncoder):
-        inference_optimizer:
-        inference_optimizer_args:
-        inference_ce_coeff:
+        inference (garage.tf.embeddings.StochasticEncoder): A encoder
+            that infers the task embedding from trajectory.
+        inference_optimizer (object): The optimizer of the inference. Should be
+            an optimizer in garage.tf.optimizers.
+        inference_optimizer_args (dict): The arguments of the inference
+            optimizer.
+        inference_ce_coeff (float): The coefficient of the cross entropy of
+            task embeddings inferred from task one-hot and trajectory. This is
+            effectively the coefficient of log-prob of inference.
         name (str): The name of the algorithm.
 
     Note:
@@ -111,7 +124,7 @@ class NPOTaskEmbedding(BatchPolopt):
                  optimizer=None,
                  optimizer_args=None,
                  policy_ent_coeff=0.0,
-                 embedding_ent_coeff=0.0,
+                 encoder_ent_coeff=0.0,
                  use_softplus_entropy=False,
                  use_neg_logli_entropy=False,
                  stop_entropy_gradient=False,
@@ -134,8 +147,10 @@ class NPOTaskEmbedding(BatchPolopt):
         self._stop_ce_gradient = stop_ce_gradient
         self._pg_loss = pg_loss
 
-        optimizer, optimizer_args = self._build_optimizer(optimizer, optimizer_args)
-        inference_optimizer, inference_optimizer_args = self._build_optimizer(inference_optimizer, inference_optimizer_args)
+        optimizer, optimizer_args = self._build_optimizer(
+            optimizer, optimizer_args)
+        inference_optimizer, inference_optimizer_args = self._build_optimizer(
+            inference_optimizer, inference_optimizer_args)
 
         self._check_entropy_configuration(entropy_method, center_adv,
                                           stop_entropy_gradient,
@@ -153,15 +168,16 @@ class NPOTaskEmbedding(BatchPolopt):
 
             self.inference = inference
             self.inference_ce_coeff = float(inference_ce_coeff)
-            self.inference_optimizer = inference_optimizer(**inference_optimizer_args)
-            self.embedding_ent_coeff = embedding_ent_coeff
+            self.inference_optimizer = inference_optimizer(
+                **inference_optimizer_args)
+            self.encoder_ent_coeff = encoder_ent_coeff
 
         self._f_rewards = None
         self._f_returns = None
         self._f_policy_kl = None
         self._f_policy_entropy = None
-        self._f_embedding_kl = None
-        self._f_embedding_entropy = None
+        self._f_encoder_kl = None
+        self._f_encoder_entropy = None
         self._f_task_entropies = None
         self._f_inference_ce = None
 
@@ -178,7 +194,12 @@ class NPOTaskEmbedding(BatchPolopt):
                          flatten_input=flatten_input)
 
     def init_opt(self):
-        """Initialize optimizater."""
+        """Initialize optimizater.
+
+        Raises:
+            NotImplementedError: Raise if the policy is recurrent.
+
+        """
         if self.policy.recurrent:
             raise NotImplementedError
 
@@ -189,7 +210,7 @@ class NPOTaskEmbedding(BatchPolopt):
         self._policy_opt_inputs = pol_opt_inputs
         self._inference_opt_inputs = infer_opt_inputs
 
-        # Jointly optimize policy and embedding network
+        # Jointly optimize policy and encoder network
         pol_loss, pol_kl, embed_kl = self._build_policy_loss(pol_loss_inputs)
         self._optimizer.update_opt(loss=pol_loss,
                                    target=self.policy,
@@ -200,10 +221,10 @@ class NPOTaskEmbedding(BatchPolopt):
 
         # Optimize inference distribution separately (supervised learning)
         infer_loss, infer_kl = self._build_inference_loss(infer_loss_inputs)
-        self.inference_optimizer.update_opt(
-            loss=infer_loss,
-            target=self.inference,
-            inputs=flatten_inputs(self._inference_opt_inputs))
+        self.inference_optimizer.update_opt(loss=infer_loss,
+                                            target=self.inference,
+                                            inputs=flatten_inputs(
+                                                self._inference_opt_inputs))
 
     def optimize_policy(self, itr, samples_data):
         """Optimize policy.
@@ -218,19 +239,15 @@ class NPOTaskEmbedding(BatchPolopt):
         inference_opt_input_values = self._inference_opt_input_values(
             samples_data)
 
-        self._train_policy_and_embedding_networks(policy_opt_input_values)
+        self._train_policy_and_encoder_networks(policy_opt_input_values)
         self._train_inference_network(inference_opt_input_values)
 
         paths = samples_data['paths']
         samples_data = self.evaluate(policy_opt_input_values, samples_data)
-        self.visualize_distribution(samples_data)
+        self.visualize_distribution()
 
-        # Fit baseline
         logger.log('Fitting baseline...')
-        if hasattr(self.baseline, 'fit_with_samples'):
-            self.baseline.fit_with_samples(paths, samples_data)
-        else:
-            self.baseline.fit(paths)
+        self.baseline.fit(paths)
 
     def process_samples(self, itr, paths):
         # pylint: disable=too-many-statements
@@ -265,8 +282,17 @@ class NPOTaskEmbedding(BatchPolopt):
             TrajectoryBatch.from_trajectory_list(self.env_spec, paths),
             discount=self.discount)
 
-        def extract_latent_infos(infos):
-            """dict: Extract and pack latent infos in dict."""
+        def _extract_latent_infos(infos):
+            """Extract and pack latent infos from dict.
+
+            Args:
+                infos (dict): A dict that contains latent infos with key
+                    prefixed by 'latent_'.
+
+            Returns:
+                dict: A dict of latent infos.
+
+            """
             latent_infos = dict()
             for k, v in infos.items():
                 if k.startswith('latent_'):
@@ -274,32 +300,32 @@ class NPOTaskEmbedding(BatchPolopt):
             return latent_infos
 
         if self.flatten_input:
-            paths = [dict(
-                observations=(self.env_spec.observation_space.flatten_n(
+            paths = [
+                dict(observations=(self.env_spec.observation_space.flatten_n(
                     path['observations'])),
-                tasks=self.policy.task_space.flatten_n(
-                    path['env_infos']['task_onehot']),
-                latents=path['agent_infos']['latent'],
-                actions=self.env_spec.action_space.flatten_n(path['actions']),
-                rewards=path['rewards'],
-                env_infos=path['env_infos'],
-                agent_infos=path['agent_infos'],
-                latent_infos=extract_latent_infos(path['agent_infos']),
-                dones=path['dones']) for path in paths
+                     tasks=self.policy.task_space.flatten_n(
+                         path['env_infos']['task_onehot']),
+                     latents=path['agent_infos']['latent'],
+                     actions=self.env_spec.action_space.flatten_n(
+                         path['actions']),
+                     rewards=path['rewards'],
+                     env_infos=path['env_infos'],
+                     agent_infos=path['agent_infos'],
+                     latent_infos=_extract_latent_infos(path['agent_infos']),
+                     dones=path['dones']) for path in paths
             ]
         else:
             paths = [
-                dict(
-                    observations=path['observations'],
-                    tasks=path['env_infos']['task_onehot'],
-                    latenst=path['agent_infos']['latent'],
-                    actions=(self.env_spec.action_space.flatten_n(
-                        path['actions'])),
-                    rewards=path['rewards'],
-                    env_infos=path['env_infos'],
-                    agent_infos=path['agent_infos'],
-                    latent_infos=extract_latent_infos(path['agent_infos']),
-                    dones=path['dones']) for path in paths
+                dict(observations=path['observations'],
+                     tasks=path['env_infos']['task_onehot'],
+                     latenst=path['agent_infos']['latent'],
+                     actions=(self.env_spec.action_space.flatten_n(
+                         path['actions'])),
+                     rewards=path['rewards'],
+                     env_infos=path['env_infos'],
+                     agent_infos=path['agent_infos'],
+                     latent_infos=_extract_latent_infos(path['agent_infos']),
+                     dones=path['dones']) for path in paths
             ]
 
         if hasattr(self.baseline, 'predict_n'):
@@ -330,11 +356,6 @@ class NPOTaskEmbedding(BatchPolopt):
 
         # calculate inference trajectories samples
         for idx, path in enumerate(paths):
-            # Pad and flatten action and observation traces
-            act = pad_tensor(path['actions'], max_path_length)
-            obs = pad_tensor(path['observations'],
-                                          max_path_length)
-
             # - Calculate a forward-looking sliding window.
             # - If step_space has shape (n, d), then trajs will have shape
             #   (n, window, d)
@@ -344,18 +365,19 @@ class NPOTaskEmbedding(BatchPolopt):
             # - Only observation is used for a single step.
             #   Alternatively, stacked [observation, action] can be used for
             #   in harder tasks.
+            obs = pad_tensor(path['observations'], max_path_length)
             obs_flat = self.env_spec.observation_space.flatten_n(obs)
-            step_space = obs_flat
+            steps = obs_flat
             window = self.inference.spec.input_space.shape[0]
-            trajs = np_tensor_utils.sliding_window(step_space, window, 1,
+            trajs = np_tensor_utils.sliding_window(steps,
+                                                   window,
+                                                   1,
                                                    smear=True)
             trajs_flat = self.inference.spec.input_space.flatten_n(trajs)
             path['trajectories'] = trajs_flat
 
-            # TODO: can encoder handle vectorized input?
-            _, traj_infos = self.inference.forward(trajs)
+            _, traj_infos = self.inference.forward_n(trajs)
             path['trajectory_infos'] = traj_infos
-
 
         # make all paths the same length
         obs = [path['observations'] for path in paths]
@@ -378,30 +400,23 @@ class NPOTaskEmbedding(BatchPolopt):
 
         baselines = pad_tensor_n(baselines, max_path_length)
 
-        trajectories = tf.stack([path['trajectories'] for path in paths])
+        trajectories = np.stack([path['trajectories'] for path in paths])
 
         agent_infos = [path['agent_infos'] for path in paths]
-        agent_infos = stack_tensor_dict_list([
-            pad_tensor_dict(p, max_path_length)
-            for p in agent_infos
-        ])
+        agent_infos = stack_tensor_dict_list(
+            [pad_tensor_dict(p, max_path_length) for p in agent_infos])
 
         latent_infos = [path['latent_infos'] for path in paths]
-        latent_infos = stack_tensor_dict_list([
-            pad_tensor_dict(p, max_path_length)
-            for p in latent_infos
-        ])
+        latent_infos = stack_tensor_dict_list(
+            [pad_tensor_dict(p, max_path_length) for p in latent_infos])
 
         trajectory_infos = [path['trajectory_infos'] for path in paths]
-        trajectory_infos = stack_tensor_dict_list([
-            pad_tensor_dict(p, max_path_length)
-            for p in trajectory_infos
-        ])
+        trajectory_infos = stack_tensor_dict_list(
+            [pad_tensor_dict(p, max_path_length) for p in trajectory_infos])
 
         env_infos = [path['env_infos'] for path in paths]
-        env_infos = stack_tensor_dict_list([
-            pad_tensor_dict(p, max_path_length) for p in env_infos
-        ])
+        env_infos = stack_tensor_dict_list(
+            [pad_tensor_dict(p, max_path_length) for p in env_infos])
 
         valids = [np.ones_like(path['returns']) for path in paths]
         valids = pad_tensor_n(valids, max_path_length)
@@ -430,7 +445,20 @@ class NPOTaskEmbedding(BatchPolopt):
         return samples_data
 
     def _build_optimizer(self, optimizer, optimizer_args):
-        """Build up optimizer."""
+        """Build up optimizer.
+
+        Args:
+            optimizer (obj): Policy optimizer. Should be one of the optimizers
+                in garage.tf.optimizers.
+            optimizer_args (dict): The arguments of the optimizer.
+
+        Returns:
+            obj: Policy optimizer. Should be one of the optimizers
+                in garage.tf.optimizers.
+            dict: The arguments of the optimizer.
+
+        """
+        # pylint: disable=no-self-use
         if optimizer is None:
             optimizer = LbfgsOptimizer
         if optimizer_args is None:
@@ -447,6 +475,7 @@ class NPOTaskEmbedding(BatchPolopt):
             namedtuple: Collection of variables to do inference optimization.
 
         """
+        # pylint: disable=too-many-statements
         observation_space = self.policy.observation_space
         action_space = self.policy.action_space
         task_space = self.policy.task_space
@@ -457,7 +486,7 @@ class NPOTaskEmbedding(BatchPolopt):
         embed_dist = self.policy.encoder.distribution
         infer_dist = self.inference.distribution
 
-        with tf.name_scope("inputs"):
+        with tf.name_scope('inputs'):
             if self.flatten_input:
                 obs_var = tf.compat.v1.placeholder(
                     tf.float32,
@@ -468,19 +497,16 @@ class NPOTaskEmbedding(BatchPolopt):
                     shape=[None, None, task_space.flat_dim],
                     name='task')
                 trajectory_var = tf.compat.v1.placeholder(
-                    tf.float32,
-                    shape=[None, None, trajectory_space.flat_dim])
+                    tf.float32, shape=[None, None, trajectory_space.flat_dim])
                 latent_var = tf.compat.v1.placeholder(
-                    tf.float32,
-                    shape=[None, None, latent_space.flat_dim])
+                    tf.float32, shape=[None, None, latent_space.flat_dim])
             else:
                 obs_var = observation_space.to_tf_placeholder(name='obs',
                                                               batch_dims=2)
                 task_var = task_space.to_tf_placeholder(name='task',
                                                         batch_dims=2)
                 trajectory_var = trajectory_space.to_tf_placeholder(
-                    name='trajectory',
-                    batch_dims=2)
+                    name='trajectory', batch_dims=2)
                 latent_var = latent_space.to_tf_placeholder(name='latent',
                                                             batch_dims=2)
             action_var = action_space.to_tf_placeholder(name='action',
@@ -517,7 +543,7 @@ class NPOTaskEmbedding(BatchPolopt):
                 for k in policy_dist.dist_info_keys
             ]
 
-            # Embedding state (for RNNs)
+            # Encoder state (for RNNs)
             embed_state_info_vars = {
                 k: tf.compat.v1.placeholder(tf.float32,
                                             shape=[None] * 2 + list(shape),
@@ -529,16 +555,15 @@ class NPOTaskEmbedding(BatchPolopt):
                 for k in self.policy.encoder.state_info_keys
             ]
 
-            # Old embedding distribution (for KL)
+            # Old encoder distribution (for KL)
             embed_old_dist_info_vars = {
                 k: tf.compat.v1.placeholder(tf.float32,
                                             shape=[None] * 2 + list(shape),
-                                            name='embedding_old_%s' % k)
+                                            name='encoder_old_%s' % k)
                 for k, shape in embed_dist.dist_info_specs
             }
             embed_old_dist_info_vars_list = [
-                embed_old_dist_info_vars[k]
-                for k in embed_dist.dist_info_keys
+                embed_old_dist_info_vars[k] for k in embed_dist.dist_info_keys
             ]
 
             # Inference distribution state (for RNNs)
@@ -561,8 +586,7 @@ class NPOTaskEmbedding(BatchPolopt):
                 for k, shape in infer_dist.dist_info_specs
             }
             infer_old_dist_info_vars_list = [
-                infer_old_dist_info_vars[k]
-                for k in infer_dist.dist_info_keys
+                infer_old_dist_info_vars[k] for k in infer_dist.dist_info_keys
             ]
 
             # Flattened view
@@ -572,8 +596,8 @@ class NPOTaskEmbedding(BatchPolopt):
                 action_flat = flatten_batch(action_var, name='action_flat')
                 reward_flat = flatten_batch(reward_var, name='reward_flat')
                 latent_flat = flatten_batch(latent_var, name='latent_flat')
-                trajectory_flat = flatten_batch(
-                    trajectory_var, name='trajectory_flat')
+                trajectory_flat = flatten_batch(trajectory_var,
+                                                name='trajectory_flat')
                 valid_flat = flatten_batch(valid_var, name='valid_flat')
                 policy_state_info_vars_flat = flatten_batch_dict(
                     policy_state_info_vars, name='policy_state_info_vars_flat')
@@ -584,7 +608,7 @@ class NPOTaskEmbedding(BatchPolopt):
                     embed_state_info_vars, name='embed_state_info_vars_flat')
                 embed_old_dist_info_vars_flat = flatten_batch_dict(
                     embed_old_dist_info_vars,
-                    name="embed_old_dist_info_vars_flat")
+                    name='embed_old_dist_info_vars_flat')
                 infer_state_info_vars_flat = flatten_batch_dict(
                     infer_state_info_vars, name='infer_state_info_vars_flat')
                 infer_old_dist_info_vars_flat = flatten_batch_dict(
@@ -613,7 +637,7 @@ class NPOTaskEmbedding(BatchPolopt):
                     valid_flat,
                     name='infer_old_dist_info_vars_valid')
 
-        # Policy and embedding network loss and optimizer inputs
+        # Policy and encoder network loss and optimizer inputs
         pol_flat = graph_inputs(
             'PolicyLossInputsFlat',
             obs_var=obs_flat,
@@ -714,40 +738,45 @@ class NPOTaskEmbedding(BatchPolopt):
             tf.Tensor: Mean policy KL divergence.
 
         """
+        # pylint: disable=too-many-statements, too-many-branches
         pol_dist = self.policy.distribution
 
         # Entropy terms
-        embedding_entropy, inference_ce, policy_entropy = \
-            self._build_entropy_terms(i)
+        encoder_entropy, inference_ce, policy_entropy = (
+            self._build_entropy_terms(i))
 
         # Augment the path rewards with entropy terms
         if self._maximum_entropy:
             with tf.name_scope('augmented_rewards'):
-                rewards = i.reward_var \
-                          - (self.inference_ce_coeff * inference_ce) \
-                          + (self._policy_ent_coeff * policy_entropy)
+                rewards = (i.reward_var -
+                           (self.inference_ce_coeff * inference_ce) +
+                           (self._policy_ent_coeff * policy_entropy))
 
         with tf.name_scope('policy_loss'):
             with tf.name_scope('advantages'):
-                advantages = compute_advantages(self.discount, self.gae_lambda,
-                                 self.max_path_length, i.baseline_var,
-                                 rewards, name='advantages')
+                advantages = compute_advantages(self.discount,
+                                                self.gae_lambda,
+                                                self.max_path_length,
+                                                i.baseline_var,
+                                                rewards,
+                                                name='advantages')
 
                 # Flatten and filter valids
                 adv_flat = flatten_batch(advantages, name='adv_flat')
-                adv_valid = filter_valids(
-                    adv_flat, i.flat.valid_var, name='adv_valid')
+                adv_valid = filter_valids(adv_flat,
+                                          i.flat.valid_var,
+                                          name='adv_valid')
 
             if self.policy.recurrent:
-                policy_dist_info = self.policy.dist_info_sym(
-                    i.task_var,
+                policy_dist_info = self.policy.dist_info_sym_given_task(
                     i.obs_var,
+                    i.task_var,
                     i.policy_state_info_vars,
                     name='policy_dist_info')
             else:
-                policy_dist_info_flat = self.policy.dist_info_sym(
-                    i.flat.task_var,
+                policy_dist_info_flat = self.policy.dist_info_sym_given_task(
                     i.flat.obs_var,
+                    i.flat.task_var,
                     i.flat.policy_state_info_vars,
                     name='policy_dist_info_flat')
                 policy_dist_info_valid = filter_valids_dict(
@@ -849,30 +878,30 @@ class NPOTaskEmbedding(BatchPolopt):
                 else:
                     loss = -tf.reduce_mean(obj)
 
-                # Embedding entropy bonus
-                loss -= self.embedding_ent_coeff * embedding_entropy
+                # Encoder entropy bonus
+                loss -= self.encoder_ent_coeff * encoder_entropy
 
-            embed_mean_kl = self._build_embedding_kl(i)
+            embed_mean_kl = self._build_encoder_kl(i)
 
             # Diagnostic functions
-            self._f_policy_kl = compile_function(
-                flatten_inputs(self._policy_opt_inputs),
-                pol_mean_kl,
-                log_name='f_policy_kl')
+            self._f_policy_kl = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                                 pol_mean_kl,
+                                                 log_name='f_policy_kl')
 
-            self._f_rewards = compile_function(
-                flatten_inputs(self._policy_opt_inputs),
-                rewards,
-                log_name='f_rewards')
+            self._f_rewards = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                               rewards,
+                                               log_name='f_rewards')
 
             returns = discounted_returns(self.discount,
                                          self.max_path_length,
                                          rewards,
                                          name='returns')
-            self._f_returns = compile_function(
-                flatten_inputs(self._policy_opt_inputs),
-                returns,
-                log_name='f_returns')
+            self._f_returns = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                               returns,
+                                               log_name='f_returns')
 
         return loss, pol_mean_kl, embed_mean_kl
 
@@ -886,41 +915,41 @@ class NPOTaskEmbedding(BatchPolopt):
             tf.Tensor: Policy entropy.
 
         """
-
+        # pylint: disable=too-many-statements, too-many-branches
         with tf.name_scope('entropy_terms'):
-            # 1. Embedding distribution total entropy
-            with tf.name_scope('embedding_entropy'):
+            # 1. Encoder distribution total entropy
+            with tf.name_scope('encoder_entropy'):
                 task_dim = self.policy.task_space.flat_dim
-                all_task_one_hots = tf.one_hot(
-                    np.arange(task_dim), task_dim, name='all_task_one_hots')
-                embedding_dist_info_flat = self.policy.encoder.dist_info_sym(
+                all_task_one_hots = tf.one_hot(np.arange(task_dim),
+                                               task_dim,
+                                               name='all_task_one_hots')
+                encoder_dist_info_flat = self.policy.encoder.dist_info_sym(
                     all_task_one_hots,
                     i.flat.embed_state_info_vars,
                     name='embed_dist_info_flat_2')
 
-                all_task_entropies = self.policy.encoder.distribution.entropy_sym(
-                    embedding_dist_info_flat,
-                    name='embed_entropy')
+                all_task_entropies = (
+                    self.policy.encoder.distribution.entropy_sym(
+                        encoder_dist_info_flat, name='embed_entropy'))
 
                 if self._use_softplus_entropy:
                     all_task_entropies = tf.nn.softplus(all_task_entropies)
 
-                embedding_entropy = tf.reduce_mean(
-                    all_task_entropies, name='embedding_entropy')
+                encoder_entropy = tf.reduce_mean(all_task_entropies,
+                                                 name='encoder_entropy')
 
             # 2. Infernece distribution cross-entropy (log-likelihood)
             with tf.name_scope('inference_ce'):
                 traj_dist_info_flat = self.inference.dist_info_sym(
-                    i.flat.trajectory_var,
-                    name='traj_dist_info_flat')
+                    i.flat.trajectory_var, name='traj_dist_info_flat')
 
                 traj_ll_flat = self.inference.distribution.log_likelihood_sym(
                     self.policy.encoder.distribution.sample_sym(
                         traj_dist_info_flat),
                     traj_dist_info_flat,
                     name='traj_ll_flat')
-                traj_ll = tf.reshape(
-                    traj_ll_flat, [-1, self.max_path_length], name='traj_ll')
+                traj_ll = tf.reshape(traj_ll_flat, [-1, self.max_path_length],
+                                     name='traj_ll')
 
                 inference_ce_raw = -traj_ll
                 inference_ce = tf.clip_by_value(inference_ce_raw, -3, 3)
@@ -934,9 +963,9 @@ class NPOTaskEmbedding(BatchPolopt):
             # 3. Policy path entropies
             with tf.name_scope('policy_entropy'):
                 if self.policy.recurrent:
-                    policy_dist_info = self.policy.dist_info_sym(
-                        i.task_var,
+                    policy_dist_info = self.policy.dist_info_sym_given_task(
                         i.obs_var,
+                        i.task_var,
                         i.policy_state_info_vars,
                         name='policy_dist_info_2')
 
@@ -951,45 +980,53 @@ class NPOTaskEmbedding(BatchPolopt):
                         policy_entropy = self.policy.distribution.entropy_sym(
                             policy_dist_info)
                 else:
-                    policy_dist_info_flat = self.policy.dist_info_sym(
-                        i.flat.task_var,
-                        i.flat.obs_var,
-                        i.flat.policy_state_info_vars,
-                        name='policy_dist_info_flat_2')
+                    policy_dist_info_flat = (
+                        self.policy.dist_info_sym_given_task(
+                            i.flat.obs_var,
+                            i.flat.task_var,
+                            i.flat.policy_state_info_vars,
+                            name='policy_dist_info_flat_2'))
 
-                    policy_neg_log_likeli_flat = -self.policy.distribution.log_likelihood_sym(  # noqa: E501
-                        i.flat.action_var,
-                        policy_dist_info_flat,
-                        name='policy_log_likeli_flat')
+                    policy_neg_log_likeli_flat = -(
+                        self.policy.distribution.log_likelihood_sym(
+                            i.flat.action_var,
+                            policy_dist_info_flat,
+                            name='policy_log_likeli_flat'))
 
                     policy_dist_info_valid = filter_valids_dict(
                         policy_dist_info_flat,
                         i.flat.valid_var,
                         name='policy_dist_info_valid_2')
 
-                    policy_neg_log_likeli_valid = -self.policy.distribution.log_likelihood_sym(  # noqa: E501
-                        i.valid.action_var,
-                        policy_dist_info_valid,
-                        name='policy_log_likeli_valid')
+                    policy_neg_log_likeli_valid = -(
+                        self.policy.distribution.log_likelihood_sym(
+                            i.valid.action_var,
+                            policy_dist_info_valid,
+                            name='policy_log_likeli_valid'))
 
                     if self._use_neg_logli_entropy:
                         if self._maximum_entropy:
-                            policy_entropy = tf.reshape(policy_neg_log_likeli_flat,
-                                                        [-1, self.max_path_length])
+                            policy_entropy = tf.reshape(
+                                policy_neg_log_likeli_flat,
+                                [-1, self.max_path_length])
                         else:
                             policy_entropy = policy_neg_log_likeli_valid
                     else:
                         if self._maximum_entropy:
-                            policy_entropy_flat = self.policy.distribution.entropy_sym(  # noqa: E501
-                                policy_dist_info_flat)
-                            policy_entropy = tf.reshape(policy_entropy_flat,
-                                                        [-1, self.max_path_length])
+                            policy_entropy_flat = (
+                                self.policy.distribution.entropy_sym(
+                                    policy_dist_info_flat))
+                            policy_entropy = tf.reshape(
+                                policy_entropy_flat,
+                                [-1, self.max_path_length])
                         else:
-                            policy_entropy_valid = self.policy.distribution.entropy_sym(  # noqa: E501
-                                policy_dist_info_valid)
+                            policy_entropy_valid = (
+                                self.policy.distribution.entropy_sym(
+                                    policy_dist_info_valid))
                             policy_entropy = policy_entropy_valid
 
-                # This prevents entropy from becoming negative for small policy std
+                # This prevents entropy from becoming negative
+                # for small policy std
                 if self._use_softplus_entropy:
                     policy_entropy = tf.nn.softplus(policy_entropy)
 
@@ -997,28 +1034,38 @@ class NPOTaskEmbedding(BatchPolopt):
                     policy_entropy = tf.stop_gradient(policy_entropy)
 
         # Diagnostic functions
-        self._f_task_entropies = compile_function(
+        self._f_task_entropies = compile_function(flatten_inputs(
+            self._policy_opt_inputs),
+                                                  all_task_entropies,
+                                                  log_name='f_task_entropies')
+        self._f_encoder_entropy = compile_function(
             flatten_inputs(self._policy_opt_inputs),
-            all_task_entropies,
-            log_name='f_task_entropies')
-        self._f_embedding_entropy = compile_function(
-            flatten_inputs(self._policy_opt_inputs),
-            embedding_entropy,
-            log_name='f_embedding_entropy')
+            encoder_entropy,
+            log_name='f_encoder_entropy')
         self._f_inference_ce = compile_function(
             flatten_inputs(self._policy_opt_inputs),
             tf.reduce_mean(inference_ce * i.valid_var),
             log_name='f_inference_ce')
-        self._f_policy_entropy = compile_function(
-            flatten_inputs(self._policy_opt_inputs),
-            policy_entropy,
-            log_name='f_policy_entropy')
+        self._f_policy_entropy = compile_function(flatten_inputs(
+            self._policy_opt_inputs),
+                                                  policy_entropy,
+                                                  log_name='f_policy_entropy')
 
-        return embedding_entropy, inference_ce, policy_entropy
+        return encoder_entropy, inference_ce, policy_entropy
 
-    def _build_embedding_kl(self, i):
+    def _build_encoder_kl(self, i):
+        """Build graph for encoder KL divergence.
+
+        Args:
+            i (namedtuple): Collection of variables to compute encoder KL
+                divergence.
+
+        Returns:
+            tf.Tensor: Encoder KL divergence.
+
+        """
         dist = self.policy.encoder.distribution
-        with tf.name_scope('embedding_kl'):
+        with tf.name_scope('encoder_kl'):
             # new distribution
             embed_dist_info_flat = self.policy.encoder.dist_info_sym(
                 i.flat.task_var,
@@ -1035,54 +1082,54 @@ class NPOTaskEmbedding(BatchPolopt):
             mean_kl = tf.reduce_mean(kl)
 
             # Diagnostic function
-            self._f_embedding_kl = compile_function(
-                flatten_inputs(self._policy_opt_inputs),
-                mean_kl,
-                log_name='f_embedding_kl')
+            self._f_encoder_kl = compile_function(flatten_inputs(
+                self._policy_opt_inputs),
+                                                  mean_kl,
+                                                  log_name='f_encoder_kl')
 
             return mean_kl
 
     def _build_inference_loss(self, i):
-        """Build loss function for the inference network."""
+        """Build loss function for the inference network.
 
+        Args:
+            i (namedtuple): Collection of variables to compute inference loss.
+
+        Returns:
+            tf.Tensor: Inference loss.
+
+        """
         infer_dist = self.inference.distribution
         with tf.name_scope('infer_loss'):
             traj_dist_info_flat = self.inference.dist_info_sym(
-                i.flat.trajectory_var,
-                name='traj_dist_info_flat_2')
-            traj_dist_info_valid = filter_valids_dict(
-                traj_dist_info_flat,
-                i.flat.valid_var,
-                name='traj_dist_info_valid_2')
+                i.flat.trajectory_var, name='traj_dist_info_flat_2')
 
             traj_ll_flat = self.inference.distribution.log_likelihood_sym(
-                i.flat.latent_var,
-                traj_dist_info_flat,
-                name='traj_ll_flat_2')
-            traj_ll = tf.reshape(
-                traj_ll_flat, [-1, self.max_path_length], name='traj_ll')
+                i.flat.latent_var, traj_dist_info_flat, name='traj_ll_flat_2')
+            traj_ll = tf.reshape(traj_ll_flat, [-1, self.max_path_length],
+                                 name='traj_ll')
 
             # Calculate loss
-            traj_gammas = tf.constant(
-                float(self.discount),
-                dtype=tf.float32,
-                shape=[self.max_path_length])
-            traj_discounts = tf.cumprod(
-                traj_gammas, exclusive=True, name='traj_discounts')
+            traj_gammas = tf.constant(float(self.discount),
+                                      dtype=tf.float32,
+                                      shape=[self.max_path_length])
+            traj_discounts = tf.compat.v1.cumprod(traj_gammas,
+                                                  exclusive=True,
+                                                  name='traj_discounts')
             discount_traj_ll = traj_discounts * traj_ll
-            discount_traj_ll_flat = flatten_batch(
-                discount_traj_ll, name='discount_traj_ll_flat')
+            discount_traj_ll_flat = flatten_batch(discount_traj_ll,
+                                                  name='discount_traj_ll_flat')
             discount_traj_ll_valid = filter_valids(
                 discount_traj_ll_flat,
                 i.flat.valid_var,
                 name='discount_traj_ll_valid')
 
             with tf.name_scope('loss'):
-                infer_loss = -tf.reduce_mean(
-                    discount_traj_ll_valid, name='infer_loss')
+                infer_loss = -tf.reduce_mean(discount_traj_ll_valid,
+                                             name='infer_loss')
 
             with tf.name_scope('kl'):
-                # Calculate predicted embedding distributions for each timestep
+                # Calculate predicted encoder distributions for each timestep
                 infer_dist_info_flat = self.inference.dist_info_sym(
                     i.flat.trajectory_var,
                     i.flat.infer_state_info_vars,
@@ -1120,7 +1167,7 @@ class NPOTaskEmbedding(BatchPolopt):
         ]
         embed_state_info_list = [
             samples_data['latent_infos'][k]
-            for k in self.policy.embedding.state_info_keys
+            for k in self.policy.encoder.state_info_keys
         ]
         embed_old_dist_info_list = [
             samples_data['latent_infos'][k]
@@ -1162,6 +1209,7 @@ class NPOTaskEmbedding(BatchPolopt):
             samples_data['trajectory_infos'][k]
             for k in self.inference.distribution.dist_info_keys
         ]
+        # pylint: disable=unexpected-keyword-arg
         inference_opt_input_values = self._inference_opt_inputs._replace(
             latent_var=samples_data['latents'],
             trajectory_var=samples_data['trajectories'],
@@ -1181,6 +1229,9 @@ class NPOTaskEmbedding(BatchPolopt):
             samples_data (dict): Processed sample data.
                 See process_samples() for details.
 
+        Returns:
+            dict: Processed sample data.
+
         """
         # Augment reward from baselines
         rewards_tensor = self._f_rewards(*policy_opt_input_values)
@@ -1194,8 +1245,8 @@ class NPOTaskEmbedding(BatchPolopt):
         env_rewards = concat_tensor_list(env_rewards.copy())
         env_returns = [path['returns'] for path in paths]
         env_returns = concat_tensor_list(env_returns.copy())
-        env_average_discounted_return = \
-            np.mean([path["returns"][0] for path in paths])
+        env_average_discounted_return = (np.mean(
+            [path['returns'][0] for path in paths]))
 
         # Recompute parts of samples_data
         aug_rewards = []
@@ -1215,15 +1266,15 @@ class NPOTaskEmbedding(BatchPolopt):
         d_rewards = np.mean(aug_rewards - env_rewards)
         tabular.record('{}/EntRewards'.format(self.policy.name), d_rewards)
 
-        aug_average_discounted_return = \
-            np.mean([path['returns'][0] for path in paths])
+        aug_average_discounted_return = (np.mean(
+            [path['returns'][0] for path in paths]))
         d_returns = np.mean(aug_average_discounted_return -
                             env_average_discounted_return)
         tabular.record('{}/EntReturns'.format(self.policy.name), d_returns)
 
         # Calculate explained variance
-        ev = np_tensor_utils.explained_variance_1d(
-            np.concatenate(baselines), aug_returns)
+        ev = np_tensor_utils.explained_variance_1d(np.concatenate(baselines),
+                                                   aug_returns)
         tabular.record('{}/ExplainedVariance'.format(self.baseline.name), ev)
 
         inference_rmse = (samples_data['trajectory_infos']['mean'] -
@@ -1235,8 +1286,9 @@ class NPOTaskEmbedding(BatchPolopt):
             samples_data['latents'], samples_data['trajectory_infos']['mean'])
         tabular.record('Inference/RRSE', inference_rrse)
 
-        embed_ent = self._f_embedding_entropy(*policy_opt_input_values)
-        tabular.record('{}/Embedding/Entropy'.format(self.policy.name), embed_ent)
+        embed_ent = self._f_encoder_entropy(*policy_opt_input_values)
+        tabular.record('{}/Encoder/Entropy'.format(self.policy.name),
+                       embed_ent)
 
         infer_ce = self._f_inference_ce(*policy_opt_input_values)
         tabular.record('Inference/CrossEntropy', infer_ce)
@@ -1252,8 +1304,6 @@ class NPOTaskEmbedding(BatchPolopt):
             lengths = path_lengths[task_indices == t]
             completed = lengths < self.max_path_length
             pct_completed = np.mean(completed)
-            num_samples = np.sum(lengths)
-            num_trajs = lengths.shape[0]
             tabular.record('Tasks/EpisodeLength/t={}'.format(t),
                            np.mean(lengths))
             tabular.record('Tasks/CompletionRate/t={}'.format(t),
@@ -1262,42 +1312,51 @@ class NPOTaskEmbedding(BatchPolopt):
 
         return samples_data
 
-    def visualize_distribution(self, samples_data):
-        """Visualize embedding distribution."""
+    def visualize_distribution(self):
+        """Visualize encoder distribution."""
         num_tasks = self.policy.task_space.flat_dim
         all_tasks = np.eye(num_tasks, num_tasks)
-        _, latent_infos = self.policy.encoder.forward(all_tasks)
+        _, latent_infos = self.policy.encoder.forward_n(all_tasks)
 
         for i in range(self.policy.latent_space.flat_dim):
+            # pylint: disable=protected-access
             log_stds = latent_infos['log_std'][:, i]
             if self.policy.encoder.model._std_parameterization == 'exp':
                 stds = np.exp(log_stds)
             elif self.policy.encoder.model._std_parameterization == 'softplus':
                 stds = np.log(1. + log_stds)
             else:
-                raise NotImplementedError
+                return
 
             norm = scipy.stats.norm(loc=latent_infos['mean'][:, i], scale=stds)
             samples = norm.rvs((1000, num_tasks))
             hist = Histogram(samples)
-            tabular.record('Embedding/i={}'.format(i), hist)
+            tabular.record('Encoder/i={}'.format(i), hist)
 
-    def _train_policy_and_embedding_networks(self, policy_opt_input_values):
-        """Joint optimization of policy and embedding networks."""
+    def _train_policy_and_encoder_networks(self, policy_opt_input_values):
+        """Joint optimization of policy and encoder networks.
 
+        Args:
+            policy_opt_input_values (list(np.ndarray)): Flatten policy
+                optimization input values.
+
+        Returns:
+            float: Policy loss after optimization.
+
+        """
         logger.log('Computing loss before')
         loss_before = self._optimizer.loss(policy_opt_input_values)
 
         logger.log('Computing KL before')
         policy_kl_before = self._f_policy_kl(*policy_opt_input_values)
-        embed_kl_before = self._f_embedding_kl(*policy_opt_input_values)
+        embed_kl_before = self._f_encoder_kl(*policy_opt_input_values)
 
         logger.log('Optimizing')
         self._optimizer.optimize(policy_opt_input_values)
 
         logger.log('Computing KL after')
         policy_kl = self._f_policy_kl(*policy_opt_input_values)
-        embed_kl = self._f_embedding_kl(*policy_opt_input_values)
+        embed_kl = self._f_encoder_kl(*policy_opt_input_values)
 
         logger.log('Computing loss after')
         loss_after = self._optimizer.loss(policy_opt_input_values)
@@ -1308,15 +1367,23 @@ class NPOTaskEmbedding(BatchPolopt):
         tabular.record('{}/KLBefore'.format(self.policy.name),
                        policy_kl_before)
         tabular.record('{}/KL'.format(self.policy.name), policy_kl)
-        tabular.record('{}/Embedding/KLBefore'.format(self.policy.name),
+        tabular.record('{}/Encoder/KLBefore'.format(self.policy.name),
                        embed_kl_before)
-        tabular.record('{}/Embedding/KL'.format(self.policy.name), embed_kl)
+        tabular.record('{}/Encoder/KL'.format(self.policy.name), embed_kl)
 
         return loss_after
 
     def _train_inference_network(self, inference_opt_input_values):
-        """Optimize inference network."""
+        """Optimize inference network.
 
+        Args:
+            inference_opt_input_values (list(np.ndarray)): Flatten inference
+                optimization input values.
+
+        Returns:
+            float: Inference loss after optmization.
+
+        """
         logger.log('Optimizing inference network...')
         infer_loss_before = self.inference_optimizer.loss(
             inference_opt_input_values)
@@ -1324,8 +1391,7 @@ class NPOTaskEmbedding(BatchPolopt):
         self.inference_optimizer.optimize(inference_opt_input_values)
         infer_loss_after = self.inference_optimizer.loss(
             inference_opt_input_values)
-        tabular.record('Inference/dLoss',
-                       infer_loss_before - infer_loss_after)
+        tabular.record('Inference/dLoss', infer_loss_before - infer_loss_after)
 
         return infer_loss_after
 
@@ -1390,8 +1456,8 @@ class NPOTaskEmbedding(BatchPolopt):
         del data['_policy_opt_inputs']
         del data['_f_inference_ce']
         del data['_f_task_entropies']
-        del data['_f_embedding_entropy']
-        del data['_f_embedding_kl']
+        del data['_f_encoder_entropy']
+        del data['_f_encoder_kl']
         del data['_f_policy_entropy']
         del data['_f_policy_kl']
         del data['_f_rewards']

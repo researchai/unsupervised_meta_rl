@@ -49,6 +49,13 @@ class TestGaussianMLPEncoder(TfGraphTestCase):
         assert np.array_equal(prob['mean'], expected_mean)
         assert np.array_equal(prob['log_std'], expected_log_std)
 
+        latents, probs = embedding.forward_n([obs, obs, obs])
+        for latent, mean, log_std in zip(latents, probs['mean'],
+                                         probs['log_std']):
+            assert np.array_equal(latent, expected_embedding)
+            assert np.array_equal(mean, expected_mean)
+            assert np.array_equal(log_std, expected_log_std)
+
     @pytest.mark.parametrize('obs_dim, embedding_dim', [
         ((1, ), (1, )),
         ((1, ), (2, )),
