@@ -320,19 +320,50 @@ def slice_nested_dict(dict_or_array, start, stop):
         return dict_or_array[start:stop]
 
 
-def rrse(actual: np.ndarray, predicted: np.ndarray):
-    """ Root Relative Squared Error """
-    return np.sqrt(np.sum(np.square(actual - predicted)) / np.sum(np.square(actual - np.mean(actual))))
+def rrse(actual, predicted):
+    """Root Relative Squared Error.
+
+    Args:
+        actual (np.ndarray): The actual value.
+        predicted (np.ndarray): The predicted value.
+
+    Returns:
+        float: The root relative square error between the actual and the
+            predicted value.
+
+    """
+    return np.sqrt(
+        np.sum(np.square(actual - predicted)) /
+        np.sum(np.square(actual - np.mean(actual))))
 
 
 def sliding_window(t, window, step_size, smear=False):
+    """Create a sliding window over a tensor.
+
+    Args:
+        t (np.ndarray): A tensor to create sliding window from,
+            with shape :math:`(N, D)`, where N is the length of a trajectory,
+            D is the dimension of each step in trajectory.
+        window (int): Window size, mush be less than N.
+        step_size (int): Distance between two neighboring windows.
+        smear (bool): If true, copy the last window so that N windows are
+            generated.
+
+    Returns:
+        np.ndarray: All windows generate over t, with shape :math:`(M, W, D)`,
+            where W is the window size. If smear if False, M is :math:`N-W+1`,
+            otherwise M is N.
+
+    Raises:
+        NotImplementedError: If step_size is not 1.
+        ValueError: If window size is larger than the input tensor.
+
+    """
     if window > t.shape[0]:
-        raise ValueError("`window` must be <= `t.shape[0]`")
-    elif window == t.shape[0]:
+        raise ValueError('`window` must be <= `t.shape[0]`')
+    if window == t.shape[0]:
         return np.stack([t] * window)
 
-    # TODO(gh/19): this is broken for other step sizes. The problem may be with
-    # the transpose trick
     if step_size != 1:
         raise NotImplementedError
 
@@ -342,8 +373,9 @@ def sliding_window(t, window, step_size, smear=False):
 
     shape = t_T.shape[:-1] + (t_T.shape[-1] - window + 1 - step_size, window)
     strides = t_T.strides + (t_T.strides[-1] * step_size, )
-    t_T_win = np.lib.stride_tricks.as_strided(
-        t_T, shape=shape, strides=strides)
+    t_T_win = np.lib.stride_tricks.as_strided(t_T,
+                                              shape=shape,
+                                              strides=strides)
 
     # t_T_win has shape (d_k, d_k-1, ..., (n - window_size), window_size)
     # To arrive at the final shape, we first transpose the result to arrive at
