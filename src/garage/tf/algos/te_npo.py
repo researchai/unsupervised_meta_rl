@@ -149,7 +149,7 @@ class TENPO(BatchPolopt):
 
         optimizer, optimizer_args = self._build_optimizer(
             optimizer, optimizer_args)
-        inference_optimizer, inference_optimizer_args = self._build_optimizer(
+        inference_opt, inference_opt_args = self._build_inference_optimizer(
             inference_optimizer, inference_optimizer_args)
 
         self._check_entropy_configuration(entropy_method, center_adv,
@@ -168,8 +168,7 @@ class TENPO(BatchPolopt):
 
             self.inference = inference
             self.inference_ce_coeff = float(inference_ce_coeff)
-            self.inference_optimizer = inference_optimizer(
-                **inference_optimizer_args)
+            self.inference_optimizer = inference_opt(**inference_opt_args)
             self.encoder_ent_coeff = encoder_ent_coeff
 
         self._f_rewards = None
@@ -445,7 +444,7 @@ class TENPO(BatchPolopt):
         return samples_data
 
     def _build_optimizer(self, optimizer, optimizer_args):
-        """Build up optimizer.
+        """Build up optimizer for policy.
 
         Args:
             optimizer (obj): Policy optimizer. Should be one of the optimizers
@@ -464,6 +463,22 @@ class TENPO(BatchPolopt):
         if optimizer_args is None:
             optimizer_args = dict()
         return optimizer, optimizer_args
+
+    def _build_inference_optimizer(self, optimizer, optimizer_args):
+        """Build up optimizer for inference.
+
+        Args:
+            optimizer (obj): Policy optimizer. Should be one of the optimizers
+                in garage.tf.optimizers.
+            optimizer_args (dict): The arguments of the optimizer.
+
+        Returns:
+            obj: Policy optimizer. Should be one of the optimizers
+                in garage.tf.optimizers.
+            dict: The arguments of the optimizer.
+
+        """
+        return self._build_optimizer(optimizer, optimizer_args)
 
     def _build_inputs(self):
         """Build input variables.

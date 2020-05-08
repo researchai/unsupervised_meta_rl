@@ -1,6 +1,6 @@
 """Trust Region Policy Optimization."""
 from garage.tf.algos.te_npo import TENPO
-from garage.tf.optimizers import ConjugateGradientOptimizer
+from garage.tf.optimizers import ConjugateGradientOptimizer, LbfgsOptimizer
 from garage.tf.optimizers import PenaltyLbfgsOptimizer
 
 
@@ -116,7 +116,7 @@ class TETRPO(TENPO):
 
         optimizer, optimizer_args = self._build_optimizer(
             optimizer, optimizer_args)
-        inference_optimizer, inference_optimizer_args = self._build_optimizer(
+        inference_opt, inference_opt_args = self._build_inference_optimizer(
             inference_optimizer, inference_optimizer_args)
 
         super().__init__(env_spec=env_spec,
@@ -143,13 +143,13 @@ class TETRPO(TENPO):
                          entropy_method=entropy_method,
                          flatten_input=flatten_input,
                          inference=inference,
-                         inference_optimizer=inference_optimizer,
-                         inference_optimizer_args=inference_optimizer_args,
+                         inference_optimizer=inference_opt,
+                         inference_optimizer_args=inference_opt_args,
                          inference_ce_coeff=inference_ce_coeff,
                          name=name)
 
     def _build_optimizer(self, optimizer, optimizer_args):
-        """Build up optimizer.
+        """Build up optimizer for policy.
 
         Args:
             optimizer (obj): Policy optimizer. Should be one of the optimizers
@@ -173,4 +173,28 @@ class TETRPO(TENPO):
                 optimizer = PenaltyLbfgsOptimizer
             else:
                 raise ValueError('Invalid kl_constraint')
+        return optimizer, optimizer_args or dict()
+
+    def _build_inference_optimizer(self, optimizer, optimizer_args):
+        """Build up optimizer for inference.
+
+        Args:
+            optimizer (obj): Policy optimizer. Should be one of the optimizers
+                in garage.tf.optimizers.
+            optimizer_args (dict): The arguments of the optimizer.
+
+        Returns:
+            obj: Policy optimizer. Should be one of the optimizers
+                in garage.tf.optimizers.
+            dict: The arguments of the optimizer.
+
+        Raises:
+            ValueError: Raise if algorithm's KL contraint is neither 'hard' nor
+                'soft'.
+
+        """
+        if optimizer is None:
+            optimizer = LbfgsOptimizer
+        if optimizer_args is None:
+            optimizer_args = dict()
         return optimizer, optimizer_args
