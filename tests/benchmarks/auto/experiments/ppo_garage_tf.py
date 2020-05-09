@@ -10,7 +10,7 @@ from garage.tf.baselines import GaussianMLPBaseline as TF_GMB
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import FirstOrderOptimizer
-from garage.tf.policies import GaussianMLPPolicy as TF_GMP
+from garage.tf.policies import GaussianMLPPolicy2 as TF_GMP
 
 hyper_parameters = {
     'n_epochs': 500,

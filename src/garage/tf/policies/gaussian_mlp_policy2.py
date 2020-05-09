@@ -4,6 +4,7 @@ A policy represented by a Gaussian distribution
 which is parameterized by a multilayer perceptron (MLP).
 """
 import akro
+import numpy as np
 import tensorflow as tf
 
 from garage.tf.models import GaussianMLPModel2
@@ -183,10 +184,10 @@ class GaussianMLPPolicy2(StochasticPolicy2):
                 distribution.
 
         """
-        sample, mean, log_std = self._f_dist([observation])
-        sample = self.action_space.unflatten(sample[0])
-        mean = self.action_space.unflatten(mean[0])
-        log_std = self.action_space.unflatten(log_std[0])
+        sample, mean, log_std = self._f_dist(np.expand_dims([observation], 1))
+        sample = self.action_space.unflatten_n(np.squeeze(sample, 1)[0])
+        mean = self.action_space.unflatten_n(np.squeeze(mean, 1)[0])
+        log_std = self.action_space.unflatten_n(np.squeeze(log_std, 1)[0])
         return sample, dict(mean=mean, log_std=log_std)
 
     def get_actions(self, observations):
@@ -206,10 +207,11 @@ class GaussianMLPPolicy2(StochasticPolicy2):
                 distribution.
 
         """
-        samples, means, log_stds = self._f_dist(observations)
-        samples = self.action_space.unflatten_n(samples)
-        means = self.action_space.unflatten_n(means)
-        log_stds = self.action_space.unflatten_n(log_stds)
+        samples, means, log_stds = self._f_dist(np.expand_dims(
+            observations, 1))
+        samples = self.action_space.unflatten_n(np.squeeze(samples, 1))
+        means = self.action_space.unflatten_n(np.squeeze(means, 1))
+        log_stds = self.action_space.unflatten_n(np.squeeze(log_stds, 1))
         return samples, dict(mean=means, log_std=log_stds)
 
     @property

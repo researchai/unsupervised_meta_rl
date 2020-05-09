@@ -47,7 +47,7 @@ class CategoricalMLPModel(MLPModel):
                  output_dim,
                  name=None,
                  hidden_sizes=(32, 32),
-                 hidden_nonlinearity=tf.nn.tanh,
+                 hidden_nonlinearity=tf.nn.relu,
                  hidden_w_init=tf.initializers.glorot_uniform(),
                  hidden_b_init=tf.zeros_initializer(),
                  output_nonlinearity=None,

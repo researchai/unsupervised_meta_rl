@@ -14,7 +14,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.sampler import OnPolicyVectorizedSampler
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy2
 
 
 def run_task(snapshot_config, *_):
@@ -29,10 +29,12 @@ def run_task(snapshot_config, *_):
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
         env = TfEnv(env_name='CartPole-v1')
 
-        policy = CategoricalMLPPolicy(name='policy',
-                                      env_spec=env.spec,
-                                      hidden_sizes=(32, 32))
-
+        policy = CategoricalMLPPolicy2(name='policy',
+                                       env_spec=env.spec,
+                                       hidden_sizes=(32, 32))
+        input_var = env.observation_space.to_tf_placeholder(name='obs',
+                                                            batch_dims=2)
+        policy.build(input_var)
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
         n_samples = 20

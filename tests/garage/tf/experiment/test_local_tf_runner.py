@@ -8,7 +8,7 @@ from garage.tf.algos import VPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.plotter import Plotter
-from garage.tf.policies import CategoricalMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy2
 from garage.tf.samplers import BatchSampler
 from tests.fixtures import snapshot_config, TfGraphTestCase
 from tests.fixtures.sampler import ray_session_fixture
@@ -36,9 +36,9 @@ class TestLocalRunner(TfGraphTestCase):
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(env_name='CartPole-v1')
 
-            policy = CategoricalMLPPolicy(name='policy',
-                                          env_spec=env.spec,
-                                          hidden_sizes=(8, 8))
+            policy = CategoricalMLPPolicy2(name='policy',
+                                           env_spec=env.spec,
+                                           hidden_sizes=(8, 8))
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -64,9 +64,9 @@ class TestLocalRunner(TfGraphTestCase):
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(env_name='CartPole-v1')
 
-            policy = CategoricalMLPPolicy(name='policy',
-                                          env_spec=env.spec,
-                                          hidden_sizes=(8, 8))
+            policy = CategoricalMLPPolicy2(name='policy',
+                                           env_spec=env.spec,
+                                           hidden_sizes=(8, 8))
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -98,9 +98,9 @@ class TestLocalRunner(TfGraphTestCase):
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(env_name='CartPole-v1')
 
-            policy = CategoricalMLPPolicy(name='policy',
-                                          env_spec=env.spec,
-                                          hidden_sizes=(8, 8))
+            policy = CategoricalMLPPolicy2(name='policy',
+                                           env_spec=env.spec,
+                                           hidden_sizes=(8, 8))
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -123,9 +123,9 @@ class TestLocalRunner(TfGraphTestCase):
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(env_name='CartPole-v1')
 
-            policy = CategoricalMLPPolicy(name='policy',
-                                          env_spec=env.spec,
-                                          hidden_sizes=(8, 8))
+            policy = CategoricalMLPPolicy2(name='policy',
+                                           env_spec=env.spec,
+                                           hidden_sizes=(8, 8))
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -147,9 +147,9 @@ class TestLocalRunner(TfGraphTestCase):
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(env_name='CubeCrash-v0')
 
-            policy = CategoricalMLPPolicy(name='policy',
-                                          env_spec=env.spec,
-                                          hidden_sizes=(8, 8))
+            policy = CategoricalMLPPolicy2(name='policy',
+                                           env_spec=env.spec,
+                                           hidden_sizes=(8, 8))
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 

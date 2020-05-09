@@ -9,7 +9,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import VPG as TF_VPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy as TF_GMP
+from garage.tf.policies import GaussianMLPPolicy2 as TF_GMP
 
 hyper_parameters = {
     'hidden_sizes': [64, 64],

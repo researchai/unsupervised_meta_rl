@@ -15,7 +15,7 @@ from garage.sampler import RaySampler
 from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 
 
 @wrap_experiment
@@ -41,7 +41,7 @@ def tf_trpo_swimmer(ctxt=None, seed=1):
         set_seed(seed)
         env = TfEnv(gym.make('Swimmer-v2'))
 
-        policy = GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=(32, 32))
+        policy = GaussianMLPPolicy2(env_spec=env.spec, hidden_sizes=(32, 32))
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 

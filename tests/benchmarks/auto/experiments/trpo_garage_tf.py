@@ -9,7 +9,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 
 hyper_parameters = {
     'hidden_sizes': [32, 32],
@@ -39,7 +39,7 @@ def trpo_garage_tf(ctxt, env_id, seed):
     with LocalTFRunner(ctxt) as runner:
         env = TfEnv(normalize(gym.make(env_id)))
 
-        policy = GaussianMLPPolicy(
+        policy = GaussianMLPPolicy2(
             env_spec=env.spec,
             hidden_sizes=hyper_parameters['hidden_sizes'],
             hidden_nonlinearity=tf.nn.tanh,

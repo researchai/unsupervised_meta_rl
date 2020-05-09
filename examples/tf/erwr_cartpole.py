@@ -13,7 +13,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import ERWR
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy2
 
 
 @wrap_experiment
@@ -31,9 +31,9 @@ def erwr_cartpole(ctxt=None, seed=1):
     with LocalTFRunner(snapshot_config=ctxt) as runner:
         env = TfEnv(env_name='CartPole-v1')
 
-        policy = CategoricalMLPPolicy(name='policy',
-                                      env_spec=env.spec,
-                                      hidden_sizes=(32, 32))
+        policy = CategoricalMLPPolicy2(name='policy',
+                                       env_spec=env.spec,
+                                       hidden_sizes=(32, 32))
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 

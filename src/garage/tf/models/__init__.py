@@ -8,6 +8,7 @@ from garage.tf.models.cnn_mlp_merge_model import CNNMLPMergeModel
 from garage.tf.models.cnn_model import CNNModel
 from garage.tf.models.cnn_model_max_pooling import CNNModelWithMaxPooling
 from garage.tf.models.gaussian_cnn_model import GaussianCNNModel
+from garage.tf.models.gaussian_cnn_model2 import GaussianCNNModel2
 from garage.tf.models.gaussian_gru_model import GaussianGRUModel
 from garage.tf.models.gaussian_gru_model2 import GaussianGRUModel2
 from garage.tf.models.gaussian_lstm_model import GaussianLSTMModel
@@ -27,8 +28,9 @@ __all__ = [
     'CategoricalCNNModel', 'CategoricalGRUModel', 'CategoricalLSTMModel',
     'CategoricalMLPModel', 'CNNMLPMergeModel', 'CNNModel',
     'CNNModelWithMaxPooling', 'LSTMModel', 'Model', 'Module',
-    'GaussianCNNModel', 'GaussianGRUModel', 'GaussianGRUModel2',
-    'GaussianLSTMModel', 'GaussianLSTMModel2', 'GaussianMLPModel',
-    'GaussianMLPModel2', 'GRUModel', 'MLPDuelingModel', 'MLPMergeModel',
-    'MLPModel', 'NormalizedInputMLPModel', 'Sequential', 'StochasticModule'
+    'GaussianCNNModel', 'GaussianCNNModel2', 'GaussianGRUModel',
+    'GaussianGRUModel2', 'GaussianLSTMModel', 'GaussianLSTMModel2',
+    'GaussianMLPModel', 'GaussianMLPModel2', 'GRUModel', 'MLPDuelingModel',
+    'MLPMergeModel', 'MLPModel', 'NormalizedInputMLPModel', 'Sequential',
+    'StochasticModule'
 ]

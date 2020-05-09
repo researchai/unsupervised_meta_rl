@@ -6,7 +6,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TNPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 from tests.fixtures import snapshot_config, TfGraphTestCase
 
 
@@ -18,9 +18,9 @@ class TestTNPG(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(normalize(gym.make('InvertedPendulum-v2')))
 
-            policy = GaussianMLPPolicy(name='policy',
-                                       env_spec=env.spec,
-                                       hidden_sizes=(32, 32))
+            policy = GaussianMLPPolicy2(name='policy',
+                                        env_spec=env.spec,
+                                        hidden_sizes=(32, 32))
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 

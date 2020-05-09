@@ -245,4 +245,4 @@ class GaussianMLPModel2(Model):
                 log_std_var = tf.math.log(tf.math.log(1. + tf.exp(std_param)))
 
         return tfp.distributions.MultivariateNormalDiag(
-            loc=mean_var, scale_diag=tf.exp(log_std_var))
+            loc=mean_var, scale_diag=tf.exp(tf.expand_dims(log_std_var, 1)))

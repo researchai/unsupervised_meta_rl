@@ -10,7 +10,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import PPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy2
 
 
 def run_task(snapshot_config, *_):
@@ -28,7 +28,7 @@ def run_task(snapshot_config, *_):
         env2 = TfEnv(normalize(gym.make('Alien-ram-v4')))
         env = MultiEnvWrapper([env1, env2])
 
-        policy = CategoricalMLPPolicy(
+        policy = CategoricalMLPPolicy2(
             env_spec=env.spec,
             hidden_nonlinearity=tf.nn.tanh,
         )

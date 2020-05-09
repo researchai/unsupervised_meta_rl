@@ -16,10 +16,10 @@ from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import FiniteDifferenceHvp
-from garage.tf.policies import CategoricalCNNPolicy
-from garage.tf.policies import CategoricalGRUPolicy
-from garage.tf.policies import CategoricalLSTMPolicy
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import CategoricalCNNPolicy2
+from garage.tf.policies import CategoricalGRUPolicy2
+from garage.tf.policies import CategoricalLSTMPolicy2
+from garage.tf.policies import GaussianMLPPolicy2
 from tests.fixtures import snapshot_config, TfGraphTestCase
 
 
@@ -28,7 +28,7 @@ class TestTRPO(TfGraphTestCase):
     def setup_method(self):
         super().setup_method()
         self.env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-        self.policy = GaussianMLPPolicy(
+        self.policy = GaussianMLPPolicy2(
             env_spec=self.env.spec,
             hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,
@@ -90,7 +90,7 @@ class TestTRPO(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(normalize(gym.make('CartPole-v1')))
 
-            policy = CategoricalLSTMPolicy(name='policy', env_spec=env.spec)
+            policy = CategoricalLSTMPolicy2(name='policy', env_spec=env.spec)
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -116,7 +116,7 @@ class TestTRPO(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(normalize(gym.make('CartPole-v1')))
 
-            policy = CategoricalGRUPolicy(name='policy', env_spec=env.spec)
+            policy = CategoricalGRUPolicy2(name='policy', env_spec=env.spec)
 
             baseline = LinearFeatureBaseline(env_spec=env.spec)
 
@@ -147,12 +147,12 @@ class TestTRPOCNNCubeCrash(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(normalize(gym.make('CubeCrash-v0')))
 
-            policy = CategoricalCNNPolicy(env_spec=env.spec,
-                                          conv_filters=(32, 64),
-                                          conv_filter_sizes=(8, 4),
-                                          conv_strides=(4, 2),
-                                          conv_pad='VALID',
-                                          hidden_sizes=(32, 32))
+            policy = CategoricalCNNPolicy2(env_spec=env.spec,
+                                           num_filters=(32, 64),
+                                           filter_dims=(8, 4),
+                                           strides=(4, 2),
+                                           padding='VALID',
+                                           hidden_sizes=(32, 32))
 
             baseline = GaussianCNNBaseline(env_spec=env.spec,
                                            regressor_args=dict(

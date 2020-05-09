@@ -18,7 +18,7 @@ from garage.tf.baselines import GaussianMLPBaseline as TF_GMB
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import FirstOrderOptimizer
-from garage.tf.policies import GaussianMLPPolicy as TF_GMP
+from garage.tf.policies import GaussianMLPPolicy2 as TF_GMP
 from garage.torch.algos import PPO as PyTorch_PPO
 from garage.torch.optimizers import OptimizerWrapper
 from garage.torch.policies import GaussianMLPPolicy as PyTorch_GMP

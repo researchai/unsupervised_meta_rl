@@ -10,7 +10,7 @@ from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import FirstOrderOptimizer
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 
 
 class BenchmarkGaussianMLPPolicy:
@@ -51,7 +51,7 @@ class BenchmarkGaussianMLPPolicy:
             env = gym.make(self._env)
             env = TfEnv(normalize(env))
             env.reset()
-            policy = GaussianMLPPolicy(
+            policy = GaussianMLPPolicy2(
                 env_spec=env.spec,
                 hidden_sizes=(32, 32),
                 hidden_nonlinearity=tf.nn.tanh,

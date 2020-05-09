@@ -20,7 +20,7 @@ from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import ConjugateGradientOptimizer
 from garage.tf.optimizers import FiniteDifferenceHvp
-from garage.tf.policies import CategoricalLSTMPolicy
+from garage.tf.policies import CategoricalLSTMPolicy2
 
 
 @click.command()
@@ -46,7 +46,7 @@ def trpo_cartpole_recurrent(ctxt, seed, n_epochs, batch_size, plot):
     with LocalTFRunner(snapshot_config=ctxt) as runner:
         env = TfEnv(env_name='CartPole-v1')
 
-        policy = CategoricalLSTMPolicy(name='policy', env_spec=env.spec)
+        policy = CategoricalLSTMPolicy2(name='policy', env_spec=env.spec)
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 

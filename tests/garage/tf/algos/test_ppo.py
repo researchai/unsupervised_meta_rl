@@ -13,10 +13,10 @@ from garage.tf.baselines import ContinuousMLPBaseline
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalMLPPolicy
-from garage.tf.policies import GaussianGRUPolicy
-from garage.tf.policies import GaussianLSTMPolicy
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy2
+from garage.tf.policies import GaussianGRUPolicy2
+from garage.tf.policies import GaussianLSTMPolicy2
+from garage.tf.policies import GaussianMLPPolicy2
 from tests.fixtures import snapshot_config, TfGraphTestCase
 from tests.fixtures.envs.wrappers import ReshapeObservation
 
@@ -26,14 +26,14 @@ class TestPPO(TfGraphTestCase):
     def setup_method(self):
         super().setup_method()
         self.env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-        self.policy = GaussianMLPPolicy(
+        self.policy = GaussianMLPPolicy2(
             env_spec=self.env.spec,
             hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,
             output_nonlinearity=None,
         )
-        self.lstm_policy = GaussianLSTMPolicy(env_spec=self.env.spec)
-        self.gru_policy = GaussianGRUPolicy(env_spec=self.env.spec)
+        self.lstm_policy = GaussianLSTMPolic2(env_spec=self.env.spec)
+        self.gru_policy = GaussianGRUPolicy2(env_spec=self.env.spec)
         self.baseline = GaussianMLPBaseline(
             env_spec=self.env.spec,
             regressor_args=dict(hidden_sizes=(32, 32)),
@@ -145,7 +145,7 @@ class TestPPO(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(
                 normalize(ReshapeObservation(gym.make('CartPole-v1'), (2, 2))))
-            policy = CategoricalMLPPolicy(
+            policy = CategoricalMLPPolicy2(
                 env_spec=env.spec,
                 hidden_nonlinearity=tf.nn.tanh,
             )
@@ -179,7 +179,7 @@ class TestPPOContinuousBaseline(TfGraphTestCase):
         """Test PPO with Pendulum environment."""
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-            policy = GaussianMLPPolicy(
+            policy = GaussianMLPPolicy2(
                 env_spec=env.spec,
                 hidden_sizes=(64, 64),
                 hidden_nonlinearity=tf.nn.tanh,
@@ -217,7 +217,7 @@ class TestPPOContinuousBaseline(TfGraphTestCase):
         """Test PPO with Pendulum environment and recurrent policy."""
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-            policy = GaussianLSTMPolicy(env_spec=env.spec, )
+            policy = GaussianLSTMPolicy2(env_spec=env.spec, )
             baseline = ContinuousMLPBaseline(
                 env_spec=env.spec,
                 regressor_args=dict(hidden_sizes=(32, 32)),
@@ -253,7 +253,7 @@ class TestPPOPendulumLSTM(TfGraphTestCase):
         """Test PPO with Pendulum environment and recurrent policy."""
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-            lstm_policy = GaussianLSTMPolicy(env_spec=env.spec)
+            lstm_policy = GaussianLSTMPolicy2(env_spec=env.spec)
             baseline = GaussianMLPBaseline(
                 env_spec=env.spec,
                 regressor_args=dict(hidden_sizes=(32, 32)),
@@ -287,7 +287,7 @@ class TestPPOPendulumGRU(TfGraphTestCase):
         """Test PPO with Pendulum environment and recurrent policy."""
         with LocalTFRunner(snapshot_config) as runner:
             env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-            gru_policy = GaussianGRUPolicy(env_spec=env.spec)
+            gru_policy = GaussianGRUPolicy2(env_spec=env.spec)
             baseline = GaussianMLPBaseline(
                 env_spec=env.spec,
                 regressor_args=dict(hidden_sizes=(32, 32)),

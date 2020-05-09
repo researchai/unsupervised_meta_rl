@@ -136,7 +136,6 @@ class FirstOrderOptimizer:
         dataset = BatchDataset(inputs,
                                self._batch_size,
                                extra_inputs=extra_inputs)
-
         sess = tf.compat.v1.get_default_session()
 
         for epoch in range(self._max_epochs):

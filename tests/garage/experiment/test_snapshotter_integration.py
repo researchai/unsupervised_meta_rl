@@ -5,7 +5,7 @@ import pytest
 from garage.experiment import SnapshotConfig, Snapshotter
 from garage.tf.algos import VPG
 from garage.tf.envs import TfEnv
-from garage.tf.policies import CategoricalMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy2
 from tests.fixtures import TfGraphTestCase
 from tests.fixtures.experiment import fixture_exp
 
@@ -35,7 +35,7 @@ class TestSnapshot(TfGraphTestCase):
 
         assert isinstance(saved['algo'], VPG)
         assert isinstance(saved['env'], TfEnv)
-        assert isinstance(saved['algo'].policy, CategoricalMLPPolicy)
+        assert isinstance(saved['algo'].policy, CategoricalMLPPolicy2)
         assert saved['stats'].total_epoch == last_epoch
 
     def test_load_with_invalid_load_mode(self):

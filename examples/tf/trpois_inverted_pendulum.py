@@ -12,7 +12,7 @@ from garage.sampler import ISSampler
 from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 
 
 def run_task(snapshot_config, *_):
@@ -27,7 +27,7 @@ def run_task(snapshot_config, *_):
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
         env = TfEnv(normalize(gym.make('InvertedPendulum-v2')))
 
-        policy = GaussianMLPPolicy(env_spec=env.spec, hidden_sizes=(32, 32))
+        policy = GaussianMLPPolicy2(env_spec=env.spec, hidden_sizes=(32, 32))
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 

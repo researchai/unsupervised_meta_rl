@@ -17,7 +17,7 @@ from garage.tf.algos import PPO
 from garage.tf.baselines import ContinuousMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianLSTMPolicy
+from garage.tf.policies import GaussianLSTMPolicy2
 from tests.fixtures import snapshot_config
 
 policy_params = {
@@ -113,7 +113,7 @@ def ppo_cmb(env, seed, log_dir):
                        max_cpus=num_proc) as runner:
         env = TfEnv(normalize(env))
 
-        policy = GaussianLSTMPolicy(
+        policy = GaussianLSTMPolicy2(
             env_spec=env.spec,
             hidden_dim=policy_params['policy_hidden_sizes'],
             hidden_nonlinearity=policy_params['hidden_nonlinearity'],

@@ -5,6 +5,7 @@ A model composed of one or more models which are connected sequential,
 according to the insertion order.
 """
 from garage.tf.models.base import Model
+import tensorflow as tf
 
 
 class Sequential(Model):

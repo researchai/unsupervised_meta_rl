@@ -17,7 +17,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import VPG as TF_VPG
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy as TF_GMP
+from garage.tf.policies import GaussianMLPPolicy2 as TF_GMP
 from garage.torch.algos import VPG as PyTorch_VPG
 from garage.torch.optimizers import OptimizerWrapper
 from garage.torch.policies import GaussianMLPPolicy as PyTorch_GMP

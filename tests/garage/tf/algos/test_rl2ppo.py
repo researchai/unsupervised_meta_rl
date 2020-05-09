@@ -26,7 +26,7 @@ from garage.tf.algos import RL2PPO
 from garage.tf.algos.rl2 import RL2Env
 from garage.tf.algos.rl2 import RL2Worker
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianGRUPolicy
+from garage.tf.policies import GaussianGRUPolicy2
 from tests.fixtures import snapshot_config, TfGraphTestCase
 
 
@@ -41,9 +41,9 @@ class TestRL2PPO(TfGraphTestCase):
         self.tasks = task_sampler.SetTaskSampler(lambda: RL2Env(env=normalize(
             HalfCheetahDirEnv())))
         self.env_spec = RL2Env(env=normalize(HalfCheetahDirEnv())).spec
-        self.policy = GaussianGRUPolicy(env_spec=self.env_spec,
-                                        hidden_dim=64,
-                                        state_include_action=False)
+        self.policy = GaussianGRUPolicy2(env_spec=self.env_spec,
+                                         hidden_dim=64,
+                                         state_include_action=False)
         self.baseline = LinearFeatureBaseline(env_spec=self.env_spec)
 
     def test_rl2_ppo_pendulum(self):

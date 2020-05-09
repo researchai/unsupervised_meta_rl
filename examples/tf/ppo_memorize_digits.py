@@ -9,10 +9,11 @@ import gym
 from garage.envs import normalize
 from garage.experiment import run_experiment
 from garage.tf.algos import PPO
+from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.baselines import GaussianCNNBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalCNNPolicy
+from garage.tf.policies import CategoricalCNNPolicy2
 
 
 def run_task(snapshot_config, variant_data, *_):
@@ -29,12 +30,12 @@ def run_task(snapshot_config, variant_data, *_):
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
         env = TfEnv(normalize(gym.make('MemorizeDigits-v0')), is_image=True)
-        policy = CategoricalCNNPolicy(env_spec=env.spec,
-                                      conv_filters=(32, 64, 64),
-                                      conv_filter_sizes=(5, 3, 2),
-                                      conv_strides=(4, 2, 1),
-                                      conv_pad='VALID',
-                                      hidden_sizes=(256, ))
+        policy = CategoricalCNNPolicy2(env_spec=env.spec,
+                                       num_filters=(32, 64, 64),
+                                       filter_dims=(5, 3, 2),
+                                       strides=(4, 2, 1),
+                                       padding='VALID',
+                                       hidden_sizes=(256, ))
 
         baseline = GaussianCNNBaseline(env_spec=env.spec,
                                        regressor_args=dict(
@@ -45,13 +46,22 @@ def run_task(snapshot_config, variant_data, *_):
                                            hidden_sizes=(256, ),
                                            use_trust_region=True))
 
-        algo = PPO(env_spec=env.spec,
-                   policy=policy,
-                   baseline=baseline,
-                   max_path_length=100,
-                   discount=0.99,
-                   max_kl_step=0.01,
-                   flatten_input=False)
+        algo = PPO(
+            env_spec=env.spec,
+            policy=policy,
+            baseline=baseline,
+            max_path_length=100,
+            discount=0.99,
+            gae_lambda=0.95,
+            lr_clip_range=0.2,
+            policy_ent_coeff=0.0,
+            optimizer_args=dict(
+                batch_size=32,
+                max_epochs=10,
+                tf_optimizer_args=dict(learning_rate=1e-3),
+            ),
+            flatten_input=False
+        )
 
         runner.setup(algo, env)
         runner.train(n_epochs=1000, batch_size=variant_data['batch_size'])

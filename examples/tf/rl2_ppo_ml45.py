@@ -13,7 +13,7 @@ from garage.tf.algos import RL2PPO
 from garage.tf.algos.rl2 import RL2Env
 from garage.tf.algos.rl2 import RL2Worker
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianGRUPolicy
+from garage.tf.policies import GaussianGRUPolicy2
 
 
 @click.command()
@@ -50,10 +50,10 @@ def rl2_ppo_ml45(ctxt, seed, max_path_length, meta_batch_size, n_epochs,
 
         env_spec = ML_train_envs[0].spec
 
-        policy = GaussianGRUPolicy(name='policy',
-                                   hidden_dim=64,
-                                   env_spec=env_spec,
-                                   state_include_action=False)
+        policy = GaussianGRUPolicy2(name='policy',
+                                    hidden_dim=64,
+                                    env_spec=env_spec,
+                                    state_include_action=False)
 
         baseline = LinearFeatureBaseline(env_spec=env_spec)
 

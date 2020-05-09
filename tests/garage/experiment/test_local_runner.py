@@ -8,7 +8,7 @@ from garage.experiment import deterministic, LocalRunner
 from garage.plotter import Plotter
 from garage.sampler import LocalSampler
 from garage.torch.algos import PPO
-from garage.torch.policies import GaussianMLPPolicy
+from garage.torch.policies import GaussianMLPPolicy2
 from garage.torch.value_functions import GaussianMLPValueFunction
 from tests.fixtures import snapshot_config
 
@@ -19,7 +19,7 @@ class TestLocalRunner:
     def setup_method(self):
         """Setup method which is called before every test."""
         self.env = GarageEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-        self.policy = GaussianMLPPolicy(
+        self.policy = GaussianMLPPolicy2(
             env_spec=self.env.spec,
             hidden_sizes=(64, 64),
             hidden_nonlinearity=torch.tanh,

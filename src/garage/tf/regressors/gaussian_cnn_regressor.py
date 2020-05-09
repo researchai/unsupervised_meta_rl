@@ -322,12 +322,13 @@ class GaussianCNNRegressor(StochasticRegressor):
             tf.Tensor: Output of the symbolic log-likelihood graph.
 
         """
-        params = self.dist_info_sym(x_var, name=name)
-        means_var = params['mean']
-        log_stds_var = params['log_std']
+        # params = self.dist_info_sym(x_var, name=name)
+        # means_var = params['mean']
+        # log_stds_var = params['log_std']
 
-        return self.model.networks[name].dist.log_likelihood_sym(
-            y_var, dict(mean=means_var, log_std=log_stds_var))
+        # return self.model.networks[name].dist.log_likelihood_sym(
+        #     y_var, dict(mean=means_var, log_std=log_stds_var))
+        pass
 
     def dist_info_sym(self, input_var, state_info_vars=None, name=None):
         """Create a symbolic graph of the distribution parameters.
@@ -344,13 +345,14 @@ class GaussianCNNRegressor(StochasticRegressor):
                 graph.
 
         """
-        with tf.compat.v1.variable_scope(self._variable_scope):
-            self.model.build(input_var, name=name)
+        # with tf.compat.v1.variable_scope(self._variable_scope):
+        #     self.model.build(input_var, name=name)
 
-        means_var = self.model.networks[name].means
-        log_stds_var = self.model.networks[name].log_stds
+        # means_var = self.model.networks[name].means
+        # log_stds_var = self.model.networks[name].log_stds
 
-        return dict(mean=means_var, log_std=log_stds_var)
+        # return dict(mean=means_var, log_std=log_stds_var)
+        pass
 
     @property
     def recurrent(self):

@@ -8,7 +8,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 
 
 def run_task(snapshot_config, *_):
@@ -26,7 +26,7 @@ def run_task(snapshot_config, *_):
         env2 = TfEnv(normalize(PointEnv(goal=(1., 0.))))
         env = MultiEnvWrapper([env1, env2])
 
-        policy = GaussianMLPPolicy(env_spec=env.spec)
+        policy = GaussianMLPPolicy2(env_spec=env.spec)
 
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 

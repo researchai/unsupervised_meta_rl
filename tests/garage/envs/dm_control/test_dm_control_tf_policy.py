@@ -6,7 +6,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 from tests.fixtures import snapshot_config, TfGraphTestCase
 
 
@@ -19,7 +19,7 @@ class TestDmControlTfPolicy(TfGraphTestCase):
         with LocalTFRunner(snapshot_config, sess=self.sess) as runner:
             env = TfEnv(DmControlEnv.from_suite(*task))
 
-            policy = GaussianMLPPolicy(
+            policy = GaussianMLPPolicy2(
                 env_spec=env.spec,
                 hidden_sizes=(32, 32),
             )

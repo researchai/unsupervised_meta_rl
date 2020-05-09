@@ -4,6 +4,7 @@ A policy represented by a Categorical distribution
 which is parameterized by a multilayer perceptron (MLP).
 """
 import akro
+import numpy as np
 import tensorflow as tf
 
 from garage.tf.models import CategoricalMLPModel
@@ -99,7 +100,6 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
             self._dist = self.model.build(state_input, name=name)
-
             self._f_prob = tf.compat.v1.get_default_session().make_callable(
                 [tf.argmax(self._dist.sample(), -1), self._dist.probs],
                 feed_list=[state_input])
@@ -135,8 +135,8 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
             dict(numpy.ndarray): Distribution parameters.
 
         """
-        sample, prob = self._f_prob([observation])
-        return sample[0], dict(prob=prob[0])
+        sample, prob = self._f_prob(np.expand_dims([observation], 1))
+        return p.squeeze(sample)[0], dict(prob=np.squeeze(prob, axis=1)[0])
 
     def get_actions(self, observations):
         """Return multiple actions.
@@ -149,8 +149,8 @@ class CategoricalMLPPolicy2(StochasticPolicy2):
             dict(numpy.ndarray): Distribution parameters.
 
         """
-        samples, probs = self._f_prob(observations)
-        return samples, dict(prob=probs)
+        samples, probs = self._f_prob(np.expand_dims(observations, 1))
+        return np.squeeze(samples), dict(prob=np.squeeze(probs, axis=1))
 
     def get_regularizable_vars(self):
         """Get regularizable weight variables under the Policy scope.

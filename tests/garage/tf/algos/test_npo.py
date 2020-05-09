@@ -11,7 +11,7 @@ from garage.tf.algos import NPO
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 from tests.fixtures import snapshot_config, TfGraphTestCase
 
 
@@ -20,7 +20,7 @@ class TestNPO(TfGraphTestCase):
     def setup_method(self):
         super().setup_method()
         self.env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
-        self.policy = GaussianMLPPolicy(
+        self.policy = GaussianMLPPolicy2(
             env_spec=self.env.spec,
             hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,

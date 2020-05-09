@@ -14,7 +14,7 @@ from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import PPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalLSTMPolicy
+from garage.tf.policies import CategoricalLSTMPolicy2
 from tests.fixtures import snapshot_config
 import tests.helpers as Rh
 
@@ -131,7 +131,7 @@ def run_garage(env, seed, log_dir):
     with LocalTFRunner(snapshot_config, sess=sess, max_cpus=12) as runner:
         env = TfEnv(normalize(env))
 
-        policy = CategoricalLSTMPolicy(
+        policy = CategoricalLSTMPolicy2(
             env_spec=env.spec,
             hidden_dim=32,
             hidden_nonlinearity=tf.nn.tanh,

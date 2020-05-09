@@ -19,7 +19,7 @@ from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 
 
 @wrap_experiment
@@ -37,7 +37,7 @@ def tf_ppo_pendulum(ctxt=None, seed=1):
     with LocalTFRunner(snapshot_config=ctxt) as runner:
         env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
 
-        policy = GaussianMLPPolicy(
+        policy = GaussianMLPPolicy2(
             env_spec=env.spec,
             hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,

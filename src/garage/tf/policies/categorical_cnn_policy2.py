@@ -5,6 +5,7 @@ which is parameterized by a convolutional neural network (CNN)
 followed a multilayer perceptron (MLP).
 """
 import akro
+import numpy as np
 import tensorflow as tf
 
 from garage.tf.models import CategoricalCNNModel
@@ -71,7 +72,7 @@ class CategoricalCNNPolicy2(StochasticPolicy2):
                  hidden_nonlinearity=tf.nn.relu,
                  hidden_w_init=tf.initializers.glorot_uniform(),
                  hidden_b_init=tf.zeros_initializer(),
-                 output_nonlinearity=tf.nn.softmax,
+                 output_nonlinearity=None,
                  output_w_init=tf.initializers.glorot_uniform(),
                  output_b_init=tf.zeros_initializer(),
                  layer_normalization=False):
@@ -122,8 +123,12 @@ class CategoricalCNNPolicy2(StochasticPolicy2):
         """
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
-            self._dist = self.model.build(state_input, name=name)
-
+            if isinstance(self.env_spec.observation_space, akro.Image):
+                augmented_state_input = tf.cast(state_input, tf.float32)
+                augmented_state_input /= 255.0
+            else:
+                augmented_state_input = state_input
+            self._dist = self.model.build(augmented_state_input, name=name)
             self._f_prob = tf.compat.v1.get_default_session().make_callable(
                 [tf.argmax(self._dist.sample(), -1), self._dist.probs],
                 feed_list=[state_input])
@@ -173,8 +178,8 @@ class CategoricalCNNPolicy2(StochasticPolicy2):
             dict(numpy.ndarray): Distribution parameters.
 
         """
-        samples, probs = self._f_prob(observations)
-        return samples, dict(prob=probs)
+        samples, probs = self._f_prob(np.expand_dims(observations, 1))
+        return np.squeeze(samples), dict(prob=np.squeeze(probs, axis=1))
 
     def clone(self, name):
         """Return a clone of the policy.
