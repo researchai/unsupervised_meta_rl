@@ -54,6 +54,20 @@ class NormalizedEnv(gym.Wrapper):
         self._reward_mean = 0.
         self._reward_var = 1.
 
+        self._action_space = gym.spaces.Box(-self._expected_action_scale,
+                                            self._expected_action_scale,
+                                            shape=env.action_space.shape,
+                                            dtype=env.action_space.dtype)
+    
+
+    @property
+    def action_space(self):
+        return self._action_space
+    
+    @action_space.setter
+    def action_space(self, action_space):
+        self._action_space = action_space
+
     def _update_obs_estimate(self, obs):
         flat_obs = gym.spaces.utils.flatten(self.env.observation_space, obs)
         self._obs_mean = (

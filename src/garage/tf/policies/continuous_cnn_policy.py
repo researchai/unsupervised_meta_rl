@@ -124,24 +124,27 @@ class ContinuousCNNPolicy(Policy):
             state_input = tf.compat.v1.placeholder(tf.uint8,
                                                    shape=(None, ) +
                                                    self.obs_dim)
-            state_input = tf.cast(state_input, tf.float32)
-            state_input /= 255.0
+            augmented_state_input = tf.cast(state_input, tf.float32)
+            augmented_state_input /= 255.0
         else:
             state_input = tf.compat.v1.placeholder(tf.float32,
                                                    shape=(None, ) +
                                                    self.obs_dim)
-
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
-            self.model.build(state_input)
-
+            self.model.build(augmented_state_input)
         self._f_prob = tf.compat.v1.get_default_session().make_callable(
-            self.model.outputs, feed_list=[self.model.input])
+            self.model.outputs, feed_list=[state_input])
 
+        self._obs_input = state_input
     @property
     def vectorized(self):
         """bool: True if primitive supports vectorized operations."""
         return True
+
+    @property
+    def input(self):
+        return self._obs_input
 
     def get_action_sym(self, obs_var, name=None):
         r"""Symbolic graph of the action.
@@ -156,9 +159,10 @@ class ContinuousCNNPolicy(Policy):
 
         """
         with tf.compat.v1.variable_scope(self._variable_scope):
+            augmented_obs_var = obs_var
             if isinstance(self._obs_space, akro.Image):
-                obs_var = tf.cast(obs_var, tf.float32) / 255.0
-            return self.model.build(obs_var, name=name)
+                augmented_obs_var = tf.cast(obs_var, tf.float32) / 255.0
+            return self.model.build(augmented_obs_var, name=name)
 
     def get_action(self, observation):
         """Get single action from this policy for the input observation.
@@ -236,6 +240,7 @@ class ContinuousCNNPolicy(Policy):
         """
         new_dict = super().__getstate__()
         del new_dict['_f_prob']
+        del new_dict['_obs_input']
         return new_dict
 
     def __setstate__(self, state):

@@ -144,21 +144,27 @@ class ContinuousCNNQFunction(QFunction):
         self._initialize()
 
     def _initialize(self):
-        obs_ph = tf.compat.v1.placeholder(tf.float32, (None, ) + self._obs_dim,
-                                          name='state')
+        
         action_ph = tf.compat.v1.placeholder(tf.float32,
                                              (None, ) + self._action_dim,
                                              name='action')
         if isinstance(self._env_spec.observation_space, akro.Image):
-            obs_ph = obs_ph / 255.0
-
+            obs_ph = tf.compat.v1.placeholder(tf.uint8, (None, ) + self._obs_dim,
+                                          name='state')
+            augmented_obs_ph = tf.cast(obs_ph, tf.float32) / 255.0
+        else:
+            obs_ph = tf.compat.v1.placeholder(tf.float32, (None, ) + self._obs_dim,
+                                          name='state')
+            augmented_obs_ph = obs_ph
         with tf.compat.v1.variable_scope(self.name) as vs:
             self._variable_scope = vs
-            self.model.build(obs_ph, action_ph)
-
+            self.model.build(augmented_obs_ph, action_ph)
         self._f_qval = tf.compat.v1.get_default_session().make_callable(
             self.model.networks['default'].outputs,
             feed_list=[obs_ph, action_ph])
+        
+        self._obs_input = obs_ph
+        self._act_input = action_ph
 
     @property
     def inputs(self):
@@ -168,7 +174,7 @@ class ContinuousCNNQFunction(QFunction):
         tensor with shape :math:`(N, O*)`, and the second is the action tensor
         with shape :math:`(N, A*)`.
         """
-        return self.model.networks['default'].inputs
+        return self._obs_input, self._act_input
 
     def get_qval(self, observation, action):
         """Q Value of the network.
@@ -183,11 +189,10 @@ class ContinuousCNNQFunction(QFunction):
                 corresponding to each (obs, act) pair.
 
         """
-        if isinstance(self._env_spec.observation_space, akro.Image):
-            if len(observation.shape) <= 3:
-                observation = self._env_spec.observation_space.unflatten(
-                    observation)
-            observation = observation / 255.0
+        if len(observation.shape) < len(self._obs_dim):
+            observation = self._env_spec.observation_space.unflatten(
+                observation)
+        
         return self._f_qval(observation, action)
 
     # pylint: disable=arguments-differ
@@ -206,9 +211,10 @@ class ContinuousCNNQFunction(QFunction):
 
         """
         with tf.compat.v1.variable_scope(self._variable_scope):
+            augmented_state_input = state_input
             if isinstance(self._env_spec.observation_space, akro.Image):
-                state_input /= 255.0
-            return self.model.build(state_input, action_input, name=name)
+                augmented_state_input = tf.cast(state_input, tf.float32) / 255.0
+            return self.model.build(augmented_state_input, action_input, name=name)
 
     def clone(self, name):
         """Return a clone of the Q-function.
@@ -250,6 +256,8 @@ class ContinuousCNNQFunction(QFunction):
         """
         new_dict = self.__dict__.copy()
         del new_dict['_f_qval']
+        del new_dict['_obs_input']
+        del new_dict['_act_input']
         return new_dict
 
     def __setstate__(self, state):

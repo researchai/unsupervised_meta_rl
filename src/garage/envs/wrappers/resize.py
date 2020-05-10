@@ -44,7 +44,7 @@ class Resize(gym.Wrapper):
         self._dtype = env.observation_space.dtype
         self._observation_space = gym.spaces.Box(_low,
                                                  _high,
-                                                 shape=[width, height],
+                                                 shape=[width, height, 1],
                                                  dtype=self._dtype)
 
         self._width = width
@@ -67,7 +67,7 @@ class Resize(gym.Wrapper):
             2. anti-aliasing will be enabled by default in skimage 0.15
             """
             warnings.simplefilter('ignore')
-            obs = resize(obs, (self._width, self._height))  # now it's float
+            obs = resize(obs, (self._width, self._height, 1))  # now it's float
             if self._dtype == np.uint8:
                 obs = img_as_ubyte(obs)
         return obs
