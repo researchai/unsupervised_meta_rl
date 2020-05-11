@@ -7,11 +7,11 @@ import akro
 import numpy as np
 import tensorflow as tf
 
-from garage.tf.models import GaussianGRUModel2
-from garage.tf.policies.policy import StochasticPolicy2
+from garage.tf.models import GaussianGRUModel
+from garage.tf.policies.policy import StochasticPolicy
 
 
-class GaussianGRUPolicy(StochasticPolicy2):
+class GaussianGRUPolicy(StochasticPolicy):
     """Gaussian GRU Policy.
 
     A policy represented by a Gaussian distribution
@@ -111,7 +111,7 @@ class GaussianGRUPolicy(StochasticPolicy2):
 
         self._f_step_mean_std = None
 
-        self.model = GaussianGRUModel2(
+        self.model = GaussianGRUModel(
             output_dim=self._action_dim,
             hidden_dim=hidden_dim,
             name='GaussianGRUModel',

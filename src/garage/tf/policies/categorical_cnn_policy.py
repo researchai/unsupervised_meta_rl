@@ -9,10 +9,10 @@ import numpy as np
 import tensorflow as tf
 
 from garage.tf.models import CategoricalCNNModel
-from garage.tf.policies.policy import StochasticPolicy2
+from garage.tf.policies.policy import StochasticPolicy
 
 
-class CategoricalCNNPolicy(StochasticPolicy2):
+class CategoricalCNNPolicy(StochasticPolicy):
     """CategoricalCNNPolicy.
 
     A policy that contains a CNN and a MLP to make prediction based on

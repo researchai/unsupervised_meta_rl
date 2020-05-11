@@ -8,10 +8,10 @@ import numpy as np
 import tensorflow as tf
 
 from garage.tf.models import CategoricalMLPModel
-from garage.tf.policies.policy import StochasticPolicy2
+from garage.tf.policies.policy import StochasticPolicy
 
 
-class CategoricalMLPPolicy(StochasticPolicy2):
+class CategoricalMLPPolicy(StochasticPolicy):
     """Categorical MLP Policy.
 
     A policy represented by a Categorical distribution
