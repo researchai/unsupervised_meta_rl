@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-This is an example to train a task with REPS algorithm.
+"""This is an example to train a task with REPS algorithm.
 
 Here it runs gym CartPole env with 100 iterations.
 
