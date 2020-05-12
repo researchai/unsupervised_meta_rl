@@ -138,6 +138,7 @@ run-headless: build-headless
 		-it \
 		--rm \
 		-v $(DATA_PATH)/$(CONTAINER_NAME):/root/code/garage/data \
+		-v $(shell pwd)/.testmondata:/root/code/garage/.testmondata \
 		-e MJKEY="$$(cat $(MJKEY_PATH))" \
 		--name $(CONTAINER_NAME) \
 		${RUN_ARGS} \

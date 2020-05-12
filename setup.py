@@ -74,6 +74,7 @@ EXTRAS['dev'] = [
     'sphinx',
     'sphinx_rtd_theme',
     'yapf==0.28.0',
+    'pytest-testmon',
 ]  # yapf: disable
 
 with open('README.md') as f:
