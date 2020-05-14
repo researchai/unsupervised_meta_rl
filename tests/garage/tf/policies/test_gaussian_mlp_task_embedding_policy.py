@@ -39,7 +39,6 @@ class TestGaussianMLPTaskEmbeddingPolicy(TfGraphTestCase):
         latent = np.random.random((latent_dim, ))
         task = np.zeros(task_num)
         task[0] = 1
-
         action1, _ = policy.get_action_given_latent(obs, latent)
         action2, _ = policy.get_action_given_task(obs, task)
         action3, _ = policy.get_action(np.concatenate([obs.flatten(), task]))

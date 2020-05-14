@@ -39,10 +39,10 @@ class TestCategoricalLSTMPolicy(TfGraphTestCase):
         policy.reset()
         obs = env.reset()
 
-        action, _ = policy.get_action(obs.flatten())
+        action, _ = policy.get_action(obs)
         assert env.action_space.contains(action)
 
-        actions, _ = policy.get_actions([obs.flatten()])
+        actions, _ = policy.get_actions([obs])
         for action in actions:
             assert env.action_space.contains(action)
 
@@ -66,10 +66,10 @@ class TestCategoricalLSTMPolicy(TfGraphTestCase):
         policy.reset()
         obs = env.reset()
 
-        action, _ = policy.get_action(obs.flatten())
+        action, _ = policy.get_action(obs)
         assert env.action_space.contains(action)
 
-        actions, _ = policy.get_actions([obs.flatten()])
+        actions, _ = policy.get_actions([obs])
         for action in actions:
             assert env.action_space.contains(action)
 
@@ -89,9 +89,8 @@ class TestCategoricalLSTMPolicy(TfGraphTestCase):
         policy.model._lstm_cell.weights[0].load(
             tf.ones_like(policy.model._lstm_cell.weights[0]).eval())
 
-        output1 = self.sess.run(
-            [policy.distribution.probs],
-            feed_dict={policy.model.input: [[obs.flatten()], [obs.flatten()]]})
+        output1 = self.sess.run([policy.distribution.probs],
+                                feed_dict={policy.model.input: [[obs], [obs]]})
 
         p = pickle.dumps(policy)
 
@@ -102,11 +101,10 @@ class TestCategoricalLSTMPolicy(TfGraphTestCase):
                 shape=[None, None, env.observation_space.flat_dim],
                 name='obs')
             policy_pickled.build(obs_var)
-            output2 = sess.run([policy_pickled.distribution.probs],
-                               feed_dict={
-                                   policy_pickled.model.input:
-                                   [[obs.flatten()], [obs.flatten()]]
-                               })  # noqa: E126
+            output2 = sess.run(
+                [policy_pickled.distribution.probs],
+                feed_dict={policy_pickled.model.input: [[obs],
+                                                        [obs]]})  # noqa: E126
             assert np.array_equal(output1, output2)
 
     def test_state_info_specs(self):

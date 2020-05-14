@@ -131,7 +131,7 @@ class CategoricalCNNPolicy(StochasticPolicy):
                 augmented_state_input = state_input
             self._dist = self.model.build(augmented_state_input, name=name)
             self._f_prob = tf.compat.v1.get_default_session().make_callable(
-                [tf.argmax(self._dist.sample(), -1), self._dist.probs],
+                [self._dist.sample(), self._dist.probs],
                 feed_list=[state_input])
 
     @property
@@ -166,7 +166,9 @@ class CategoricalCNNPolicy(StochasticPolicy):
 
         """
         sample, prob = self._f_prob(np.expand_dims([observation], 1))
-        return np.squeeze(sample), dict(prob=np.squeeze(prob, axis=1)[0])
+        sample = self.action_space.unflatten(np.squeeze(sample, 1)[0])
+        prob = self.action_space.unflatten(np.squeeze(prob, 1)[0])
+        return sample, dict(prob=prob)
 
     def get_actions(self, observations):
         """Return multiple actions.
@@ -180,7 +182,9 @@ class CategoricalCNNPolicy(StochasticPolicy):
 
         """
         samples, probs = self._f_prob(np.expand_dims(observations, 1))
-        return np.squeeze(samples), dict(prob=np.squeeze(probs, axis=1))
+        samples = self.action_space.unflatten_n(np.squeeze(samples, 1))
+        probs = self.action_space.unflatten_n(np.squeeze(probs, 1))
+        return samples, dict(prob=probs)
 
     def clone(self, name):
         """Return a clone of the policy.

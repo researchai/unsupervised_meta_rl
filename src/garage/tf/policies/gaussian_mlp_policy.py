@@ -185,6 +185,7 @@ class GaussianMLPPolicy(StochasticPolicy):
                 distribution.
 
         """
+        observation = self.observation_space.flatten(observation)
         sample, mean, log_std = self._f_dist(np.expand_dims([observation], 1))
         sample = self.action_space.unflatten(np.squeeze(sample, 1)[0])
         mean = self.action_space.unflatten(np.squeeze(mean, 1)[0])
@@ -208,6 +209,7 @@ class GaussianMLPPolicy(StochasticPolicy):
                 distribution.
 
         """
+        observations = self.observation_space.flatten_n(observations)
         samples, means, log_stds = self._f_dist(np.expand_dims(
             observations, 1))
         samples = self.action_space.unflatten_n(np.squeeze(samples, 1))

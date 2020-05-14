@@ -44,12 +44,12 @@ class TestGaussianGRUPolicy(TfGraphTestCase):
         policy.reset()
         obs = env.reset()
 
-        action, _ = policy.get_action(obs.flatten())
+        action, _ = policy.get_action(obs)
         assert env.action_space.contains(action)
 
         policy.reset()
 
-        actions, _ = policy.get_actions([obs.flatten()])
+        actions, _ = policy.get_actions([obs])
         for action in actions:
             assert env.action_space.contains(action)
 
@@ -75,10 +75,10 @@ class TestGaussianGRUPolicy(TfGraphTestCase):
         policy.reset(do_resets=None)
         obs = env.reset()
 
-        action, _ = policy.get_action(obs.flatten())
+        action, _ = policy.get_action(obs)
         assert env.action_space.contains(action)
 
-        actions, _ = policy.get_actions([obs.flatten()])
+        actions, _ = policy.get_actions([obs])
         for action in actions:
             assert env.action_space.contains(action)
 

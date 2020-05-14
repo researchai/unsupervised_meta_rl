@@ -102,7 +102,7 @@ class CategoricalMLPPolicy(StochasticPolicy):
             self._variable_scope = vs
             self._dist = self.model.build(state_input, name=name)
             self._f_prob = tf.compat.v1.get_default_session().make_callable(
-                [tf.argmax(self._dist.sample(), -1), self._dist.probs],
+                [self._dist.sample(), self._dist.probs],
                 feed_list=[state_input])
 
     @property
@@ -136,8 +136,11 @@ class CategoricalMLPPolicy(StochasticPolicy):
             dict(numpy.ndarray): Distribution parameters.
 
         """
+        observation = self.observation_space.flatten(observation)
         sample, prob = self._f_prob(np.expand_dims([observation], 1))
-        return np.squeeze(sample[0]), dict(prob=np.squeeze(prob, axis=1)[0])
+        sample = self.action_space.unflatten(np.squeeze(sample, 1)[0])
+        prob = self.action_space.unflatten(np.squeeze(prob, 1)[0])
+        return sample, dict(prob=prob)
 
     def get_actions(self, observations):
         """Return multiple actions.
@@ -150,11 +153,11 @@ class CategoricalMLPPolicy(StochasticPolicy):
             dict(numpy.ndarray): Distribution parameters.
 
         """
-        # Flatten the observation, will be removed soon
-        # Flattening should be done in sampler
         observations = self.observation_space.flatten_n(observations)
         samples, probs = self._f_prob(np.expand_dims(observations, 1))
-        return np.squeeze(samples), dict(prob=np.squeeze(probs, axis=1))
+        samples = self.action_space.unflatten_n(np.squeeze(samples, 1))
+        probs = self.action_space.unflatten_n(np.squeeze(probs, 1))
+        return samples, dict(prob=probs)
 
     def get_regularizable_vars(self):
         """Get regularizable weight variables under the Policy scope.

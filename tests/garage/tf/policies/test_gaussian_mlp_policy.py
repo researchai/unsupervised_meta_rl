@@ -38,11 +38,9 @@ class TestGaussianMLPPolicy(TfGraphTestCase):
         env.reset()
         obs, _, _, _ = env.step(1)
 
-        action, _ = policy.get_action(obs.flatten())
+        action, _ = policy.get_action(obs)
         assert env.action_space.contains(action)
-        actions, _ = policy.get_actions(
-            [obs.flatten(), obs.flatten(),
-             obs.flatten()])
+        actions, _ = policy.get_actions([obs, obs, obs])
         for action in actions:
             assert env.action_space.contains(action)
 
