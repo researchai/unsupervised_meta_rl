@@ -1,0 +1,8 @@
+ARG PARENT_IMAGE=rlworkgroup/garage-base
+FROM $PARENT_IMAGE
+
+# Build and install the benchmarks sdist
+RUN cd benchmarks && python3 setup.py sdist && \
+    cp /root/code/garage/benchmarks/dist/*.tar.gz /root/code/garage/benchmarks/dist/garage_benchmarks.tar.gz && \
+    pip3 install dist/garage_benchmarks.tar.gz && \
+    rm -r /root/.cache/pip

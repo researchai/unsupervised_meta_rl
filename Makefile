@@ -116,6 +116,14 @@ build-nvidia: docker/docker-compose-nvidia.yml
 		build \
 		${BUILD_ARGS}
 
+build-benchmarks: TAG ?= rlworkgroup/garage-benchmarks:latest
+build-benchmarks: docker/docker-compose-benchmarks.yml
+	TAG=${TAG} \
+	docker-compose \
+		-f docker/docker-compose-benchmarks.yml \
+		build \
+		${BUILD_ARGS}
+
 run-ci: ## Run the CI Docker container (only used in TravisCI)
 run-ci: TAG ?= rlworkgroup/garage-ci
 run-ci:
@@ -159,6 +167,18 @@ run-nvidia: build-nvidia
 		--name $(CONTAINER_NAME) \
 		${RUN_ARGS} \
 		rlworkgroup/garage-nvidia ${RUN_CMD}
+
+run-benchmarks: ## Run the Docker container for benchmarks machines
+run-benchmarks: CONTAINER_NAME ?= garage-benchmarks
+run-benchmarks: build-benchmarks
+	docker run \
+		-it \
+		--rm \
+		-v $(DATA_PATH)/$(CONTAINER_NAME):/root/code/garage/data \
+		-e MJKEY="$$(cat $(MJKEY_PATH))" \
+		--name $(CONTAINER_NAME) \
+		${RUN_ARGS} \
+		rlworkgroup/garage-benchmarks ${RUN_CMD}
 
 # Checks that we are in a docker container
 assert-docker:
