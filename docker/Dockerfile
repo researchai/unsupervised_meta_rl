@@ -83,7 +83,7 @@ RUN touch $HOME/.mujoco/mjkey.txt && \
 
 
 # Headless machine with xvfb, i.e. so rendering works
-FROM garage-18.04 as garage-headless-18.04
+FROM garage-18.04 AS garage-headless-18.04
 USER root
 RUN \
   apt-get -y -q update && \
@@ -103,7 +103,7 @@ ENTRYPOINT ["docker/entrypoint-headless.sh"]
 
 # Special setup for garage developers, which installs garage from source
 # Assumes $PWD is the garage repository.
-FROM garage-headless-18.04 as garage-dev-18.04
+FROM garage-headless-18.04 AS garage-dev-18.04
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Copy over just setup.py first, so the Docker cache doesn't expire until
@@ -141,11 +141,14 @@ COPY --chown=garage-user:garage-user . $HOME/code/garage
 
 # Build and install the sdist
 RUN python3 setup.py sdist && \
-    cp $HOME/code/garage/dist/*.tar.gz $HOME/code/garage/dist/garage.tar.gz && \
-    pip install dist/garage.tar.gz[all,dev]
+    cp dist/*.tar.gz dist/garage.tar.gz && \
+    pip install dist/garage.tar.gz[all,dev] && \
+    python3 benchmarks/setup.py sdist --dist-dir benchmarks/dist && \
+    cp benchmarks/dist/*.tar.gz benchmarks/dist/benchmarks.tar.gz && \
+    pip install benchmarks/dist/benchmarks.tar.gz
 
 
 # Test target
-FROM garage-dev-18.04 as test
+FROM garage-dev-18.04 AS test
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 CMD nice -n 11 pytest -v -m 'not huge and not benchmark and not flaky' --durations=0

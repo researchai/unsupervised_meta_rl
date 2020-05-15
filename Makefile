@@ -93,20 +93,22 @@ ci-deploy-docker: assert-travis
 	docker push rlworkgroup/garage-ci
 
 build-ci: TAG ?= rlworkgroup/garage-ci:latest
-build-ci: docker/docker-compose-ci.yml
-	TAG=${TAG} \
-	docker-compose \
-		-f docker/docker-compose-ci.yml \
-		build \
-		${BUILD_ARGS}
+build-ci: docker/Dockerfile
+	docker build \
+		-f docker/Dockerfile \
+		--target garage-dev-18.04 \
+		-t ${TAG} \
+		${BUILD_ARGS} \
+		.
 
 build-headless: TAG ?= rlworkgroup/garage-headless:latest
-build-headless: docker/docker-compose-headless.yml
-	TAG=${TAG} \
-	docker-compose \
-		-f docker/docker-compose-headless.yml \
-		build \
-		${BUILD_ARGS}
+build-headless: docker/Dockerfile
+	docker build \
+		-f docker/Dockerfile \
+		--target garage-dev-18.04 \
+		-t ${TAG} \
+		${BUILD_ARGS} \
+		.
 
 build-nvidia: TAG ?= rlworkgroup/garage-nvidia:latest
 build-nvidia: docker/docker-compose-nvidia.yml
