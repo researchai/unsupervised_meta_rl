@@ -150,8 +150,6 @@ class MultiEnvWrapper(gym.Wrapper):
         else:
             return self._active_task_index
 
-        return self._active_task_index
-
     @property
     def observation_space(self):
         """Observation space.

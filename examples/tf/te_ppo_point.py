@@ -15,6 +15,8 @@ from garage.np.baselines import LinearMultiFeatureBaseline
 from garage.sampler import LocalSampler
 from garage.tf.algos import TEPPO
 from garage.tf.algos.te import TaskEmbeddingWorker
+from garage.tf.baselines.gaussian_mlp_multi_feture_baseline import \
+    GaussianMLPMultiFeatureBaseline
 from garage.tf.embeddings import GaussianMLPEncoder
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
@@ -36,7 +38,7 @@ def circle(r, n):
         yield r * np.sin(t), r * np.cos(t)
 
 
-N = 4
+N = 2
 goals = circle(3.0, N)
 TASKS = {
     str(i + 1): {
@@ -71,12 +73,13 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
     set_seed(seed)
 
     tasks = TASKS
-    latent_length = 1
+    latent_length = 2
     inference_window = 2
     batch_size = batch_size_per_task * len(TASKS)
     policy_ent_coeff = 2e-2
     encoder_ent_coeff = 2.2e-3
-    inference_ce_coeff = 5e-2
+    inference_ce_coeff = 5e-3
+    # inference_ce_coeff = 0
     max_path_length = 100
     embedding_init_std = 1.0
     embedding_max_std = 2.0
@@ -144,8 +147,9 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
             min_std=policy_min_std,
         )
 
-        baseline = LinearMultiFeatureBaseline(
-            env_spec=env.spec, features=['observations', 'tasks', 'latents'])
+        baseline = GaussianMLPMultiFeatureBaseline(
+            input_dim=env.observation_space.flat_dim+latent_length+len(tasks),
+            features=['observations', 'tasks', 'latents'])
 
         algo = TEPPO(env_spec=env.spec,
                      policy=policy,
@@ -153,23 +157,14 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
                      inference=inference,
                      max_path_length=max_path_length,
                      discount=0.99,
-                     lr_clip_range=0.2,
                      policy_ent_coeff=policy_ent_coeff,
                      encoder_ent_coeff=encoder_ent_coeff,
                      inference_ce_coeff=inference_ce_coeff,
                      entropy_method='max',
                      stop_entropy_gradient=True,
                      use_softplus_entropy=True,
-                     optimizer_args=dict(
-                         batch_size=32,
-                         max_epochs=10,
-                     ),
-                     inference_optimizer_args=dict(
-                         batch_size=32,
-                         max_epochs=10,
-                     ),
-                     center_adv=True,
-                     stop_ce_gradient=True)
+                     center_adv=False,
+                     stop_ce_gradient=False)
 
         runner.setup(algo,
                      env,

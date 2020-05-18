@@ -242,7 +242,7 @@ class TENPO(BatchPolopt):
         self._train_inference_network(inference_opt_input_values)
 
         paths = samples_data['paths']
-        samples_data = self.evaluate(policy_opt_input_values, samples_data)
+        self.evaluate(policy_opt_input_values, samples_data)
         self.visualize_distribution()
 
         logger.log('Fitting baseline...')
@@ -356,7 +356,7 @@ class TENPO(BatchPolopt):
         # calculate inference trajectories samples
         for idx, path in enumerate(paths):
             # - Calculate a forward-looking sliding window.
-            # - If step_space has shape (n, d), then trajs will have shape
+            # - If steps has shape (n, d), then trajs will have shape
             #   (n, window, d)
             # - The length of the sliding window is determined by the
             #   trajectory inference spec. We smear the last few elements to
@@ -666,6 +666,7 @@ class TENPO(BatchPolopt):
             policy_old_dist_info_vars=policy_old_dist_info_vars_flat,
             embed_state_info_vars=embed_state_info_vars_flat,
             embed_old_dist_info_vars=embed_old_dist_info_vars_flat,
+            infer_state_info_vars=infer_state_info_vars_flat
         )
         pol_valid = graph_inputs(
             'PolicyLossInputsValid',
@@ -751,6 +752,7 @@ class TENPO(BatchPolopt):
         Returns:
             tf.Tensor: Policy loss.
             tf.Tensor: Mean policy KL divergence.
+            tf.Tensor: Mean encoder KL divergence.
 
         """
         # pylint: disable=too-many-statements, too-many-branches
@@ -927,6 +929,8 @@ class TENPO(BatchPolopt):
             i (namedtuple): Collection of variables to compute policy loss.
 
         Returns:
+            tf.Tensor: Encoder entropy.
+            tf.Tensor: Inference cross entropy.
             tf.Tensor: Policy entropy.
 
         """
@@ -955,14 +959,33 @@ class TENPO(BatchPolopt):
 
             # 2. Infernece distribution cross-entropy (log-likelihood)
             with tf.name_scope('inference_ce'):
-                traj_dist_info_flat = self.inference.dist_info_sym(
-                    i.flat.trajectory_var, name='traj_dist_info_flat')
-
+                # traj_ll_flat = self.inference.log_likelihood_sym(
+                #     i.flat.trajectory_var,
+                #     self.policy.encoder.sample_sym(i.flat.task_var),
+                #     name='traj_ll_flat')
+                # Can only handles non-recurrent policy
+                infer_dist_info = self.inference.dist_info_sym(
+                    i.flat.trajectory_var,
+                    i.flat.infer_state_info_vars,
+                    name='infer_dist_info_flat'
+                )
+                # Is filtering valid necessary?
+                # infer_dist_info = filter_valids_dict(
+                #     infer_dist_info,
+                #     i.flat.valid_var,
+                #     name='infer_dist_info_valid'
+                # )
+                encoder_dist_info = self.policy.encoder.dist_info_sym(
+                    i.flat.task_var,
+                    i.flat.embed_state_info_vars,
+                    name='encoder_dist_info_flat'
+                )
+                encoder_embedding = self.policy.encoder.distribution.sample_sym(
+                    encoder_dist_info)
                 traj_ll_flat = self.inference.distribution.log_likelihood_sym(
-                    self.policy.encoder.distribution.sample_sym(
-                        traj_dist_info_flat),
-                    traj_dist_info_flat,
-                    name='traj_ll_flat')
+                    encoder_embedding,
+                    infer_dist_info
+                )
                 traj_ll = tf.reshape(traj_ll_flat, [-1, self.max_path_length],
                                      name='traj_ll')
 
@@ -1332,6 +1355,9 @@ class TENPO(BatchPolopt):
         num_tasks = self.policy.task_space.flat_dim
         all_tasks = np.eye(num_tasks, num_tasks)
         _, latent_infos = self.policy.encoder.forward_n(all_tasks)
+
+        print('mean', latent_infos['mean'])
+        print('log_std', latent_infos['log_std'])
 
         for i in range(self.policy.latent_space.flat_dim):
             # pylint: disable=protected-access

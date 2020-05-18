@@ -1,17 +1,48 @@
 #!/usr/bin/env python3
 """This is an example to train multiple tasks with PPO algorithm."""
 import gym
+import numpy as np
 import tensorflow as tf
 
-from garage.envs import normalize
+from garage.envs import normalize, PointEnv
 from garage.envs.multi_env_wrapper import MultiEnvWrapper
 from garage.experiment import run_experiment
 from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import PPO
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
-from garage.tf.policies import CategoricalMLPPolicy
+from garage.tf.policies import CategoricalMLPPolicy, ContinuousMLPPolicy, \
+    GaussianMLPPolicy
 
+
+def circle(r, n):
+    """Generate n points on a circle of radius r.
+
+    Args:
+        r (float): Radius of the circle.
+        n (int): Number of points to generate.
+
+    Yields:
+        tuple(float, float): Coordinate of a point.
+
+    """
+    for t in np.arange(0, 2 * np.pi, 2 * np.pi / n):
+        yield r * np.sin(t), r * np.cos(t)
+
+
+N = 1
+goals = circle(3.0, N)
+TASKS = {
+    str(i + 1): {
+        'args': [],
+        'kwargs': {
+            'goal': g,
+            'never_done': False,
+            'done_bonus': 0.0,
+        }
+    }
+    for i, g in enumerate(goals)
+}
 
 def run_task(snapshot_config, *_):
     """Run task.
@@ -24,11 +55,17 @@ def run_task(snapshot_config, *_):
 
     """
     with LocalTFRunner(snapshot_config=snapshot_config) as runner:
-        env1 = TfEnv(normalize(gym.make('Adventure-ram-v4')))
-        env2 = TfEnv(normalize(gym.make('Alien-ram-v4')))
-        env = MultiEnvWrapper([env1, env2])
+        tasks = TASKS
+        task_names = sorted(tasks.keys())
+        task_args = [tasks[t]['args'] for t in task_names]
+        task_kwargs = [tasks[t]['kwargs'] for t in task_names]
+        task_envs = [
+            TfEnv(PointEnv(*t_args, **t_kwargs))
+            for t_args, t_kwargs in zip(task_args, task_kwargs)
+        ]
+        env = MultiEnvWrapper(task_envs)
 
-        policy = CategoricalMLPPolicy(
+        policy = GaussianMLPPolicy(
             env_spec=env.spec,
             hidden_nonlinearity=tf.nn.tanh,
         )

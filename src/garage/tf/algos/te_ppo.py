@@ -111,7 +111,7 @@ class TEPPO(TENPO):
                  name='PPOTaskEmbedding'):
         optimizer, optimizer_args = self._build_optimizer(
             optimizer, optimizer_args)
-        inference_optimizer, inference_optimizer_args = self._build_optimizer(
+        inference_opt, inference_opt_args = self._build_inference_optimizer(
             inference_optimizer, inference_optimizer_args)
 
         super().__init__(env_spec=env_spec,
@@ -138,8 +138,8 @@ class TEPPO(TENPO):
                          entropy_method=entropy_method,
                          flatten_input=flatten_input,
                          inference=inference,
-                         inference_optimizer=inference_optimizer,
-                         inference_optimizer_args=inference_optimizer_args,
+                         inference_optimizer=inference_opt,
+                         inference_optimizer_args=inference_opt_args,
                          inference_ce_coeff=inference_ce_coeff,
                          name=name)
 
@@ -163,5 +163,17 @@ class TEPPO(TENPO):
             optimizer_args = dict(
                 batch_size=32,
                 max_epochs=10,
+                tf_optimizer_args=dict(learning_rate=1e-3)
+            )
+        return optimizer, optimizer_args
+
+    def _build_inference_optimizer(self, optimizer, optimizer_args):
+        if optimizer is None:
+            optimizer = FirstOrderOptimizer
+        if optimizer_args is None:
+            optimizer_args = dict(
+                batch_size=32,
+                max_epochs=5,
+                tf_optimizer_args=dict(learning_rate=1e-3)
             )
         return optimizer, optimizer_args
