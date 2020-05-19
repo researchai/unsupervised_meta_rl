@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from garage import InOutSpec, wrap_experiment
-from garage.envs import PointEnv
+from garage.envs import PointEnv, PointMomentumEnv
 from garage.envs.multi_env_wrapper import MultiEnvWrapper
 from garage.envs.multi_env_wrapper import round_robin_strategy
 from garage.experiment.deterministic import set_seed
@@ -36,7 +36,7 @@ def circle(r, n):
         yield r * np.sin(t), r * np.cos(t)
 
 
-N = 4
+N = 3
 goals = circle(3.0, N)
 TASKS = {
     str(i + 1): {
@@ -71,7 +71,7 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
     set_seed(seed)
 
     tasks = TASKS
-    latent_length = 1
+    latent_length = 3
     inference_window = 2
     batch_size = batch_size_per_task * len(TASKS)
     policy_ent_coeff = 2e-2
@@ -91,7 +91,7 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
 
     with LocalTFRunner(snapshot_config=ctxt) as runner:
         task_envs = [
-            TfEnv(PointEnv(*t_args, **t_kwargs))
+            TfEnv(PointMomentumEnv(*t_args, **t_kwargs))
             for t_args, t_kwargs in zip(task_args, task_kwargs)
         ]
         env = MultiEnvWrapper(task_envs, round_robin_strategy, mode='vanilla')
