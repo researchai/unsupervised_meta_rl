@@ -1,2 +1,4 @@
 data
 Pipfile
+.git
+.pytest_cache

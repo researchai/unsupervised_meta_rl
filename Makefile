@@ -12,11 +12,23 @@ DATA_PATH ?= $(shell pwd)/data
 # MJKEY_PATH.
 MJKEY_PATH ?= ~/.mujoco/mjkey.txt
 
-test:  ## Run the CI test suite
-test: RUN_CMD = nice -n 11 pytest -v -n auto -m 'not huge and not flaky' --durations=0
+build-test: docker/Dockerfile
+	docker build \
+		-f docker/Dockerfile \
+		--target garage-test-18.04 \
+		${BUILD_ARGS} \
+		.
+
+test:  ## Run the garage-test-18.04 docker target
 test: RUN_ARGS = --memory 7500m --memory-swap 7500m
-test: run-headless
+test: build-test
 	@echo "Running test suite..."
+	docker run \
+		--rm \
+		-e MJKEY \
+		-e GARAGE_GH_TOKEN \
+		${RUN_ARGS} \
+		garage-test-18.04
 
 docs:  ## Build HTML documentation
 docs:
@@ -33,7 +45,7 @@ ci-job-normal: assert-docker
 
 ci-job-large: assert-docker
 	[ ! -f $(MJKEY_PATH) ] || mv $(MJKEY_PATH) $(MJKEY_PATH).bak
-	pytest --cov=garage --cov-report=xml -m 'large and not mujoco' --durations=20
+	pytest --cov=garage --cov-report=xml -m large --durations=20
 	bash <(curl -s https://codecov.io/bash)
 
 ci-job-mujoco: assert-docker
@@ -93,20 +105,20 @@ ci-deploy-docker: assert-travis
 	docker push rlworkgroup/garage-ci
 
 build-ci: TAG ?= rlworkgroup/garage-ci:latest
-build-ci: docker/docker-compose-ci.yml
-	TAG=${TAG} \
-	docker-compose \
-		-f docker/docker-compose-ci.yml \
-		build \
-		${BUILD_ARGS}
+build-ci: docker/Dockerfile
+	docker build \
+		-f docker/Dockerfile \
+		--target garage-dev-18.04 \
+		-t ${TAG} \
+		${BUILD_ARGS} .
 
 build-headless: TAG ?= rlworkgroup/garage-headless:latest
-build-headless: docker/docker-compose-headless.yml
-	TAG=${TAG} \
-	docker-compose \
-		-f docker/docker-compose-headless.yml \
-		build \
-		${BUILD_ARGS}
+build-headless: docker/Dockerfile
+	docker build \
+		-f docker/Dockerfile \
+		--target garage-dev-18.04 \
+		-t ${TAG} \
+		${BUILD_ARGS} .
 
 build-nvidia: TAG ?= rlworkgroup/garage-nvidia:latest
 build-nvidia: docker/docker-compose-nvidia.yml
