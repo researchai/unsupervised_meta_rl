@@ -13,7 +13,7 @@ DATA_PATH ?= $(shell pwd)/data
 MJKEY_PATH ?= ~/.mujoco/mjkey.txt
 
 test:  ## Run the CI test suite
-test: RUN_CMD = nice -n 11 pytest -v -m 'not huge and not flaky' --durations=0
+test: RUN_CMD = nice -n 11 pytest -v -n auto -m 'not huge and not flaky' --durations=0
 test: RUN_ARGS = --memory 7500m --memory-swap 7500m
 test: run-headless
 	@echo "Running test suite..."
@@ -78,8 +78,8 @@ ci-job-verify-envs-pipenv: export PATH=$(shell echo $$PATH | awk -v RS=: -v ORS=
 ci-job-verify-envs-pipenv: export VIRTUAL_ENV=
 ci-job-verify-envs-pipenv:
 	touch $(MJKEY_PATH)
-	pip3 install --upgrade pipenv setuptools
-	pipenv --three
+	pip install --upgrade pip pipenv setuptools
+	pipenv --python=3.5
 	pipenv install dist/garage.tar.gz[all]
 	pipenv install dist/garage.tar.gz[all,dev]
 	pipenv graph
