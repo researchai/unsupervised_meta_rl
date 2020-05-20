@@ -1,4 +1,5 @@
 """Environment wrapper that runs multiple environments."""
+import copy
 import warnings
 
 import numpy as np
@@ -53,7 +54,7 @@ class VecEnvExecutor:
         dones = np.asarray(dones)
         rewards = np.asarray(rewards)
         self.ts += 1
-        completes = np.asarray(dones)
+        completes = copy.deepcopy(dones)
         if self.max_path_length is not None:
             completes[self.ts >= self.max_path_length] = True
         for (i, complete) in enumerate(completes):

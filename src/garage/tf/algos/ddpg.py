@@ -107,7 +107,8 @@ class DDPG(OffPolicyRLAlgorithm):
         self.epoch_ys = []
         self.epoch_qs = []
         self.q_func_grad_norms = []
-
+        self.target_pol_grad_norms = []
+        self.episode_target_policy_losses = []
         self.target_policy = policy.clone('target_policy')
         self.target_qf = qf.clone('target_qf')
 
@@ -160,25 +161,29 @@ class DDPG(OffPolicyRLAlgorithm):
                     obs_dim = self.env_spec.observation_space.shape
 
                     if isinstance(self.env_spec.observation_space, akro.Image):
-                        obs = tf.compat.v1.placeholder(tf.uint8,
-                                               shape=(None, ) + obs_dim,
-                                               name='input_observation')
+                        obs = tf.compat.v1.placeholder(
+                            tf.uint8,
+                            shape=(None, ) + obs_dim,
+                            name='input_observation')
                     else:
-                        obs = tf.compat.v1.placeholder(tf.float32,
-                                               shape=(None, ) + obs_dim,
-                                               name='input_observation')
+                        obs = tf.compat.v1.placeholder(
+                            tf.float32,
+                            shape=(None, ) + obs_dim,
+                            name='input_observation')
 
                 else:
                     obs_dim = self.env_spec.observation_space.flat_dim
 
                     if isinstance(self.env_spec.observation_space, akro.Image):
-                        obs = tf.compat.v1.placeholder(tf.uint8,
-                                               shape=(None, obs_dim),
-                                               name='input_observation')
+                        obs = tf.compat.v1.placeholder(
+                            tf.uint8,
+                            shape=(None, obs_dim),
+                            name='input_observation')
                     else:
-                        obs = tf.compat.v1.placeholder(tf.float32,
-                                               shape=(None, obs_dim),
-                                               name='input_observation')
+                        obs = tf.compat.v1.placeholder(
+                            tf.float32,
+                            shape=(None, obs_dim),
+                            name='input_observation')
 
                     # obs = tf.compat.v1.placeholder(tf.float32,
                     #                            shape=(None, obs_dim),
@@ -186,7 +191,7 @@ class DDPG(OffPolicyRLAlgorithm):
                 input_y = tf.compat.v1.placeholder(tf.float32,
                                                    shape=(None, 1),
                                                    name='input_y')
-               
+
                 actions = tf.compat.v1.placeholder(
                     tf.float32,
                     shape=(None, ) + self.env_spec.action_space.shape,
@@ -196,6 +201,21 @@ class DDPG(OffPolicyRLAlgorithm):
             next_qval = self.qf.get_qval_sym(obs,
                                              next_action,
                                              name='policy_action_qval')
+
+            target_next_action = self.target_policy.get_action_sym(
+                obs, name='target_policy_action')  # only for logging
+            target_next_qval = self.target_qf.get_qval_sym(
+                obs, target_next_action, name='target_qf_qval')
+
+            with tf.name_scope('target_action_loss'):
+                target_action_loss = -tf.reduce_mean(target_next_qval)
+                if self.policy_weight_decay > 0.:
+                    regularizer = tf.keras.regularizers.l2(
+                        self.policy_weight_decay)
+                    for var in self.policy.get_regularizable_vars():
+                        policy_reg = regularizer(var)
+                        target_action_loss += policy_reg
+
             with tf.name_scope('action_loss'):
                 action_loss = -tf.reduce_mean(next_qval)
                 if self.policy_weight_decay > 0.:
@@ -204,25 +224,31 @@ class DDPG(OffPolicyRLAlgorithm):
                     for var in self.policy.get_regularizable_vars():
                         policy_reg = regularizer(var)
                         action_loss += policy_reg
-            
-            
+
             with tf.name_scope('minimize_action_loss'):
-                # policy_train_op = self.policy_optimizer(
-                #     self.policy_lr, name='PolicyOptimizer').minimize(
-                #         action_loss, var_list=self.policy.get_trainable_vars())
-                adam = self.policy_optimizer(self.policy_lr, name='PolicyOptimizer')
-                grads = adam.compute_gradients(action_loss,var_list=self.policy.get_trainable_vars())
-                # print(grads)
-
-                # for i, grad in enumerate(grads):
-                #      tf.summary.histogram("{}-grad".format(grads[i][1].name), grads[i])
-
+                adam = self.policy_optimizer(self.policy_lr,
+                                             name='PolicyOptimizer')
+                grads = adam.compute_gradients(
+                    action_loss, var_list=self.policy.get_trainable_vars())
+                print(self.policy.get_trainable_vars())
                 policy_train_op = adam.apply_gradients(grads)
+
+                target_policy_grads = adam.compute_gradients(
+                    target_action_loss,
+                    var_list=self.target_policy.get_trainable_vars())
+
+            self.f_target_policy_info = tensor_utils.compile_function(
+                inputs=[obs],
+                outputs=[target_policy_grads, target_action_loss])
             f_train_policy = tensor_utils.compile_function(
                 inputs=[obs], outputs=[policy_train_op, action_loss, grads])
 
             # Set up qf training function
             qval = self.qf.get_qval_sym(obs, actions, name='q_value')
+            target_qval = self.target_qf.get_qval_sym(obs,
+                                                      actions,
+                                                      name='target_qval')
+
             with tf.name_scope('qval_loss'):
                 qval_loss = tf.reduce_mean(
                     tf.compat.v1.squared_difference(input_y, qval))
@@ -233,16 +259,27 @@ class DDPG(OffPolicyRLAlgorithm):
                         qf_reg = regularizer(var)
                         qval_loss += qf_reg
 
+            with tf.name_scope('target_qval_loss'):
+                target_qval_loss = tf.reduce_mean(
+                    tf.compat.v1.squared_difference(input_y, target_qval))
+                if self.qf_weight_decay > 0.:
+                    regularizer = tf.keras.regularizers.l2(
+                        self.qf_weight_decay)
+                    for var in self.qf.get_regularizable_vars():
+                        qf_reg = regularizer(var)
+                        qval_loss += qf_reg
+
             with tf.name_scope('minimize_qf_loss'):
-                adam_qf = self.qf_optimizer(self.qf_lr, name='QFunctionOptimizer')
+                adam_qf = self.qf_optimizer(self.qf_lr,
+                                            name='QFunctionOptimizer')
                 #raw_grads, variables = zip(*adam_qf.compute_gradients(qval_loss, var_list=self.qf.get_trainable_vars()))
-                grads = adam_qf.compute_gradients(qval_loss, var_list=self.qf.get_trainable_vars())
-                grads = [(tf.clip_by_norm(grad, 5.0), var) for grad, var in grads]
+                grads = adam_qf.compute_gradients(
+                    qval_loss, var_list=self.qf.get_trainable_vars())
+                grads = [(tf.clip_by_norm(grad, 5.0), var)
+                         for grad, var in grads]
                 qf_train_op = adam_qf.apply_gradients(grads)
 
-                # qf_train_op = self.qf_optimizer(
-                #     self.qf_lr, name='QFunctionOptimizer').minimize(
-                #         qval_loss, var_list=self.qf.get_trainable_vars())
+                target_qf_grads = adam_qf.compute_gradients(target_qval)
 
             f_train_qf = tensor_utils.compile_function(
                 inputs=[input_y, obs, actions],
@@ -266,6 +303,7 @@ class DDPG(OffPolicyRLAlgorithm):
         del data['f_train_policy']
         del data['f_train_qf']
         del data['f_init_target']
+        del data['f_target_policy_info']
         del data['f_update_target']
         return data
 
@@ -290,7 +328,7 @@ class DDPG(OffPolicyRLAlgorithm):
             np.float64: Average return.
 
         """
-        
+
         paths = self.process_samples(itr, paths)
         epoch = itr / self.steps_per_epoch
 
@@ -302,17 +340,19 @@ class DDPG(OffPolicyRLAlgorithm):
             path for path, complete in zip(paths['success_history'],
                                            paths['complete']) if complete
         ])
-        last_average_return = np.mean(self.episode_rewards)
+        last_average_return = 0  #np.mean(self.episode_rewards)
         self.log_diagnostics(paths)
         for _ in range(self.n_train_steps):
             if self._buffer_prefilled:
-                qf_loss, y_s, qval, policy_loss = self.optimize_policy(
+                qf_loss, y_s, qval, policy_loss, target_policy_grads, target_policy_loss = self.optimize_policy(
                     itr, paths)
 
                 self.episode_policy_losses.append(policy_loss)
+                self.episode_target_policy_losses.append(target_policy_loss)
                 self.episode_qf_losses.append(qf_loss)
                 self.epoch_ys.append(y_s)
                 self.epoch_qs.append(qval)
+                self.target_pol_grad_norms.extend(target_policy_grads)
 
         if itr % self.steps_per_epoch == 0:
             logger.log('Training finished')
@@ -334,7 +374,13 @@ class DDPG(OffPolicyRLAlgorithm):
                 tabular.record('AverageSuccessRate',
                                np.mean(self.success_history))
                 tabular.record('QFunctionGradNorm',
-                                np.mean(self.q_func_grad_norms))
+                               np.mean(self.q_func_grad_norms))
+
+                # target policy stats
+                tabular.record('Policy/AvgTargetPolicyLoss',
+                               np.mean(self.episode_target_policy_losses))
+                tabular.record('Policy/AvgTargetPolicyGradNorms',
+                               np.mean(self.target_pol_grad_norms))
 
             if not self.smooth_return:
                 self.episode_rewards = []
@@ -343,6 +389,8 @@ class DDPG(OffPolicyRLAlgorithm):
                 self.epoch_ys = []
                 self.epoch_qs = []
                 self.q_func_grad_norms = []
+                self.episode_target_policy_losses = []
+                self.target_pol_grad_norms = []
 
             self.success_history.clear()
         return last_average_return
@@ -361,14 +409,13 @@ class DDPG(OffPolicyRLAlgorithm):
             float: Q value predicted by the q network.
 
         """
-        
+
         transitions = self.replay_buffer.sample(self.buffer_batch_size)
         observations = transitions['observation']
         rewards = transitions['reward']
         actions = transitions['action']
         next_observations = transitions['next_observation']
         terminals = transitions['terminal']
-
         rewards = rewards.reshape(-1, 1)
         terminals = terminals.reshape(-1, 1)
 
@@ -386,11 +433,11 @@ class DDPG(OffPolicyRLAlgorithm):
             clip_range[0], clip_range[1])
 
         _, qval_loss, qval, grads = self.f_train_qf(ys, inputs, actions)
-
-        
+        # print("computed: " + str(np.mean((qval - ys) ** 2))+   " actual: " + str(qval_loss))
+        # print("average y: " + str(np.mean(ys)) + " q: " + str(np.mean(qval)))
         #print("qval: " + str(qval) + " ys: " + str(ys) + " action[0]: " + str(actions[0]))
 
-        grad_norm = np.linalg.norm(grads[len(grads)-2])
+        grad_norm = np.linalg.norm(grads[len(grads) - 2])
 
         norms = [np.linalg.norm(grad) for grad, _ in grads]
         self.q_func_grad_norms.extend(norms)
@@ -411,8 +458,13 @@ class DDPG(OffPolicyRLAlgorithm):
         #     assert not np.isnan(np.sum(tf.compat.v1.get_default_session().run(var)))
 
         _, action_loss, grads = self.f_train_policy(inputs)
-        #print(grads)
-        norms = [np.linalg.norm(grad) for grad, _ in grads]
+
+        target_policy_grads, target_action_loss = self.f_target_policy_info(
+            inputs)
+        target_pol_grad_norms = [
+            np.linalg.norm(grad) for grad, _ in target_policy_grads
+        ]
+
         #print ("all policy norms: " + str(norms))
         # print("CHECKING VARS")
         # for var in self.policy.get_trainable_vars():
@@ -427,8 +479,7 @@ class DDPG(OffPolicyRLAlgorithm):
         #         # print("clip: " + str(clip_range))
         #         # print("ys: " + str(ys))
         #         raise ValueError()
- 
-        
+
         # print("OK")
         self.f_update_target()
-        return qval_loss, ys, qval, action_loss
+        return qval_loss, ys, qval, action_loss, target_pol_grad_norms, target_action_loss
