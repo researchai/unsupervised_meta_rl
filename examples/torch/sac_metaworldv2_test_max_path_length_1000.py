@@ -41,9 +41,9 @@ def get_args(_seed=1, _gpu=None, _env_name=None):
     _SEED = _seed
     _GPU = _gpu
     _ENV_NAME = _env_name
-
-    @wrap_experiment(snapshot_mode='none', prefix=_ENV_NAME)
-    def sac_metaworldv2_test_assembly(ctxt=None):
+    task_types = ['pick-place', 'reach', 'push']
+    @wrap_experiment(snapshot_mode='gap', prefix=_ENV_NAME, snapshot_gap=25)
+    def sac_metaworldv2_test_max_path_length_1000(ctxt=None):
         """Set up environment and algorithm and run the task.
 
         Args:
@@ -57,8 +57,18 @@ def get_args(_seed=1, _gpu=None, _env_name=None):
         deterministic.set_seed(_SEED)
         runner = LocalRunner(snapshot_config=ctxt)
         env_cls = ALL_ENVIRONMENTS[_ENV_NAME]
-        env = GarageEnv(normalize(env_cls(random_init=False)))
+        task_type = None
+        for name in task_types:
+            if name in _ENV_NAME:
+                task_type = name
+            if task_type is 'pick-place':
+                task_type = 'pick_place'
 
+        if task_type:
+            env = GarageEnv(normalize(env_cls(random_init=False, task_type=task_type)))
+        else:
+            env = GarageEnv(normalize(env_cls(random_init=False)))
+        env.env.env.max_path_length = 1000
         policy = TanhGaussianMLPPolicy(
             env_spec=env.spec,
             hidden_sizes=[256, 256],
@@ -77,16 +87,16 @@ def get_args(_seed=1, _gpu=None, _env_name=None):
                                     hidden_nonlinearity=F.relu)
 
         replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
-        batch_size = 150
+        batch_size = 1000
 
         sac = SAC(env_spec=env.spec,
                 policy=policy,
                 qf1=qf1,
                 qf2=qf2,
                 gradient_steps_per_itr=batch_size,
-                max_path_length=200,
+                max_path_length=1000,
                 replay_buffer=replay_buffer,
-                min_buffer_size=1e3,
+                min_buffer_size=1e4,
                 target_update_tau=5e-3,
                 discount=0.99,
                 buffer_batch_size=512,
@@ -98,7 +108,7 @@ def get_args(_seed=1, _gpu=None, _env_name=None):
             tu.set_gpu_mode(True, _GPU)
         sac.to()
         runner.setup(algo=sac, env=env, sampler_cls=LocalSampler)
-        runner.train(n_epochs=500, batch_size=batch_size)
-    sac_metaworldv2_test()
+        runner.train(n_epochs=150, batch_size=batch_size)
+    sac_metaworldv2_test_max_path_length_1000()
 
 get_args()

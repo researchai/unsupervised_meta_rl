@@ -4,7 +4,8 @@ import subprocess
 from metaworld.envs.mujoco.env_dict import ALL_ENVIRONMENTS
 
 names = list(ALL_ENVIRONMENTS.keys())
-names = ['reach-v1', 'pick-place-v1', 'reach-wall-v1', 'pick-place-wall-v1', 'push-back-v1', 'push-v1', 'push-wall-v1']
+#'pick-place-v1', 'reach-wall-v1', 'pick-place-wall-v1', 'push-back-v1', 'push-v1', 'push-wall-v1'
+names = ['reach-v1', ]
 for i, name in enumerate(names):
     gpu_id = i % 4
     conda_args = ['source ~/miniconda3/etc/profile.d/conda.sh; conda activate garage; python sac_metaworldv2_test_pick_place_reach_push.py --gpu {} --env {} && python -v'.format(gpu_id, name)]
