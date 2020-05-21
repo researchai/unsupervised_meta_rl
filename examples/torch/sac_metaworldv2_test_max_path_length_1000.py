@@ -61,9 +61,8 @@ def get_args(_seed=1, _gpu=None, _env_name=None):
         for name in task_types:
             if name in _ENV_NAME:
                 task_type = name
-            if task_type is 'pick-place':
-                task_type = 'pick_place'
-
+                if task_type == 'pick-place':
+                    task_type = 'pick_place'
         if task_type:
             env = GarageEnv(normalize(env_cls(random_init=False, task_type=task_type)))
         else:
