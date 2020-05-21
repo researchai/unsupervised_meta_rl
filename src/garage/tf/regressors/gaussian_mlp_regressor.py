@@ -130,6 +130,8 @@ class GaussianMLPRegressor(StochasticRegressor):
             std_parameterization='exp',
             layer_normalization=layer_normalization)
 
+        # model for old distribution, used when trusted region is on
+        self._old_model = self.model.clone(name='model_for_old_dist')
         self._initialize()
 
     def _initialize(self):
@@ -139,51 +141,33 @@ class GaussianMLPRegressor(StochasticRegressor):
 
         with tf.compat.v1.variable_scope(self._variable_scope):
             self.model.build(input_var)
+            self._old_model.build(input_var)
+
             ys_var = tf.compat.v1.placeholder(dtype=tf.float32,
                                               name='ys',
                                               shape=(None, self._output_dim))
-            old_means_var = tf.compat.v1.placeholder(dtype=tf.float32,
-                                                     name='old_means',
-                                                     shape=(None,
-                                                            self._output_dim))
-            old_log_stds_var = tf.compat.v1.placeholder(
-                dtype=tf.float32,
-                name='old_log_stds',
-                shape=(None, self._output_dim))
 
             y_mean_var = self.model.networks['default'].y_mean
             y_std_var = self.model.networks['default'].y_std
-            means_var = self.model.networks['default'].means
-            log_stds_var = self.model.networks['default'].log_stds
+            means_var = self.model.networks['default'].true_dist.loc
+
             normalized_means_var = self.model.networks[
-                'default'].normalized_means
-            normalized_log_stds_var = self.model.networks[
-                'default'].normalized_log_stds
+                'default'].normalized_dist.loc
+            normalized_log_stds_var = tf.math.log(self.model.networks[
+                'default'].normalized_dist.stddev())
 
             normalized_ys_var = (ys_var - y_mean_var) / y_std_var
 
-            normalized_old_means_var = (old_means_var - y_mean_var) / y_std_var
-            normalized_old_log_stds_var = (old_log_stds_var -
-                                           tf.math.log(y_std_var))
-
-            normalized_dist_info_vars = dict(mean=normalized_means_var,
-                                             log_std=normalized_log_stds_var)
-
             mean_kl = tf.reduce_mean(
-                self.model.networks['default'].dist.kl_sym(
-                    dict(mean=normalized_old_means_var,
-                         log_std=normalized_old_log_stds_var),
-                    normalized_dist_info_vars,
-                ))
+                self._old_model.networks['default'].normalized_dist.kl_divergence(
+                self.model.networks['default'].normalized_dist))
 
             loss = -tf.reduce_mean(
-                self.model.networks['default'].dist.log_likelihood_sym(
-                    normalized_ys_var, normalized_dist_info_vars))
+                self.model.networks['default'].normalized_dist.log_prob(
+                    normalized_ys_var))
 
             self._f_predict = tensor_utils.compile_function([input_var],
                                                             means_var)
-            self._f_pdists = tensor_utils.compile_function(
-                [input_var], [means_var, log_stds_var])
 
             optimizer_args = dict(
                 loss=loss,
@@ -195,11 +179,7 @@ class GaussianMLPRegressor(StochasticRegressor):
 
             if self._use_trust_region:
                 optimizer_args['leq_constraint'] = (mean_kl, self._max_kl_step)
-                optimizer_args['inputs'] = [
-                    input_var, ys_var, old_means_var, old_log_stds_var
-                ]
-            else:
-                optimizer_args['inputs'] = [input_var, ys_var]
+            optimizer_args['inputs'] = [input_var, ys_var]
 
             with tf.name_scope('update_opt'):
                 self._optimizer.update_opt(**optimizer_args)
@@ -225,17 +205,21 @@ class GaussianMLPRegressor(StochasticRegressor):
                 np.mean(xs, axis=0, keepdims=True))
             self.model.networks['default'].x_std.load(
                 np.std(xs, axis=0, keepdims=True) + 1e-8)
+            self._old_model.networks['default'].x_mean.load(
+                np.mean(xs, axis=0, keepdims=True))
+            self._old_model.networks['default'].x_std.load(
+                np.std(xs, axis=0, keepdims=True) + 1e-8)
         if self._normalize_outputs:
             # recompute normalizing constants for outputs
             self.model.networks['default'].y_mean.load(
                 np.mean(ys, axis=0, keepdims=True))
             self.model.networks['default'].y_std.load(
                 np.std(ys, axis=0, keepdims=True) + 1e-8)
-        if self._use_trust_region:
-            old_means, old_log_stds = self._f_pdists(xs)
-            inputs = [xs, ys, old_means, old_log_stds]
-        else:
-            inputs = [xs, ys]
+            self._old_model.networks['default'].y_mean.load(
+                np.mean(ys, axis=0, keepdims=True))
+            self._old_model.networks['default'].y_std.load(
+                np.std(ys, axis=0, keepdims=True) + 1e-8)
+        inputs = [xs, ys]
         loss_before = self._optimizer.loss(inputs)
         tabular.record('{}/LossBefore'.format(self._name), loss_before)
         self._optimizer.optimize(inputs)
@@ -245,6 +229,7 @@ class GaussianMLPRegressor(StochasticRegressor):
             tabular.record('{}/MeanKL'.format(self._name),
                            self._optimizer.constraint_val(inputs))
         tabular.record('{}/dLoss'.format(self._name), loss_before - loss_after)
+        self._old_model.parameters = self.model.parameters
 
     def predict(self, xs):
         """Predict ys based on input xs.
@@ -258,29 +243,24 @@ class GaussianMLPRegressor(StochasticRegressor):
         """
         return self._f_predict(xs)
 
-    def log_likelihood_sym(self, x_var, y_var, name=None):
-        """Create a symbolic graph of the log likelihood.
+    # def log_likelihood_sym(self, x_var, y_var, name=None):
+    #     """Create a symbolic graph of the log likelihood.
 
-        Args:
-            x_var (tf.Tensor): Input tf.Tensor for the input data.
-            y_var (tf.Tensor): Input tf.Tensor for the label of data.
-            name (str): Name of the new graph.
+    #     Args:
+    #         x_var (tf.Tensor): Input tf.Tensor for the input data.
+    #         y_var (tf.Tensor): Input tf.Tensor for the label of data.
+    #         name (str): Name of the new graph.
 
-        Return:
-            tf.Tensor: Output of the symbolic log-likelihood graph.
+    #     Return:
+    #         tf.Tensor: Output of the symbolic log-likelihood graph.
 
-        """
-        params = self.dist_info_sym(x_var, name=name)
-        means_var = params['mean']
-        log_stds_var = params['log_std']
+    #     """
+    #     params = self.dist_info_sym(x_var, name=name)
+    #     means_var = params['mean']
+    #     log_stds_var = params['log_std']
 
-        return self.model.networks[name].dist.log_likelihood_sym(
-            y_var, dict(mean=means_var, log_std=log_stds_var))
-
-    @property
-    def recurrent(self):
-        """bool: If this module has a hidden state."""
-        return False
+    #     return self.model.networks[name].dist.log_likelihood_sym(
+    #         y_var, dict(mean=means_var, log_std=log_stds_var))
 
     @property
     def vectorized(self):
@@ -290,30 +270,30 @@ class GaussianMLPRegressor(StochasticRegressor):
     @property
     def distribution(self):
         """garage.tf.distributions.DiagonalGaussian: Distribution."""
-        return self.model.networks['default'].dist
+        return self.model.networks['default'].true_dist
 
-    def dist_info_sym(self, input_var, state_info_vars=None, name='default'):
-        """Create a symbolic graph of the distribution parameters.
+    # def dist_info_sym(self, input_var, state_info_vars=None, name='default'):
+    #     """Create a symbolic graph of the distribution parameters.
 
-        Args:
-            input_var (tf.Tensor): tf.Tensor of the input data.
-            state_info_vars (dict): a dictionary whose values should contain
-                information about the state of the policy at the time it
-                received the input.
-            name (str): Name of the new graph.
+    #     Args:
+    #         input_var (tf.Tensor): tf.Tensor of the input data.
+    #         state_info_vars (dict): a dictionary whose values should contain
+    #             information about the state of the policy at the time it
+    #             received the input.
+    #         name (str): Name of the new graph.
 
-        Return:
-            dict[tf.Tensor]: Outputs of the symbolic distribution parameter
-                graph.
+    #     Return:
+    #         dict[tf.Tensor]: Outputs of the symbolic distribution parameter
+    #             graph.
 
-        """
-        with tf.compat.v1.variable_scope(self._variable_scope):
-            self.model.build(input_var, name=name)
+    #     """
+    #     with tf.compat.v1.variable_scope(self._variable_scope):
+    #         self.model.build(input_var, name=name)
 
-        means_var = self.model.networks[name].means
-        log_stds_var = self.model.networks[name].log_stds
+    #     means_var = self.model.networks[name].means
+    #     log_stds_var = self.model.networks[name].log_stds
 
-        return dict(mean=means_var, log_std=log_stds_var)
+    #     return dict(mean=means_var, log_std=log_stds_var)
 
     def __getstate__(self):
         """Object.__getstate__.
@@ -324,7 +304,6 @@ class GaussianMLPRegressor(StochasticRegressor):
         """
         new_dict = super().__getstate__()
         del new_dict['_f_predict']
-        del new_dict['_f_pdists']
         return new_dict
 
     def __setstate__(self, state):

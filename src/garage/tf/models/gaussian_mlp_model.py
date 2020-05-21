@@ -109,6 +109,7 @@ class GaussianMLPModel(Model):
         self._adaptive_std = adaptive_std
         self._std_share_network = std_share_network
         self._std_hidden_sizes = std_hidden_sizes
+        self._init_std = init_std
         self._min_std = min_std
         self._max_std = max_std
         self._std_hidden_nonlinearity = std_hidden_nonlinearity

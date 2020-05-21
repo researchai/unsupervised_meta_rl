@@ -75,7 +75,7 @@ def ppo_pendulum(ctxt=None, seed=1):
 
         runner.setup(algo, env)
 
-        runner.train(n_epochs=120, batch_size=2048, plot=False)
+        runner.train(n_epochs=50, batch_size=2048, plot=False)
 
 
 ppo_pendulum(seed=1)
