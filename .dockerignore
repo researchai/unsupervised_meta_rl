@@ -2,3 +2,6 @@ data
 Pipfile
 .git
 .pytest_cache
+.idea
+**/dist
+__pycache__

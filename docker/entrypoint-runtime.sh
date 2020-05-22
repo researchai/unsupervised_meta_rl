@@ -6,7 +6,7 @@ set -e
 if [ -z "${MJKEY}" ]; then
   :
 else
-  echo "${MJKEY}" > /root/.mujoco/mjkey.txt
+  echo "${MJKEY}" > $HOME/.mujoco/mjkey.txt
 fi
 
 # Fixes Segmentation Fault

@@ -11,6 +11,7 @@ DATA_PATH ?= $(shell pwd)/data
 # Set the environment variable MJKEY with the contents of the file specified by
 # MJKEY_PATH.
 MJKEY_PATH ?= ~/.mujoco/mjkey.txt
+BUILD_ARGS = --build-arg user="${USER}" --build-arg uid=${shell id -u}
 
 build-test: docker/Dockerfile
 	docker build \
@@ -117,16 +118,18 @@ build-headless: docker/Dockerfile
 	docker build \
 		-f docker/Dockerfile \
 		--target garage-dev-18.04 \
+		--secret id=mjkey,src=$(MJKEY_PATH) \
 		-t ${TAG} \
 		${BUILD_ARGS} .
 
 build-nvidia: TAG ?= rlworkgroup/garage-nvidia:latest
-build-nvidia: docker/docker-compose-nvidia.yml
-	TAG=${TAG} \
-	docker-compose \
-		-f docker/docker-compose-nvidia.yml \
-		build \
-		${BUILD_ARGS}
+build-nvidia: docker/Dockerfile
+	docker build \
+		-f docker/Dockerfile \
+		--target garage-nvidia-18.04 \
+		-t ${TAG} \
+		--build-arg PARENT_IMAGE=nvidia/cuda:10.2-runtime-ubuntu18.04 \
+		${BUILD_ARGS} .
 
 run-ci: ## Run the CI Docker container (only used in TravisCI)
 run-ci: TAG ?= rlworkgroup/garage-ci

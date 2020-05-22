@@ -1,8 +1,22 @@
-FROM ubuntu:18.04 AS garage-18.04
+ARG USER=garage-user
+ARG UID=999
+ARG PARENT_IMAGE=ubuntu:18.04
+
+FROM $PARENT_IMAGE AS garage-18.04
 
 # http://bugs.python.org/issue19846
 # > At the moment, setting "LANG=C" on a Linux system *fundamentally breaks Python 3*, and that's not OK.
 ENV LANG C.UTF-8
+
+# Add PPA for old Python 3.5
+RUN \
+  apt-get -y -q update && \
+  # Prevents debconf from prompting for user input
+  # See https://github.com/phusion/baseimage-docker/issues/58
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    # Dockerfile deps
+    software-properties-common && \
+  add-apt-repository ppa:deadsnakes/ppa
 
 # apt dependencies
 RUN \
@@ -28,10 +42,10 @@ RUN \
     # OpenAI baselines
     libopenmpi-dev \
     # virtualenv
-    python3 \
-    python3-pip \
-    python3-tk \
-    python3-virtualenv && \
+    python3.5 \
+    python3.5-dev \
+    python3.5-tk \
+    python3.5-venv && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
@@ -50,11 +64,13 @@ RUN apt-get purge -y -v libglfw* && \
   cd ../../ && \
   rm -rf glfw
 
-RUN groupadd -g 999 garage-user && \
-    useradd -m -r -u 999 -g garage-user garage-user && \
-    chown -R garage-user:garage-user /home/garage-user
-USER garage-user
-ENV HOME /home/garage-user
+ARG USER
+ARG UID
+RUN groupadd -g $UID $USER && \
+    useradd -m -r -u $UID -g $USER $USER && \
+    chown -R $USER:$USER /home/$USER
+USER $USER
+ENV HOME /home/$USER
 WORKDIR $HOME
 
 # MuJoCo 2.0 (for dm_control)
@@ -63,23 +79,36 @@ RUN mkdir -p $HOME/.mujoco && \
   unzip mujoco.zip -d $HOME/.mujoco && \
   rm mujoco.zip && \
   ln -s $HOME/.mujoco/mujoco200_linux $HOME/.mujoco/mujoco200
-  ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco200/bin
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco200/bin
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so
+ENV MUJOCO_GL="glfw"
+
 
 # Create virtualenv
 ENV VIRTUAL_ENV=$HOME/venv
-RUN python3 -m virtualenv --python=/usr/bin/python3 $VIRTUAL_ENV
+RUN python3.5 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Prevent pip from complaining about available upgrades
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip setuptools
 
 # We need a MuJoCo key to install mujoco_py
 # In this step only the presence of the file mjkey.txt is required, so we only
 # create an empty file
-RUN touch $HOME/.mujoco/mjkey.txt && \
-  pip install garage[all]==2020.5rc1 && \
-  rm -r $HOME/.cache/pip && \
-  rm $HOME/.mujoco/mjkey.txt
+RUN --mount=type=secret,id=mjkey,dst=$HOME/.mujoco/mjkey.txt && \
+    pip install garage && \
+    pip install garage[all] && \
+    if [[ -s $HOME/.mujoco/mjkey.txt ]]; then python -c 'import mujoco_py'; fi && \
+    rm -r $HOME/.cache/pip
+
+#RUN touch $HOME/.mujoco/mjkey.txt && \
+#  pip install garage && \
+#  pip install garage[all] && \
+#  rm -r $HOME/.cache/pip && \a
+#  rm $HOME/.mujoco/mjkey.txt
+
+COPY --chown=$USER:$USER docker/entrypoint-runtime.sh $HOME/code/garage/docker/entrypoint-runtime.sh
+ENTRYPOINT ["code/garage/docker/entrypoint-runtime.sh"]
 
 
 # Headless machine with xvfb, i.e. so rendering works
@@ -95,10 +124,11 @@ RUN \
     pulseaudio && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
-USER garage-user
+USER $USER
 
 # Ready, set, go.
-ENTRYPOINT ["docker/entrypoint-headless.sh"]
+COPY --chown=$USER:$USER docker/entrypoint-headless.sh $HOME/code/garage/docker/entrypoint-headless.sh
+ENTRYPOINT ["code/garage/docker/entrypoint-headless.sh"]
 
 
 # Special setup for garage developers, which installs garage from source
@@ -115,19 +145,20 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # - scripts/garage
 # - src/garage/__init__.py
 # - setup.py
-COPY --chown=garage-user:garage-user README.md $HOME/code/garage/README.md
-COPY --chown=garage-user:garage-user VERSION $HOME/code/garage/VERSION
-COPY --chown=garage-user:garage-user scripts/garage $HOME/code/garage/scripts/garage
-COPY --chown=garage-user:garage-user src/garage/__init__.py $HOME/code/garage/src/garage/__init__.py
-COPY --chown=garage-user:garage-user setup.py $HOME/code/garage/setup.py
+COPY --chown=$USER:$USER README.md $HOME/code/garage/README.md
+COPY --chown=$USER:$USER VERSION $HOME/code/garage/VERSION
+COPY --chown=$USER:$USER scripts/garage $HOME/code/garage/scripts/garage
+COPY --chown=$USER:$USER src/garage/__init__.py $HOME/code/garage/src/garage/__init__.py
+COPY --chown=$USER:$USER setup.py $HOME/code/garage/setup.py
 WORKDIR $HOME/code/garage
+
+ENTRYPOINT ["docker/entrypoint-headless.sh"]
 
 # Prevent pip from complaining about available upgrades
 RUN pip install --upgrade pip
 
 # Pre-build pre-commit env
-COPY --chown=garage-user:garage-user .pre-commit-config.yaml $HOME/code/garage
-RUN ls -la && echo "$(id -u)" && ls -la $HOME
+COPY --chown=$USER:$USER .pre-commit-config.yaml $HOME/code/garage
 RUN git init && \
   pip install pre-commit && \
   pre-commit install && \
@@ -140,17 +171,21 @@ RUN touch $HOME/.mujoco/mjkey.txt && \
   rm $HOME/.mujoco/mjkey.txt
 
 # Add code stub last (ensures code changes have the shortest builds)
-COPY --chown=garage-user:garage-user . $HOME/code/garage
+COPY --chown=$USER:$USER . $HOME/code/garage
 
 # Build and install the sdist
-RUN python3 setup.py sdist && \
+RUN python3.5 setup.py sdist && \
     cp dist/*.tar.gz dist/garage.tar.gz && \
-    pip install dist/garage.tar.gz[all,dev] && \
-    cd benchmarks && python3 setup.py sdist && \
+    pip install dist/garage.tar.gz[all,dev]
+
+RUN cd benchmarks && python3.5 setup.py sdist && \
     cp dist/*.tar.gz dist/benchmarks.tar.gz && \
     pip install dist/benchmarks.tar.gz
+
+FROM garage-dev-18.04 AS garage-nvidia-18.04
+ENTRYPOINT ["docker/entrypoint-runtime.sh"]
 
 # Test target
 FROM garage-dev-18.04 AS garage-test-18.04
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-CMD nice -n 11 pytest -v -m 'not huge and not flaky' --durations=20
+CMD nice -n 11 pytest -v -n auto -m 'not huge and not flaky' --durations=20
