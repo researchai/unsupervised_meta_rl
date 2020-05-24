@@ -44,7 +44,7 @@ TASKS = {
         'kwargs': {
             'goal': g,
             'never_done': False,
-            'done_bonus': 0.0,
+            'done_bonus': 10.0,
         }
     }
     for i, g in enumerate(goals)
@@ -71,16 +71,17 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
     set_seed(seed)
 
     tasks = TASKS
-    latent_length = 1
-    inference_window = 2
+    latent_length = 2
+    inference_window = 6
     batch_size = batch_size_per_task * len(TASKS)
     policy_ent_coeff = 2e-2
-    encoder_ent_coeff = 2.2e-3
+    encoder_ent_coeff = 2.e-4
+    # encoder_ent_coeff = 0
     inference_ce_coeff = 5e-2
     max_path_length = 100
-    embedding_init_std = 1.0
-    embedding_max_std = 2.0
-    embedding_min_std = 0.38
+    embedding_init_std = 0.01
+    embedding_max_std = 0.1
+    embedding_min_std = 0.0
     policy_init_std = 1.0
     policy_max_std = None
     policy_min_std = None
@@ -158,17 +159,18 @@ def te_ppo_pointenv(ctxt, seed, n_epochs, batch_size_per_task):
                      encoder_ent_coeff=encoder_ent_coeff,
                      inference_ce_coeff=inference_ce_coeff,
                      entropy_method='max',
-                     stop_entropy_gradient=True,
                      use_softplus_entropy=True,
                      optimizer_args=dict(
                          batch_size=32,
                          max_epochs=10,
+                         tf_optimizer_args=dict(learning_rate=1e-3),
                      ),
                      inference_optimizer_args=dict(
                          batch_size=32,
                          max_epochs=10,
                      ),
                      center_adv=True,
+                     stop_entropy_gradient=True,
                      stop_ce_gradient=True)
 
         runner.setup(algo,

@@ -760,6 +760,8 @@ class TENPO(BatchPolopt):
         encoder_entropy, inference_ce, policy_entropy = (
             self._build_entropy_terms(i))
 
+        rewards = i.reward_var
+
         # Augment the path rewards with entropy terms
         if self._maximum_entropy:
             with tf.name_scope('augmented_rewards'):
@@ -1333,20 +1335,23 @@ class TENPO(BatchPolopt):
         all_tasks = np.eye(num_tasks, num_tasks)
         _, latent_infos = self.policy.encoder.forward_n(all_tasks)
 
-        for i in range(self.policy.latent_space.flat_dim):
-            # pylint: disable=protected-access
-            log_stds = latent_infos['log_std'][:, i]
-            if self.policy.encoder.model._std_parameterization == 'exp':
-                stds = np.exp(log_stds)
-            elif self.policy.encoder.model._std_parameterization == 'softplus':
-                stds = np.log(1. + log_stds)
-            else:
-                return
+        for task in range(num_tasks):
+            for i in range(self.policy.latent_space.flat_dim):
+                # pylint: disable=protected-access
+                log_stds = latent_infos['log_std'][task, i]
+                std_param = self.policy.encoder.model._std_parameterization
+                if std_param == 'exp':
+                    stds = np.exp(log_stds)
+                elif std_param == 'softplus':
+                    stds = np.log(1. + log_stds)
+                else:
+                    return
 
-            norm = scipy.stats.norm(loc=latent_infos['mean'][:, i], scale=stds)
-            samples = norm.rvs((1000, num_tasks))
-            hist = Histogram(samples)
-            tabular.record('Encoder/i={}'.format(i), hist)
+                norm = scipy.stats.norm(loc=latent_infos['mean'][task, i],
+                                        scale=stds)
+                samples = norm.rvs(100)
+                hist = Histogram(samples)
+                tabular.record('Encoder/task={},i={}'.format(task, i), hist)
 
     def _train_policy_and_encoder_networks(self, policy_opt_input_values):
         """Joint optimization of policy and encoder networks.
