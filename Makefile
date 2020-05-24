@@ -10,7 +10,7 @@ SHELL := /bin/bash
 DATA_PATH ?= $(shell pwd)/data
 # Set the environment variable MJKEY with the contents of the file specified by
 # MJKEY_PATH.
-MJKEY_PATH ?= ~/.mujoco/mjkey.txt
+MJKEY_PATH ?= ${HOME}/.mujoco/mjkey.txt
 BUILD_ARGS = --build-arg user="${USER}" --build-arg uid=${shell id -u}
 
 build-test: docker/Dockerfile

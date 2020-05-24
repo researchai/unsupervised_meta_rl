@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 ARG USER=garage-user
 ARG UID=999
 ARG PARENT_IMAGE=ubuntu:18.04
@@ -95,8 +96,8 @@ RUN pip install --upgrade pip setuptools
 # We need a MuJoCo key to install mujoco_py
 # In this step only the presence of the file mjkey.txt is required, so we only
 # create an empty file
-RUN --mount=type=secret,id=mjkey,dst=$HOME/.mujoco/mjkey.txt && \
-    pip install garage && \
+RUN touch $HOME/.mujoco/mjkey.txt
+RUN --mount=type=secret,id=mjkey,dst=$HOME/.mujoco/mjkey.txt pip install garage && \
     pip install garage[all] && \
     if [[ -s $HOME/.mujoco/mjkey.txt ]]; then python -c 'import mujoco_py'; fi && \
     rm -r $HOME/.cache/pip
