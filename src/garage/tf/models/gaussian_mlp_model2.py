@@ -100,6 +100,7 @@ class GaussianMLPModel2(Model):
         self._adaptive_std = adaptive_std
         self._std_share_network = std_share_network
         self._std_hidden_sizes = std_hidden_sizes
+        self._init_std = init_std
         self._min_std = min_std
         self._max_std = max_std
         self._std_hidden_nonlinearity = std_hidden_nonlinearity
@@ -245,6 +246,4 @@ class GaussianMLPModel2(Model):
             else:  # we know it must be softplus here
                 log_std_var = tf.math.log(tf.math.log(1. + tf.exp(std_param)))
 
-        dist = DiagonalGaussian(self._output_dim)
-
-        return mean_var, log_std_var, std_param, dist
+        return mean_var, log_std_var

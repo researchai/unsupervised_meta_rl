@@ -3,10 +3,10 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from garage.tf.models import GaussianMLPModel
+from garage.tf.models import GaussianMLPModel2
 
 
-class GaussianMLPRegressorModel(GaussianMLPModel):
+class GaussianMLPRegressorModel(GaussianMLPModel2):
     """GaussianMLPRegressor based on garage.tf.models.Model class.
 
     This class can be used to perform regression by fitting a Gaussian
@@ -129,7 +129,7 @@ class GaussianMLPRegressorModel(GaussianMLPModel):
         #     'normalized_log_stds', 'x_mean', 'x_std', 'y_mean', 'y_std', 'dist'
         # ]
         return [
-            'normalized_dist', 'true_dist', 'x_mean', 'x_std', 'y_mean', 'y_std'
+            'normalized_mean', 'normalized_log_std', 'true_mean', 'true_log_std', 'x_mean', 'x_std', 'y_mean', 'y_std'
         ]
 
     def _build(self, state_input, name=None):
@@ -182,16 +182,14 @@ class GaussianMLPRegressorModel(GaussianMLPModel):
 
         normalized_xs_var = (state_input - x_mean_var) / x_std_var
 
-        normalized_dist = super()._build(normalized_xs_var)
+        normalized_dist_mean, normalized_dist_log_std = super()._build(normalized_xs_var)
         with tf.name_scope('mean_network'):
-            means_var = normalized_dist.loc * y_std_var + y_mean_var
+            means_var = normalized_dist_mean * y_std_var + y_mean_var
 
         with tf.name_scope('std_network'):
-            log_std_var = tf.squeeze(normalized_dist.stddev(), axis=1)
-            log_stds_var = tf.math.log(log_std_var) + tf.math.log(y_std_var)
+            log_stds_var = normalized_dist_log_std + tf.math.log(y_std_var)
 
-        return (normalized_dist, tfp.distributions.MultivariateNormalDiag(
-            loc=means_var, scale_diag=tf.exp(log_stds_var)), x_mean_var, x_std_var, y_mean_var,
+        return (normalized_dist_mean, normalized_dist_log_std, means_var, log_stds_var, x_mean_var, x_std_var, y_mean_var,
                 y_std_var)
         # return (means_var, log_stds_var, std_param, normalized_mean,
         #         normalized_log_std, x_mean_var, x_std_var, y_mean_var,

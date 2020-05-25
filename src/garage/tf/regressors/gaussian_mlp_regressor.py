@@ -2,6 +2,7 @@
 from dowel import tabular
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from garage.tf.misc import tensor_utils
 from garage.tf.optimizers import LbfgsOptimizer, PenaltyLbfgsOptimizer
@@ -149,22 +150,26 @@ class GaussianMLPRegressor(StochasticRegressor):
 
             y_mean_var = self.model.networks['default'].y_mean
             y_std_var = self.model.networks['default'].y_std
-            means_var = self.model.networks['default'].true_dist.loc
+            means_var = self.model.networks['default'].true_mean
 
             normalized_means_var = self.model.networks[
-                'default'].normalized_dist.loc
+                'default'].normalized_mean
             normalized_log_stds_var = tf.math.log(self.model.networks[
-                'default'].normalized_dist.stddev())
+                'default'].normalized_log_std)
 
             normalized_ys_var = (ys_var - y_mean_var) / y_std_var
 
-            mean_kl = tf.reduce_mean(
-                self._old_model.networks['default'].normalized_dist.kl_divergence(
-                self.model.networks['default'].normalized_dist))
+            old_normalized_dist = tfp.distributions.MultivariateNormalDiag(
+                loc=self._old_model.networks['default'].normalized_mean, scale_diag=tf.exp(
+                    self._old_model.networks['default'].normalized_log_std))
+            normalized_dist = tfp.distributions.MultivariateNormalDiag(
+                loc=self.model.networks['default'].normalized_mean, scale_diag=tf.exp(
+                    self.model.networks['default'].normalized_log_std))
 
-            loss = -tf.reduce_mean(
-                self.model.networks['default'].normalized_dist.log_prob(
-                    normalized_ys_var))
+            mean_kl = tf.reduce_mean(
+                old_normalized_dist.kl_divergence(normalized_dist))
+
+            loss = -tf.reduce_mean(normalized_dist.log_prob(normalized_ys_var))
 
             self._f_predict = tensor_utils.compile_function([input_var],
                                                             means_var)
