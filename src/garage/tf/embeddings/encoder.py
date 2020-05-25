@@ -29,3 +29,15 @@ class Encoder(BaseEncoder, Module):
 
 class StochasticEncoder(BaseStochasticEncoder, StochasticModule):
     """Base class for stochastic encoders in TensorFlow."""
+
+    def build(self, embedding_input, name=None):
+        """Build encoder.
+
+        After buil, self.distribution is a Gaussian distribution conitioned
+        on embedding_input.
+
+        Args:
+          embedding_input (tf.Tensor) : Embedding input.
+          name (str): Name of the model, which is also the name scope.
+
+        """

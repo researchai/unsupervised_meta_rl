@@ -114,20 +114,27 @@ class GaussianMLPTaskEmbeddingPolicy(TaskEmbeddingPolicy):
             layer_normalization=layer_normalization,
             name='GaussianMLPModel')
 
-        self._initialize()
+    def build(self, obs_input, task_input, name=None):
+        """Build policy.
 
-    def _initialize(self):
-        obs_input = tf.compat.v1.placeholder(tf.float32,
-                                             shape=(None, None, self._obs_dim))
-        task_input = tf.compat.v1.placeholder(tf.float32,
-                                              shape=(None, None,
-                                                     self._encoder.input_dim))
+        After build, self.distribution is a Gaussian distribution conditioned
+        on (obs_input, task_input).
+
+        An auxiliary distribution conditioned on (obs_input, latent_input) will
+        also be built for sampling.
+
+        Args:
+            obs_input (tf.Tensor): Observation input.
+            task_input (tf.Tensor): One-hot task id input.
+            name (str): Name of the model, which is also the name scope.
+
+        """
         latent_input = tf.compat.v1.placeholder(
             tf.float32, shape=(None, None, self._encoder.output_dim))
 
         # Encoder should be outside policy scope
-        with tf.compat.v1.variable_scope('concat_obs_task'):
-            self._encoder.build(task_input, name='dist_info_sym')
+        with tf.compat.v1.variable_scope('encoder'):
+            self._encoder.build(task_input)
             latent_var = self._encoder.distribution.sample()
 
         with tf.compat.v1.variable_scope(self.name) as vs:
@@ -135,34 +142,34 @@ class GaussianMLPTaskEmbeddingPolicy(TaskEmbeddingPolicy):
 
             with tf.compat.v1.variable_scope('concat_obs_latent'):
                 obs_latent_input = tf.concat([obs_input, latent_input], -1)
-            self._dist = self.model.build(obs_latent_input,
-                                          name='given_latent')
+            dist_given_latent = self.model.build(obs_latent_input,
+                                                 name='given_latent')
 
             with tf.compat.v1.variable_scope('concat_obs_latent_var'):
                 embed_state_input = tf.concat([obs_input, latent_var], -1)
 
-            dist_given_task = self.model.build(embed_state_input,
-                                               name='given_task')
+            # Policy conditioned on
+            self._dist = self.model.build(embed_state_input, name='given_task')
 
         self._f_dist_obs_latent = tf.compat.v1.get_default_session(
+        ).make_callable([
+            dist_given_latent.sample(), dist_given_latent.loc,
+            dist_given_latent.stddev()
+        ],
+                        feed_list=[obs_input, latent_input])
+
+        self._f_dist_obs_task = tf.compat.v1.get_default_session(
         ).make_callable(
             [self._dist.sample(), self._dist.loc,
              self._dist.stddev()],
-            feed_list=[obs_input, latent_input])
-
-        self._f_dist_obs_task = tf.compat.v1.get_default_session(
-        ).make_callable([
-            dist_given_task.sample(), dist_given_task.loc,
-            dist_given_task.stddev()
-        ],
-                        feed_list=[obs_input, task_input])
+            feed_list=[obs_input, task_input])
 
     @property
     def distribution(self):
         """Policy action distribution.
 
         Returns:
-            garage.tf.distributions.DiagonalGaussian: Policy distribution.
+            tfp.Distribution.MultivariateNormalDiag: Policy distribution.
 
         """
         return self._dist

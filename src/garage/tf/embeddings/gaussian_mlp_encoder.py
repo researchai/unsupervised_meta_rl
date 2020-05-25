@@ -118,6 +118,9 @@ class GaussianMLPEncoder(StochasticEncoder, StochasticModule):
     def build(self, embedding_input, name=None):
         """Build encoder.
 
+        After build, self.distribution is a Gaussian distribution conitioned
+        on embedding_input.
+
         Args:
           embedding_input (tf.Tensor) : Embedding input.
           name (str): Name of the model, which is also the name scope.

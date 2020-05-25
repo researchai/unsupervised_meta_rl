@@ -14,9 +14,6 @@ from garage.tf.misc.tensor_utils import compile_function
 from garage.tf.misc.tensor_utils import compute_advantages
 from garage.tf.misc.tensor_utils import concat_tensor_list
 from garage.tf.misc.tensor_utils import discounted_returns
-from garage.tf.misc.tensor_utils import filter_valids
-from garage.tf.misc.tensor_utils import filter_valids_dict
-from garage.tf.misc.tensor_utils import flatten_batch
 from garage.tf.misc.tensor_utils import flatten_inputs
 from garage.tf.misc.tensor_utils import graph_inputs
 from garage.tf.misc.tensor_utils import pad_tensor
@@ -169,7 +166,7 @@ class TENPO(BatchPolopt):
             self._max_kl_step = float(max_kl_step)
             self._policy_ent_coeff = float(policy_ent_coeff)
 
-            self.inference = inference
+            self._inference = inference
             self.inference_ce_coeff = float(inference_ce_coeff)
             self.inference_optimizer = inference_opt(**inference_opt_args)
             self.encoder_ent_coeff = encoder_ent_coeff
@@ -213,7 +210,7 @@ class TENPO(BatchPolopt):
         self._inference_opt_inputs = infer_opt_inputs
 
         # Jointly optimize policy and encoder network
-        pol_loss, pol_kl, embed_kl = self._build_policy_loss(pol_loss_inputs)
+        pol_loss, pol_kl, encoder_kl = self._build_policy_loss(pol_loss_inputs)
         self._optimizer.update_opt(loss=pol_loss,
                                    target=self.policy,
                                    leq_constraint=(pol_kl, self._max_kl_step),
@@ -224,7 +221,7 @@ class TENPO(BatchPolopt):
         # Optimize inference distribution separately (supervised learning)
         infer_loss, infer_kl = self._build_inference_loss(infer_loss_inputs)
         self.inference_optimizer.update_opt(loss=infer_loss,
-                                            target=self.inference,
+                                            target=self._inference,
                                             inputs=flatten_inputs(
                                                 self._inference_opt_inputs))
 
@@ -372,15 +369,15 @@ class TENPO(BatchPolopt):
             obs = pad_tensor(path['observations'], max_path_length)
             obs_flat = self.env_spec.observation_space.flatten_n(obs)
             steps = obs_flat
-            window = self.inference.spec.input_space.shape[0]
+            window = self._inference.spec.input_space.shape[0]
             trajs = np_tensor_utils.sliding_window(steps,
                                                    window,
                                                    1,
                                                    smear=True)
-            trajs_flat = self.inference.spec.input_space.flatten_n(trajs)
+            trajs_flat = self._inference.spec.input_space.flatten_n(trajs)
             path['trajectories'] = trajs_flat
 
-            _, traj_infos = self.inference.forward_n(trajs)
+            _, traj_infos = self._inference.forward_n(trajs)
             path['trajectory_infos'] = traj_infos
 
         # make all paths the same length
@@ -500,7 +497,7 @@ class TENPO(BatchPolopt):
         action_space = self.policy.action_space
         task_space = self.policy.task_space
         latent_space = self.policy.latent_space
-        trajectory_space = self.inference.spec.input_space
+        trajectory_space = self._inference.spec.input_space
 
         with tf.name_scope('inputs'):
             if self.flatten_input:
@@ -566,33 +563,29 @@ class TENPO(BatchPolopt):
                 k: tf.compat.v1.placeholder(tf.float32,
                                             shape=[None] * 2 + list(shape),
                                             name='infer_%s' % k)
-                for k, shape in self.inference.state_info_specs
+                for k, shape in self._inference.state_info_specs
             }
             infer_state_info_vars_list = [
                 infer_state_info_vars[k]
-                for k in self.inference.state_info_keys
+                for k in self._inference.state_info_keys
             ]
 
+        # TODO: The best place to build policy should be _build_loss()
         extra_obs_var = [
             tf.cast(v, tf.float32) for v in policy_state_info_vars_list
         ]
         augmented_obs_var = tf.concat([obs_var] + extra_obs_var, axis=-1)
-        # TODO: Add task id input to policy.build()
-        self.policy.build(augmented_obs_var)
-        self._old_policy.build(augmented_obs_var)
+        self.policy.build(augmented_obs_var, task_var)
+        self._old_policy.build(augmented_obs_var, task_var)
+        # TODO: build inference.
+        #       encoder is built in policy.
 
         # Policy and encoder network loss and optimizer inputs
-        policy_loss_inputs = graph_inputs(
-            'PolicyLossInputs',
-            action_var=action_var,
-            reward_var=reward_var,
-            baseline_var=baseline_var,
-            trajectory_var=trajectory_var,
-            task_var=task_var,
-            latent_var=latent_var,
-            valid_var=valid_var,
-            policy_state_info_vars=policy_state_info_vars,
-            embed_state_info_vars=embed_state_info_vars)
+        policy_loss_inputs = graph_inputs('PolicyLossInputs',
+                                          action_var=action_var,
+                                          reward_var=reward_var,
+                                          baseline_var=baseline_var,
+                                          valid_var=valid_var)
         policy_opt_inputs = graph_inputs(
             'PolicyOptInputs',
             obs_var=obs_var,
@@ -608,13 +601,10 @@ class TENPO(BatchPolopt):
         )
 
         # Inference network loss and optimizer inputs
-        inference_loss_inputs = graph_inputs(
-            'InferenceLossInputs',
-            latent_var=latent_var,
-            trajectory_var=trajectory_var,
-            valid_var=valid_var,
-            infer_state_info_vars=infer_state_info_vars,
-        )
+        inference_loss_inputs = graph_inputs('InferenceLossInputs',
+                                             latent_var=latent_var,
+                                             trajectory_var=trajectory_var,
+                                             valid_var=valid_var)
         inference_opt_inputs = graph_inputs(
             'InferenceOptInputs',
             latent_var=latent_var,
@@ -713,7 +703,7 @@ class TENPO(BatchPolopt):
                 # Encoder entropy bonus
                 loss -= self.encoder_ent_coeff * encoder_entropy
 
-            embed_mean_kl = self._build_encoder_kl(i)
+            encoder_mean_kl = self._build_encoder_kl(i)
 
             # Diagnostic functions
             self._f_policy_kl = tf.compat.v1.get_default_session(
@@ -730,7 +720,7 @@ class TENPO(BatchPolopt):
             self._f_returns = tf.compat.v1.get_default_session().make_callable(
                 returns, feed_list=flatten_inputs(self._policy_opt_inputs))
 
-        return loss, pol_mean_kl, embed_mean_kl
+        return loss, pol_mean_kl, encoder_mean_kl
 
     def _build_entropy_terms(self, i):
         """Build policy entropy tensor.
@@ -751,33 +741,25 @@ class TENPO(BatchPolopt):
                 all_task_one_hots = tf.one_hot(np.arange(task_dim),
                                                task_dim,
                                                name='all_task_one_hots')
-                encoder_dist_info_flat = self.policy.encoder.dist_info_sym(
-                    all_task_one_hots,
-                    i.flat.embed_state_info_vars,
-                    name='embed_dist_info_flat_2')
+                encoder_dist_all_task = self.policy.encoder.model.build(
+                    all_task_one_hots, name='encoder_all_task')
 
-                all_task_entropies = (
-                    self.policy.encoder.distribution.entropy_sym(
-                        encoder_dist_info_flat, name='embed_entropy'))
+                encoder_all_task_entropies = encoder_dist_all_task.entropy(
+                    name='encoder_all_task_entropies')
 
                 if self._use_softplus_entropy:
-                    all_task_entropies = tf.nn.softplus(all_task_entropies)
+                    encoder_entropy = tf.nn.softplus(
+                        encoder_all_task_entropies)
 
-                encoder_entropy = tf.reduce_mean(all_task_entropies,
+                encoder_entropy = tf.reduce_mean(encoder_entropy,
                                                  name='encoder_entropy')
 
             # 2. Infernece distribution cross-entropy (log-likelihood)
             with tf.name_scope('inference_ce'):
-                traj_dist_info_flat = self.inference.dist_info_sym(
-                    i.flat.trajectory_var, name='traj_dist_info_flat')
+                # Build inference with trajectory windows
 
-                traj_ll_flat = self.inference.distribution.log_likelihood_sym(
-                    self.policy.encoder.distribution.sample_sym(
-                        traj_dist_info_flat),
-                    traj_dist_info_flat,
-                    name='traj_ll_flat')
-                traj_ll = tf.reshape(traj_ll_flat, [-1, self.max_path_length],
-                                     name='traj_ll')
+                traj_ll = self._inference.distribution.log_prob(
+                    self.policy.encoder.distribution.sample(), name='traj_ll')
 
                 inference_ce_raw = -traj_ll
                 inference_ce = tf.clip_by_value(inference_ce_raw, -3, 3)
@@ -808,7 +790,7 @@ class TENPO(BatchPolopt):
         # Diagnostic functions
         self._f_task_entropies = compile_function(flatten_inputs(
             self._policy_opt_inputs),
-                                                  all_task_entropies,
+                                                  encoder_all_task_entropies,
                                                   log_name='f_task_entropies')
         self._f_encoder_entropy = compile_function(
             flatten_inputs(self._policy_opt_inputs),
@@ -836,21 +818,14 @@ class TENPO(BatchPolopt):
             tf.Tensor: Encoder KL divergence.
 
         """
-        dist = self.policy.encoder.distribution
-        with tf.name_scope('encoder_kl'):
-            # new distribution
-            embed_dist_info_flat = self.policy.encoder.dist_info_sym(
-                i.flat.task_var,
-                i.flat.embed_state_info_vars,
-                name='embed_dist_info_flat')
-            embed_dist_info_valid = filter_valids_dict(
-                embed_dist_info_flat,
-                i.flat.valid_var,
-                name='embed_dist_info_valid')
+        del i
 
-            # calculate KL divergence
-            kl = dist.kl_sym(i.valid.embed_old_dist_info_vars,
-                             embed_dist_info_valid)
+        dist = self.policy.encoder.distribution
+        old_dist = self._old_policy.encoder.distribution
+        # TODO: build & update old encoder
+
+        with tf.name_scope('encoder_kl'):
+            kl = old_dist.kl_divergence(dist)
             mean_kl = tf.reduce_mean(kl)
 
             # Diagnostic function
@@ -871,15 +846,12 @@ class TENPO(BatchPolopt):
             tf.Tensor: Inference loss.
 
         """
-        infer_dist = self.inference.distribution
+        # TODO: add old_inference
+        dist = self._inference.distribution
+        old_dist = self._old_inference.distribution
         with tf.name_scope('infer_loss'):
-            traj_dist_info_flat = self.inference.dist_info_sym(
-                i.flat.trajectory_var, name='traj_dist_info_flat_2')
 
-            traj_ll_flat = self.inference.distribution.log_likelihood_sym(
-                i.flat.latent_var, traj_dist_info_flat, name='traj_ll_flat_2')
-            traj_ll = tf.reshape(traj_ll_flat, [-1, self.max_path_length],
-                                 name='traj_ll')
+            traj_ll = dist.log_prob(i.latent_var, name='traj_ll_2')
 
             # Calculate loss
             traj_gammas = tf.constant(float(self.discount),
@@ -889,32 +861,17 @@ class TENPO(BatchPolopt):
                                                   exclusive=True,
                                                   name='traj_discounts')
             discount_traj_ll = traj_discounts * traj_ll
-            discount_traj_ll_flat = flatten_batch(discount_traj_ll,
-                                                  name='discount_traj_ll_flat')
-            discount_traj_ll_valid = filter_valids(
-                discount_traj_ll_flat,
-                i.flat.valid_var,
-                name='discount_traj_ll_valid')
+            discount_traj_ll = tf.boolean_mask(discount_traj_ll, i.valid_var)
 
             with tf.name_scope('loss'):
-                infer_loss = -tf.reduce_mean(discount_traj_ll_valid,
+                infer_loss = -tf.reduce_mean(discount_traj_ll,
                                              name='infer_loss')
 
             with tf.name_scope('kl'):
                 # Calculate predicted encoder distributions for each timestep
-                infer_dist_info_flat = self.inference.dist_info_sym(
-                    i.flat.trajectory_var,
-                    i.flat.infer_state_info_vars,
-                    name='infer_dist_info_flat_2')
-
-                infer_dist_info_valid = filter_valids_dict(
-                    infer_dist_info_flat,
-                    i.flat.valid_var,
-                    name='infer_dist_info_valid_2')
 
                 # Calculate KL divergence
-                kl = infer_dist.kl_sym(i.valid.infer_old_dist_info_vars,
-                                       infer_dist_info_valid)
+                kl = old_dist.kl_divergence(dist)
                 infer_kl = tf.reduce_mean(kl, name='infer_kl')
 
             return infer_loss, infer_kl
@@ -965,7 +922,7 @@ class TENPO(BatchPolopt):
         """
         infer_state_info_list = [
             samples_data['trajectory_infos'][k]
-            for k in self.inference.state_info_keys
+            for k in self._inference.state_info_keys
         ]
         # pylint: disable=unexpected-keyword-arg
         inference_opt_input_values = self._inference_opt_inputs._replace(
