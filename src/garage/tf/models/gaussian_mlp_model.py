@@ -100,7 +100,8 @@ class GaussianMLPModel(Model):
                  std_output_nonlinearity=None,
                  std_output_w_init=tf.initializers.glorot_uniform(),
                  std_parameterization='exp',
-                 layer_normalization=False):
+                 layer_normalization=False,
+                 return_distribution=True):
         # Network parameters
         super().__init__(name)
         self._hidden_sizes = hidden_sizes
@@ -125,6 +126,7 @@ class GaussianMLPModel(Model):
         self._output_w_init = output_w_init
         self._output_b_init = output_b_init
         self._layer_normalization = layer_normalization
+        self._return_distribution = return_distribution
 
         # Tranform std arguments to parameterized space
         self._init_std_param = None
@@ -247,5 +249,8 @@ class GaussianMLPModel(Model):
             else:  # we know it must be softplus here
                 log_std_var = tf.math.log(tf.math.log(1. + tf.exp(std_param)))
 
-        return tfp.distributions.MultivariateNormalDiag(
-            loc=mean_var, scale_diag=tf.exp(log_std_var))
+        if self._return_distribution:
+            return tfp.distributions.MultivariateNormalDiag(
+                loc=mean_var, scale_diag=tf.exp(log_std_var))
+        else:
+            return mean_var, log_std_var
