@@ -17,12 +17,13 @@ import tensorflow as tf
 from garage.envs import normalize
 from garage.experiment import deterministic
 from garage.tf.baselines import GaussianMLPBaseline
-from garage.tf.baselines import GaussianMLPBaseline2
 from garage.tf.algos import PPO
+from garage.tf.algos import PPO2
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
 from garage.tf.optimizers import FirstOrderOptimizer
 from garage.tf.policies import GaussianMLPPolicy
+from garage.tf.policies import GaussianMLPPolicy2
 from tests.fixtures import snapshot_config
 import tests.helpers as Rh
 
@@ -33,22 +34,17 @@ def test_benchmark_gaussian_mlp_policy():
     :return:
     '''
     categorical_tasks = [
-        'HalfCheetah-v2',
-        'Reacher-v2',
-        'Walker2d-v2',
-        'Hopper-v2',
-        'Swimmer-v2',
-        'InvertedPendulum-v2',
-        'InvertedDoublePendulum-v2'
+        'HalfCheetah-v2', 'Reacher-v2', 'Walker2d-v2', 'Hopper-v2',
+        'Swimmer-v2', 'InvertedPendulum-v2', 'InvertedDoublePendulum-v2'
     ]
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
-    benchmark_dir = './data/local/benchmarks/gaussian_mlp_baseline/{0}/'
+    benchmark_dir = './data/local/benchmarks/gaussian_mlp_policy/{0}/'
     benchmark_dir = benchmark_dir.format(timestamp)
     result_json = {}
     for task in categorical_tasks:
         env_id = task
         env = gym.make(env_id)
-        trials = 1
+        trials = 3
         seeds = random.sample(range(100), trials)
 
         task_dir = osp.join(benchmark_dir, env_id)
@@ -77,6 +73,21 @@ def test_benchmark_gaussian_mlp_policy():
             garage_csvs2.append(garage_csv2)
 
         env.close()
+
+        Rh.plot(b_csvs=garage_csvs,
+                g_csvs=garage_csvs2,
+                g_x='Evaluation/Iteration',
+                g_y='Evaluation/AverageReturn',
+                g_z='Garage',
+                b_x='Evaluation/Iteration',
+                b_y='Evaluation/AverageReturn',
+                b_z='Garage2',
+                trials=trials,
+                seeds=seeds,
+                plt_file=plt_file,
+                env_id=env_id,
+                x_label='Evaluation/Iteration',
+                y_label='Evaluation/AverageReturn')
 
         Rh.relplot(b_csvs=garage_csvs,
                    g_csvs=garage_csvs2,
@@ -112,7 +123,6 @@ def run_garage(env, seed, log_dir):
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
-            hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,
         )
 
@@ -120,30 +130,34 @@ def run_garage(env, seed, log_dir):
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(64, 64),
-                use_trust_region=False
+                use_trust_region=False,
+                optimizer=FirstOrderOptimizer,
+                optimizer_args=dict(
+                    batch_size=32,
+                    max_epochs=10,
+                    tf_optimizer_args=dict(learning_rate=1e-3),
+                ),
             ),
         )
 
-        algo = PPO(
-            env_spec=env.spec,
-            policy=policy,
-            baseline=baseline,
-            max_path_length=100,
-            discount=0.99,
-            gae_lambda=0.95,
-            lr_clip_range=0.2,
-            use_neg_logli_entropy=True,
-            stop_entropy_gradient=True,
-            optimizer_args=dict(
-                batch_size=32,
-                max_epochs=10,
-                tf_optimizer_args=dict(learning_rate=1e-3),
-            ),
-        )
+        algo = PPO(env_spec=env.spec,
+                   policy=policy,
+                   baseline=baseline,
+                   max_path_length=100,
+                   discount=0.99,
+                   gae_lambda=0.95,
+                   lr_clip_range=0.2,
+                   policy_ent_coeff=0.0,
+                   optimizer_args=dict(
+                       batch_size=32,
+                       max_epochs=10,
+                       tf_optimizer_args=dict(learning_rate=1e-3),
+                   ),
+                   name='GaussianMLPPolicyBenchmark')
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
-        # dowel_logger.add_output(dowel.StdOutput())
+        dowel_logger.add_output(dowel.StdOutput())
         dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
         dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
 
@@ -170,41 +184,43 @@ def run_garage2(env, seed, log_dir):
     with LocalTFRunner(snapshot_config, sess=sess, max_cpus=12) as runner:
         env = TfEnv(normalize(env))
 
-        policy = GaussianMLPPolicy(
+        policy = GaussianMLPPolicy2(
             env_spec=env.spec,
-            hidden_sizes=(64, 64),
             hidden_nonlinearity=tf.nn.tanh,
         )
 
-        baseline = GaussianMLPBaseline2(
+        baseline = GaussianMLPBaseline(
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(64, 64),
-                use_trust_region=False
+                use_trust_region=False,
+                optimizer=FirstOrderOptimizer,
+                optimizer_args=dict(
+                    batch_size=32,
+                    max_epochs=10,
+                    tf_optimizer_args=dict(learning_rate=1e-3),
+                ),
             ),
         )
 
-        algo = PPO(
-            env_spec=env.spec,
-            policy=policy,
-            baseline=baseline,
-            max_path_length=100,
-            discount=0.99,
-            gae_lambda=0.95,
-            lr_clip_range=0.2,
-            use_neg_logli_entropy=True,
-            stop_entropy_gradient=True,
-            optimizer_args=dict(
-                batch_size=32,
-                max_epochs=10,
-                tf_optimizer_args=dict(learning_rate=1e-3),
-            ),
-        )
-
+        algo = PPO2(env_spec=env.spec,
+                   policy=policy,
+                   baseline=baseline,
+                   max_path_length=100,
+                   discount=0.99,
+                   gae_lambda=0.95,
+                   lr_clip_range=0.2,
+                   policy_ent_coeff=0.0,
+                   optimizer_args=dict(
+                       batch_size=32,
+                       max_epochs=10,
+                       tf_optimizer_args=dict(learning_rate=1e-3),
+                   ),
+                   name='GaussianMLPPolicyBenchmark')
 
         # Set up logger since we are not using run_experiment
         tabular_log_file = osp.join(log_dir, 'progress.csv')
-        # dowel_logger.add_output(dowel.StdOutput())
+        dowel_logger.add_output(dowel.StdOutput())
         dowel_logger.add_output(dowel.CsvOutput(tabular_log_file))
         dowel_logger.add_output(dowel.TensorBoardOutput(log_dir))
 

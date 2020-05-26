@@ -17,8 +17,10 @@ from garage.envs import normalize
 from garage.experiment.deterministic import set_seed
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
+from garage.tf.baselines import GaussianMLPBaseline2
 from garage.tf.envs import TfEnv
 from garage.tf.experiment import LocalTFRunner
+from garage.tf.optimizers import FirstOrderOptimizer
 from garage.tf.policies import GaussianMLPPolicy
 
 
@@ -35,7 +37,7 @@ def ppo_pendulum(ctxt=None, seed=1):
     """
     set_seed(seed)
     with LocalTFRunner(snapshot_config=ctxt) as runner:
-        env = TfEnv(normalize(gym.make('HalfCheetah-v2')))
+        env = TfEnv(normalize(gym.make('InvertedDoublePendulum-v2')))
 
         policy = GaussianMLPPolicy(
             env_spec=env.spec,
@@ -48,7 +50,13 @@ def ppo_pendulum(ctxt=None, seed=1):
             env_spec=env.spec,
             regressor_args=dict(
                 hidden_sizes=(32, 32),
-                use_trust_region=True,
+                use_trust_region=False,
+                # optimizer=FirstOrderOptimizer,
+                # optimizer_args=dict(
+                #     batch_size=32,
+                #     max_epochs=10,
+                #     tf_optimizer_args=dict(learning_rate=1e-3),
+                # ),
             ),
         )
 
@@ -68,10 +76,9 @@ def ppo_pendulum(ctxt=None, seed=1):
                 max_epochs=10,
             ),
             stop_entropy_gradient=True,
-            entropy_method='max',
-            policy_ent_coeff=0.02,
-            center_adv=False,
+            use_neg_logli_entropy=True,
         )
+
 
         runner.setup(algo, env)
 
