@@ -19,6 +19,7 @@ class Module(abc.ABC):
         self._variable_scope = None
         self._cached_params = None
         self._cached_param_shapes = None
+        self._cached_assignments = None
 
     @property
     def name(self):
@@ -136,8 +137,20 @@ class Module(abc.ABC):
 
         """
         param_values = unflatten_tensors(param_values, self.get_param_shapes())
-        for param, value in zip(self.get_params(), param_values):
-            param.load(value)
+        # for param, value in zip(self.get_params(), param_values):
+            # param.load(value)
+
+        if self._cached_assignments is None:
+            self._cached_assignments = []
+            for param, value in zip(self.get_params(), param_values):
+                ph = tf.compat.v1.placeholder(tf.float32, shape=(None, ) + value.shape[1:])
+                assign_op = param.assign(ph)
+                assign_callable = tf.compat.v1.get_default_session().make_callable(assign_op,
+                                feed_list=[ph])
+                self._cached_assignments.append(assign_callable)
+
+        for assign_op, value in zip(self._cached_assignments, param_values):
+            assign_op(value)
 
     def flat_to_params(self, flattened_params):
         """Unflatten tensors according to their respective shapes.
@@ -161,6 +174,7 @@ class Module(abc.ABC):
         """
         new_dict = self.__dict__.copy()
         del new_dict['_cached_params']
+        del new_dict['_cached_assignments']
         return new_dict
 
     def __setstate__(self, state):
