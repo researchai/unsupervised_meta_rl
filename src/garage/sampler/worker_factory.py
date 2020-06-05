@@ -31,7 +31,7 @@ class WorkerFactory:
     All arguments to this type must be passed by keyword.
 
     Args:
-        seed(int): The seed to use to intialize random number generators.
+        seed(int): The seed to use to initialize random number generators.
         n_workers(int): The number of workers to use.
         max_path_length(int): The maximum length paths which will be sampled.
         worker_class(type): Class of the workers. Instances should implement

@@ -79,7 +79,7 @@ class TrainArgs:
 class LocalRunner:
     """Base class of local runner.
 
-    Use Runner.setup(algo, env) to setup algorithm and environement for runner
+    Use Runner.setup(algo, env) to setup algorithm and environment for runner
     and Runner.train() to start training.
 
     Args:
@@ -319,7 +319,7 @@ class LocalRunner:
 
         """
         if self._sampler is None:
-            raise ValueError('Runner was not initialized with `sampler_cls`. '
+            raise ValueError('Runner was not initialized with `sampler_cls`. ' 
                              'Either provide `sampler_cls` to runner.setup, '
                              ' or set `algo.sampler_cls`.')
         if batch_size is None and self._train_args.batch_size is None:
