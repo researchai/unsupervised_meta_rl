@@ -854,3 +854,104 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                    env_infos=stacked_paths['env_infos'],
                    agent_infos=stacked_paths['agent_infos'],
                    lengths=lengths)
+
+
+class SkillTimeStep(
+    collections.namedtuple('SkillTimeStep', [
+        'env_spec',
+        'num_skills',
+        'skill',
+        'state',
+        'next_state',
+        'observation',
+        'next_observation',
+        'action',
+        'reward',
+        'terminal',
+        'env_info',
+        'agent_info',
+    ])):
+
+    def __new__(cls, env_spec, num_skills, skill, state, next_state, action,
+                reward, terminal, env_info, agent_info):
+        # observation
+        if not env_spec.observation_space.contains(state):
+            if isinstance(env_spec.observation_space,
+                          (akro.Box, akro.Discrete, akro.Dict)):
+                if env_spec.observation_space.flat_dim != np.prod(
+                    state.shape):
+                    raise ValueError('observation should have the same '
+                                     'dimensionality as the observation_space '
+                                     '({}), but got data with shape {} '
+                                     'instead'.format(
+                        env_spec.observation_space.flat_dim,
+                        state.shape))
+            else:
+                raise ValueError(
+                    'observation must conform to observation_space {}, '
+                    'but got data with shape {} instead.'.format(
+                        env_spec.observation_space, state))
+
+        if not env_spec.observation_space.contains(next_state):
+            if isinstance(env_spec.observation_space,
+                          (akro.Box, akro.Discrete, akro.Dict)):
+                if env_spec.observation_space.flat_dim != np.prod(
+                    next_state.shape):
+                    raise ValueError('next_observation should have the same '
+                                     'dimensionality as the observation_space '
+                                     '({}), but got data with shape {} '
+                                     'instead'.format(
+                        env_spec.observation_space.flat_dim,
+                        next_state.shape))
+            else:
+                raise ValueError(
+                    'next_observation must conform to observation_space {}, '
+                    'but got data with shape {} instead.'.format(
+                        env_spec.observation_space, next_state))
+
+        # action
+        if not env_spec.action_space.contains(action):
+            if isinstance(env_spec.action_space,
+                          (akro.Box, akro.Discrete, akro.Dict)):
+                if env_spec.action_space.flat_dim != np.prod(action.shape):
+                    raise ValueError('action should have the same '
+                                     'dimensionality as the action_space '
+                                     '({}), but got data with shape {} '
+                                     'instead'.format(
+                        env_spec.action_space.flat_dim,
+                        action.shape))
+            else:
+                raise ValueError('action must conform to action_space {}, '
+                                 'but got data with shape {} instead.'.format(
+                    env_spec.action_space, action))
+
+        if not isinstance(agent_info, dict):
+            raise ValueError('agent_info must be type {}, but got type {} '
+                             'instead.'.format(dict, type(agent_info)))
+
+        if not isinstance(env_info, dict):
+            raise ValueError('env_info must be type {}, but got type {} '
+                             'instead.'.format(dict, type(env_info)))
+
+        # rewards
+        if not isinstance(reward, float):
+            raise ValueError('reward must be type {}, but got type {} '
+                             'instead.'.format(float, type(reward)))
+
+        # skill
+        if not isinstance(skill, int):
+            raise ValueError('reward must be type {}, but got type {} instead.'
+                             .format(int, type(skill)))
+
+        if not isinstance(terminal, bool):
+            raise ValueError(
+                'terminal must be dtype bool, but got dtype {} instead.'.
+                format(type(terminal)))
+
+        skill_one_hot = np.eye(num_skills)[skill]
+        observation = np.concatenate((state, skill_one_hot), dim=1)
+        next_observation = np.concatenate((next_state, skill_one_hot), dim=1)
+
+        return super().__new__(TimeStep, env_spec, num_skills, skill, state,
+                               next_state, observation, next_observation, action,
+                               reward, terminal, env_info, agent_info)
