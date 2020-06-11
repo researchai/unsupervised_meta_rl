@@ -8,17 +8,17 @@ from garage.misc import tensor_utils
 
 
 class TrajectoryBatch(
-        collections.namedtuple('TrajectoryBatch', [
-            'env_spec',
-            'observations',
-            'last_observations',
-            'actions',
-            'rewards',
-            'terminals',
-            'env_infos',
-            'agent_infos',
-            'lengths',
-        ])):
+    collections.namedtuple('TrajectoryBatch', [
+        'env_spec',
+        'observations',
+        'last_observations',
+        'actions',
+        'rewards',
+        'terminals',
+        'env_infos',
+        'agent_infos',
+        'lengths',
+    ])):
     # pylint: disable=missing-return-doc, missing-return-type-doc, missing-param-doc, missing-type-doc  # noqa: E501
     r"""A tuple representing a batch of whole trajectories.
 
@@ -107,13 +107,13 @@ class TrajectoryBatch(
             if isinstance(env_spec.observation_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
                 if env_spec.observation_space.flat_dim != np.prod(
-                        first_observation.shape):
+                    first_observation.shape):
                     raise ValueError('observations should have the same '
                                      'dimensionality as the observation_space '
                                      '({}), but got data with shape {} '
                                      'instead'.format(
-                                         env_spec.observation_space.flat_dim,
-                                         first_observation.shape))
+                        env_spec.observation_space.flat_dim,
+                        first_observation.shape))
             else:
                 raise ValueError(
                     'observations must conform to observation_space {}, but '
@@ -133,13 +133,13 @@ class TrajectoryBatch(
             if isinstance(env_spec.observation_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
                 if env_spec.observation_space.flat_dim != np.prod(
-                        last_observations[0].shape):
+                    last_observations[0].shape):
                     raise ValueError('last_observations should have the same '
                                      'dimensionality as the observation_space '
                                      '({}), but got data with shape {} '
                                      'instead'.format(
-                                         env_spec.observation_space.flat_dim,
-                                         last_observations[0].shape))
+                        env_spec.observation_space.flat_dim,
+                        last_observations[0].shape))
             else:
                 raise ValueError(
                     'last_observations must conform to observation_space {}, '
@@ -159,13 +159,13 @@ class TrajectoryBatch(
             if isinstance(env_spec.action_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
                 if env_spec.action_space.flat_dim != np.prod(
-                        first_action.shape):
+                    first_action.shape):
                     raise ValueError('actions should have the same '
                                      'dimensionality as the action_space '
                                      '({}), but got data with shape {} '
                                      'instead'.format(
-                                         env_spec.action_space.flat_dim,
-                                         first_action.shape))
+                        env_spec.action_space.flat_dim,
+                        first_action.shape))
             else:
                 raise ValueError(
                     'actions must conform to action_space {}, but got data '
@@ -179,13 +179,13 @@ class TrajectoryBatch(
                                             actions.shape[0]))
 
         # rewards
-        if rewards.shape != (inferred_batch_size, ):
+        if rewards.shape != (inferred_batch_size,):
             raise ValueError(
                 'Rewards tensor must have shape {}, but got shape {} '
                 'instead.'.format(inferred_batch_size, rewards.shape))
 
         # terminals
-        if terminals.shape != (inferred_batch_size, ):
+        if terminals.shape != (inferred_batch_size,):
             raise ValueError(
                 'terminals tensor must have shape {}, but got shape {} '
                 'instead.'.format(inferred_batch_size, terminals.shape))
@@ -201,14 +201,14 @@ class TrajectoryBatch(
                 raise ValueError(
                     'Each entry in env_infos must be a numpy array or '
                     'dictionary, but got key {} with value type {} instead.'.
-                    format(key, type(val)))
+                        format(key, type(val)))
 
             if (isinstance(val, np.ndarray)
-                    and val.shape[0] != inferred_batch_size):
+                and val.shape[0] != inferred_batch_size):
                 raise ValueError(
                     'Each entry in env_infos must have a batch dimension of '
                     'length {}, but got key {} with batch size {} instead.'.
-                    format(inferred_batch_size, key, val.shape[0]))
+                        format(inferred_batch_size, key, val.shape[0]))
 
         # agent_infos
         for key, val in agent_infos.items():
@@ -219,11 +219,11 @@ class TrajectoryBatch(
                     'instead'.format(key, type(val)))
 
             if (isinstance(val, np.ndarray)
-                    and val.shape[0] != inferred_batch_size):
+                and val.shape[0] != inferred_batch_size):
                 raise ValueError(
                     'Each entry in agent_infos must have a batch dimension of '
                     'length {}, but got key {} with batch size {} instead.'.
-                    format(inferred_batch_size, key, val.shape[0]))
+                        format(inferred_batch_size, key, val.shape[0]))
 
         return super().__new__(TrajectoryBatch, env_spec, observations,
                                last_observations, actions, rewards, terminals,
@@ -324,22 +324,22 @@ class TrajectoryBatch(
             stop = start + length
             trajectories.append({
                 'observations':
-                self.observations[start:stop],
+                    self.observations[start:stop],
                 'next_observations':
-                np.concatenate((self.observations[1 + start:stop],
-                                [self.last_observations[i]])),
+                    np.concatenate((self.observations[1 + start:stop],
+                                    [self.last_observations[i]])),
                 'actions':
-                self.actions[start:stop],
+                    self.actions[start:stop],
                 'rewards':
-                self.rewards[start:stop],
+                    self.rewards[start:stop],
                 'env_infos':
-                {k: v[start:stop]
-                 for (k, v) in self.env_infos.items()},
+                    {k: v[start:stop]
+                     for (k, v) in self.env_infos.items()},
                 'agent_infos':
-                {k: v[start:stop]
-                 for (k, v) in self.agent_infos.items()},
+                    {k: v[start:stop]
+                     for (k, v) in self.agent_infos.items()},
                 'dones':
-                self.terminals[start:stop]
+                    self.terminals[start:stop]
             })
             start = stop
         return trajectories
@@ -380,8 +380,8 @@ class TrajectoryBatch(
         """
         lengths = np.asarray([len(p['rewards']) for p in paths])
         if all(
-                len(path['observations']) == length + 1
-                for (path, length) in zip(paths, lengths)):
+            len(path['observations']) == length + 1
+            for (path, length) in zip(paths, lengths)):
             last_observations = np.asarray(
                 [p['observations'][-1] for p in paths])
             observations = np.concatenate(
@@ -409,16 +409,16 @@ class TrajectoryBatch(
 
 
 class TimeStep(
-        collections.namedtuple('TimeStep', [
-            'env_spec',
-            'observation',
-            'action',
-            'reward',
-            'next_observation',
-            'terminal',
-            'env_info',
-            'agent_info',
-        ])):
+    collections.namedtuple('TimeStep', [
+        'env_spec',
+        'observation',
+        'action',
+        'reward',
+        'next_observation',
+        'terminal',
+        'env_info',
+        'agent_info',
+    ])):
     # pylint: disable=missing-return-doc, missing-return-type-doc, missing-param-doc, missing-type-doc  # noqa: E501
     r"""A tuple representing a single TimeStep.
 
@@ -458,13 +458,13 @@ class TimeStep(
             if isinstance(env_spec.observation_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
                 if env_spec.observation_space.flat_dim != np.prod(
-                        observation.shape):
+                    observation.shape):
                     raise ValueError('observation should have the same '
                                      'dimensionality as the observation_space '
                                      '({}), but got data with shape {} '
                                      'instead'.format(
-                                         env_spec.observation_space.flat_dim,
-                                         observation.shape))
+                        env_spec.observation_space.flat_dim,
+                        observation.shape))
             else:
                 raise ValueError(
                     'observation must conform to observation_space {}, '
@@ -475,13 +475,13 @@ class TimeStep(
             if isinstance(env_spec.observation_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
                 if env_spec.observation_space.flat_dim != np.prod(
-                        next_observation.shape):
+                    next_observation.shape):
                     raise ValueError('next_observation should have the same '
                                      'dimensionality as the observation_space '
                                      '({}), but got data with shape {} '
                                      'instead'.format(
-                                         env_spec.observation_space.flat_dim,
-                                         next_observation.shape))
+                        env_spec.observation_space.flat_dim,
+                        next_observation.shape))
             else:
                 raise ValueError(
                     'next_observation must conform to observation_space {}, '
@@ -497,12 +497,12 @@ class TimeStep(
                                      'dimensionality as the action_space '
                                      '({}), but got data with shape {} '
                                      'instead'.format(
-                                         env_spec.action_space.flat_dim,
-                                         action.shape))
+                        env_spec.action_space.flat_dim,
+                        action.shape))
             else:
                 raise ValueError('action must conform to action_space {}, '
                                  'but got data with shape {} instead.'.format(
-                                     env_spec.action_space, action))
+                    env_spec.action_space, action))
 
         if not isinstance(agent_info, dict):
             raise ValueError('agent_info must be type {}, but got type {} '
@@ -520,7 +520,7 @@ class TimeStep(
         if not isinstance(terminal, bool):
             raise ValueError(
                 'terminal must be dtype bool, but got dtype {} instead.'.
-                format(type(terminal)))
+                    format(type(terminal)))
 
         return super().__new__(TimeStep, env_spec, observation, action, reward,
                                next_observation, terminal, env_info,
@@ -559,3 +559,298 @@ class InOutSpec:
 
         """
         return self._output_space
+
+
+class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
+    'env_spec',
+    'num_skills',
+    'skills',  # [N \bullet T]
+    'states',
+    'last_states',
+    'observations',  # concatenate state and skill
+    'actions',
+    'rewards',
+    'terminals',
+    'env_infos',
+    'agent_infos',
+    'lengths',
+])):
+    """
+    added skill in trajectories
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, env_spec, num_skills, skills, states, last_states,
+                actions, rewards, terminals, env_infos, agent_infos, lengths):
+
+        first_state = states[0]
+        first_action = actions[0]
+        inferred_batch_size = lengths.sum()
+
+        if len(lengths.shape) != 1:
+            raise ValueError(
+                'Lengths tensor must be a tensor of shape (N,), but got a '
+                'tensor of shape {} instead'.format(lengths.shape))
+
+        if not (lengths.dtype.kind == 'u' or lengths.dtype.kind == 'i'):
+            raise ValueError(
+                'Lengths tensor must have an integer dtype, but got dtype {} '
+                'instead.'.format(lengths.dtype))
+
+        # states (previously observations)
+        if not env_spec.observation_space.contains(first_state):
+            if isinstance(env_spec.observation_space,
+                          (akro.Box, akro.Discrete, akro.Dict)):
+                if env_spec.observation_space.flat_dim != np.prod(
+                    first_state.shape):
+                    raise ValueError('observations should have the same '
+                                     'dimensionality as the observation_space '
+                                     '({}), but got data with shape {} instead'
+                        .format(
+                        env_spec.observation_space.flat_dim,
+                        first_state.shape))
+            else:
+                raise ValueError(
+                    'observations must conform to observation_space {}, but '
+                    'got data with shape {} instead.'.format(
+                        env_spec.observation_space, first_state))
+
+        if states.shape[
+            0] != inferred_batch_size:  # states have been flattened
+            raise ValueError(
+                'Expected batch dimension of observations to be length {}, '
+                'but got length {} instead.'.format(inferred_batch_size,
+                                                    states.shape[0]))
+
+        if not env_spec.observation_space.contains(last_states[0]):
+            if isinstance(env_spec.observation_space,
+                          (akro.Box, akro.Discrete, akro.Dict)):
+                if env_spec.observation_space.flat_dim != np.prod(
+                    last_states[0].shape):
+                    raise ValueError('observations should have the same '
+                                     'dimensionality as the observation_space '
+                                     '({}), but got data with shape {} instead'
+                        .format(
+                        env_spec.observation_space.flat_dim,
+                        last_states[0].shape))
+            else:
+                raise ValueError(
+                    'observations must conform to observation_space {}, but '
+                    'got data with shape {} instead.'.format(
+                        env_spec.observation_space, last_states[0]))
+
+        if last_states.shape[0] != len(lengths):
+            raise ValueError(
+                'Expected batch dimension of last_observations to be length '
+                '{}, but got length {} instead.'.format(
+                    len(lengths), last_states.shape[0]))
+
+        # actions
+
+        if not env_spec.action_space.contains(first_action):
+            # Discrete actions can be either in the space normally, or one-hot
+            # encoded.
+            if isinstance(env_spec.action_space,
+                          (akro.Box, akro.Discrete, akro.Dict)):
+                if env_spec.action_space.flat_dim != np.prod(
+                    first_action.shape):
+                    raise ValueError('actions should have the same '
+                                     'dimensionality as the action_space '
+                                     '({}), but got data with shape {} '
+                                     'instead'.format(
+                        env_spec.action_space.flat_dim,
+                        first_action.shape))
+            else:
+                raise ValueError(
+                    'actions must conform to action_space {}, but got data '
+                    'with shape {} instead.'.format(env_spec.action_space,
+                                                    first_action))
+
+        if actions.shape[0] != inferred_batch_size:
+            raise ValueError(
+                'Expected batch dimension of actions to be length {}, but got '
+                'length {} instead.'.format(inferred_batch_size,
+                                            actions.shape[0]))
+
+        # terminals
+        if terminals.shape != (inferred_batch_size,):
+            raise ValueError(
+                'terminals tensor must have shape {}, but got shape {} '
+                'instead.'.format(inferred_batch_size, terminals.shape))
+
+        if terminals.dtype != np.bool:
+            raise ValueError(
+                'terminals tensor must be dtype np.bool, but got tensor '
+                'of dtype {} instead.'.format(terminals.dtype))
+
+        # terminals
+        if skills.shape != (inferred_batch_size,):
+            raise ValueError(
+                'terminals tensor must have shape {}, but got shape {} '
+                'instead.'.format(inferred_batch_size, skills.shape))
+
+        if skills.dtype != np.int:
+            raise ValueError(
+                'skills tensor must be dtype np.int, but got tensor '
+                'of dtype {} instead.'.format(skills.dtype))
+
+        # env_infos
+        for key, val in env_infos.items():
+            if not isinstance(val, (dict, np.ndarray)):
+                raise ValueError(
+                    'Each entry in env_infos must be a numpy array or '
+                    'dictionary, but got key {} with value type {} instead.'.
+                        format(key, type(val)))
+
+            if (isinstance(val, np.ndarray)
+                and val.shape[0] != inferred_batch_size):
+                raise ValueError(
+                    'Each entry in env_infos must have a batch dimension of '
+                    'length {}, but got key {} with batch size {} instead.'.
+                        format(inferred_batch_size, key, val.shape[0]))
+
+        # agent_infos
+        for key, val in agent_infos.items():
+            if not isinstance(val, (dict, np.ndarray)):
+                raise ValueError(
+                    'Each entry in agent_infos must be a numpy array or '
+                    'dictionary, but got key {} with value type {} instead.'
+                    'instead'.format(key, type(val)))
+
+            if (isinstance(val, np.ndarray)
+                and val.shape[0] != inferred_batch_size):
+                raise ValueError(
+                    'Each entry in agent_infos must have a batch dimension of '
+                    'length {}, but got key {} with batch size {} instead.'.
+                        format(inferred_batch_size, key, val.shape[0]))
+
+        skills_one_hot = np.eye(num_skills)[skills]
+        observations = np.concatenate((states, skills_one_hot), axis=1)
+
+        # throw away the rewards from env
+        _ = np.zeros(rewards.shape)
+
+        return super().__new__(SkillTrajectoryBatch, env_spec, num_skills,
+                               skills,
+                               states, last_states, observations, actions, _,
+                               terminals, env_infos, agent_infos, lengths)
+
+    @classmethod
+    def concatenate(cls, *batches):
+        env_infos = {
+            k: np.concatenate([b.env_infos[k] for b in batches])
+            for k in batches[0].env_infos.keys()
+        }
+        agent_infos = {
+            k: np.concatenate([b.agent_infos[k] for b in batches])
+            for k in batches[0].agent_infos.keys()
+        }
+        return cls(
+            batches[0].env_spec,
+            batches[0].num_skills,
+            np.concatenate([batch.skills for batch in batches]),
+            np.concatenate([batch.states for batch in batches]),
+            np.concatenate([batch.last_states for batch in batches]),
+            np.concatenate([batch.observations for batch in batches]),
+            np.concatenate([batch.actions for batch in batches]),
+            np.concatenate([batch.rewards for batch in batches]),
+            np.concatenate([batch.terminals for batch in batches]), env_infos,
+            agent_infos, np.concatenate([batch.lengths for batch in batches]))
+
+    def split(self):
+        trajectories = []
+        start = 0
+        for i, length in enumerate(self.lengths):
+            stop = start + length
+            traj = SkillTrajectoryBatch(env_spec=self.env_spec,
+                                        num_skills=self.num_skills,
+                                        skills=self.skills[start:stop],
+                                        states=self.states[start:stop],
+                                        last_states=np.asarray(
+                                            [self.last_states[i]]),
+                                        actions=self.actions[start:stop],
+                                        rewards=self.rewards[start:stop],
+                                        terminals=self.terminals[start:stop],
+                                        env_infos=tensor_utils.slice_nested_dict(
+                                            self.env_infos, start, stop),
+                                        agent_infos=tensor_utils.slice_nested_dict(
+                                            self.agent_infos, start, stop),
+                                        lengths=np.asarray([length]))
+            trajectories.append(traj)
+            start = stop
+        return trajectories
+
+    def to_tragectory_list(self):
+        start = 0
+        trajectories = []
+        for i, length in enumerate(self.lengths):
+            stop = start + length
+            last_observation = np.concatenate(
+                (self.skills[stop], self.last_states[i]), dim=1)
+            trajectories.append({
+                'skills':
+                    self.skills[start:stop],
+                'states':
+                    self.states[start:stop],
+                'next_states':
+                    np.concatenate(
+                        (self.states[1 + start:stop], self.last_states[i])),
+                'observations':
+                    self.observations[start:stop],
+                'next_observations':
+                    np.concatenate(
+                        (self.observations[1 + start:stop], last_observation)),
+                'actions':
+                    self.actions[start:stop],
+                'rewards':
+                    self.rewards[start:stop],
+                'env_infos':
+                    {k: v[start:stop]
+                     for (k, v) in self.env_infos.items()},
+                'agent_infos':
+                    {k: v[start:stop]
+                     for (k, v) in self.agent_infos.items()},
+                'dones':
+                    self.terminals[start:stop]
+            })
+            start = stop
+        return trajectories
+
+    @classmethod
+    def from_trajectory_list(cls, env_spec, num_skills, paths):
+        lengths = np.asarray([len(p['rewards']) for p in paths])
+        if all(
+            len(path['observations']) == length + 1
+            for (path, length) in zip(paths, lengths)):
+            last_observations = np.asarray(
+                [p['observations'][-1] for p in paths])
+            observations = np.concatenate(
+                [p['observations'][:-1] for p in paths])
+        else:
+            # The number of observations and timesteps must match.
+            observations = np.concatenate([p['observations'] for p in paths])
+
+            if paths[0].get('next_observations') is not None:
+                last_observations = np.asarray(
+                    [p['next_observations'][-1] for p in paths])
+            else:
+                last_observations = np.asarray(
+                    [p['observations'][-1] for p in paths])
+
+        [states, _] = np.split(observations, [-num_skills], dim=1)
+        [last_states, _] = np.split(last_observations, [-num_skills],
+                                    dim=1)
+        stacked_paths = tensor_utils.concat_tensor_dict_list(paths)
+        return cls(env_spec=env_spec,
+                   num_skills=num_skills,
+                   skills=stacked_paths['skills'],
+                   states=states,
+                   last_states=last_states,
+                   observations=observations,
+                   actions=stacked_paths['actions'],
+                   rewards=stacked_paths['rewards'],
+                   terminals=stacked_paths['dones'],
+                   env_infos=stacked_paths['env_infos'],
+                   agent_infos=stacked_paths['agent_infos'],
+                   lengths=lengths)
