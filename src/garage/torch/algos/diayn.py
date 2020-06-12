@@ -105,7 +105,7 @@ class DIAYN(SAC):
         skill = samples_data['skill']
 
         discriminator_pred = self._discriminator(state)
-        discriminator_target = self._get_one_hot_tensor(skill)
+        discriminator_target = self._get_one_hot_tensor(self._skills_num, skill)
 
         discriminator_loss = F.mse_loss(discriminator_pred.flatten(), discriminator_target)
 

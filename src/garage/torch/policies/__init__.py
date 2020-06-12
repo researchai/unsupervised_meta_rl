@@ -6,7 +6,7 @@ from garage.torch.policies.deterministic_mlp_policy import (  # noqa: I100
     DeterministicMLPPolicy)
 from garage.torch.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from garage.torch.policies.tanh_gaussian_mlp_policy import (
-    TanhGaussianMLPPolicy)
+    TanhGaussianMLPPolicy, TanhGaussianMLPSkillPolicy)
 
 __all__ = [
     'DeterministicMLPPolicy',
@@ -14,4 +14,5 @@ __all__ = [
     'Policy',
     'TanhGaussianMLPPolicy',
     'ContextConditionedPolicy',
+    'TanhGaussianMLPSkillPolicy'
 ]

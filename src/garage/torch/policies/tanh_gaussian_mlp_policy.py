@@ -194,3 +194,97 @@ class TanhGaussianMLPPolicy(Policy, GaussianMLPTwoHeadedModule):
 
         """
         return True
+
+class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
+
+    def __init__(self,
+                 env_spec,
+                 skills_num,
+                 hidden_sizes=(32, 32),
+                 hidden_nonlinearity=nn.ReLU,
+                 hidden_w_init=nn.init.xavier_uniform_,
+                 hidden_b_init=nn.init.zeros_,
+                 output_nonlinearity=None,
+                 output_w_init=nn.init.xavier_uniform_,
+                 output_b_init=nn.init.zeros_,
+                 init_std=1.0,
+                 min_std=np.exp(-20.),
+                 max_std=np.exp(2.),
+                 std_parameterization='exp',
+                 layer_normalization=False):
+
+        self._obs_dim = env_spec.observation_space.flat_dim
+        self._action_dim = env_spec.action_space.flat_dim
+        self._skills_num = skills_num
+
+        Policy.__init__(self, env_spec, name='TanhGaussianPolicy')
+        GaussianMLPTwoHeadedModule.__init__(
+            self,
+            input_dim=self._obs_dim + self._skills_num,
+            output_dim=self._action_dim,
+            hidden_sizes=hidden_sizes,
+            hidden_nonlinearity=hidden_nonlinearity,
+            hidden_w_init=hidden_w_init,
+            hidden_b_init=hidden_b_init,
+            output_nonlinearity=output_nonlinearity,
+            output_w_init=output_w_init,
+            output_b_init=output_b_init,
+            init_std=init_std,
+            min_std=min_std,
+            max_std=max_std,
+            std_parameterization=std_parameterization,
+            layer_normalization=layer_normalization,
+            normal_distribution_cls=TanhNormal)
+
+    def get_action(self, observation, skill):
+        with torch.no_grad():
+            if not isinstance(observation, torch.Tensor):
+                observation = torch.from_numpy(observation).float().to(
+                    tu.global_device())
+            if not isinstance(skill, torch.Tensor):
+                skill = torch.from_numpy(skill).float().to(
+                    tu.global_device())
+            inputs = torch.cat((observation, skill), dim=1)
+            inputs = inputs.unsqueeze(0)
+            dist = self.forward(input)
+            ret_mean = dist.mean.squeeze(0).cpu().numpy()
+            ret_log_std = (dist.variance.sqrt()).log().squeeze(0).cpu().numpy()
+            return (dist.rsample().squeeze(0).cpu().numpy(),
+                    dict(mean=ret_mean, log_std=ret_log_std))
+
+    def get_actions(self, observations, skills):
+        with torch.no_grad():
+            if not isinstance(observations, torch.Tensor):
+                observations = torch.from_numpy(observations).float().to(
+                    tu.global_device())
+            if not isinstance(skills, torch.Tensor):
+                skills = torch.from_numpy(skills).float().to(
+                    tu.global_device())
+            inputs = torch.cat((observations, skills), dim=1)
+            dist = self.forward(inputs)
+            ret_mean = dist.mean.cpu().numpy()
+            ret_log_std = (dist.variance.sqrt()).log().cpu().numpy()
+            return (dist.rsample().cpu().numpy(),
+                    dict(mean=ret_mean, log_std=ret_log_std))
+
+    def log_likelihood(self, observations, skills, action):
+        if not isinstance(observations, torch.Tensor):
+            observations = torch.from_numpy(observations).float().to(
+                tu.global_device())
+        if not isinstance(skills, torch.Tensor):
+            skills = torch.from_numpy(skills).float().to(
+                tu.global_device())
+        inputs = torch.cat((observations, skills), dim=1)
+        dist = self.forward(inputs)
+        return dist.log_prob(action)
+
+    def entropy(self, observation, skill):
+        if not isinstance(observation, torch.Tensor):
+            observation = torch.from_numpy(observation).float().to(
+                tu.global_device())
+        if not isinstance(skill, torch.Tensor):
+            skills = torch.from_numpy(skill).float().to(
+                tu.global_device())
+        inputs = torch.cat((observation, skill), dim=1)
+        dist = self.forward(inputs)
+        return dist.entropy()
