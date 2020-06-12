@@ -953,5 +953,5 @@ class SkillTimeStep(
         next_observation = np.concatenate((next_state, skill_one_hot), dim=1)
 
         return super().__new__(TimeStep, env_spec, num_skills, skill, state,
-                               next_state, next_observation, action, reward,
+                               next_state, observation, next_observation, action, reward,
                                terminal, env_info, agent_info)
