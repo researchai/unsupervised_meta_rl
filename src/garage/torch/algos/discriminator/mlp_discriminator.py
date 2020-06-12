@@ -6,7 +6,7 @@ from garage.torch.modules import MLPModule
 
 
 class MLPDiscriminator(MLPModule):
-    def __init__(self, env_spec, skills_num):
+    def __init__(self, env_spec, skills_num, **kwargs):
         self._obs_dim = env_spec.observation_space.flat_dim
         self._action_dim = env_spec.action_space.flat_dim
         self._skills_num = skills_num

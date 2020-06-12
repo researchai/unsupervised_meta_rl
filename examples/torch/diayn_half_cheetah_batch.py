@@ -14,6 +14,7 @@ from garage.replay_buffer import PathBuffer
 from garage.sampler import SkillWorker
 from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos import DIAYN
+from garage.torch.algos.discriminator import MLPDiscriminator
 from garage.torch.policies import TanhGaussianMLPPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
 
@@ -24,6 +25,9 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
     env = GarageEnv(normalize(gym.make('HalfCheetah-v2')))
+    skills_num = 8
+
+    # need to write a function that is able to modify env.spec
 
     policy = TanhGaussianMLPPolicy(
         env_spec=env.spec,
@@ -42,12 +46,15 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
                                  hidden_sizes=[256, 256],
                                  hidden_nonlinearity=F.relu)
 
-    discriminator = # TODO: implemented discriminator class
+    discriminator = MLPDiscriminator(env_spec=env.spec,
+                                     skills_num=skills_num,
+                                     hidden_sizes=[64, 64],
+                                     hidden_nonlinearity=F.relu)
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
     diayn = DIAYN(env_spec=env.spec,
-                  skills_num=8,
+                  skills_num=skills_num,
                   discriminator=discriminator,
                   policy=policy,
                   qf1=qf1,
