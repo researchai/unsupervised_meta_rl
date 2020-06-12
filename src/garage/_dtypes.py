@@ -946,12 +946,12 @@ class SkillTimeStep(
         if not isinstance(terminal, bool):
             raise ValueError(
                 'terminal must be dtype bool, but got dtype {} instead.'.
-                format(type(terminal)))
+                    format(type(terminal)))
 
         skill_one_hot = np.eye(num_skills)[skill]
         observation = np.concatenate((state, skill_one_hot), dim=1)
         next_observation = np.concatenate((next_state, skill_one_hot), dim=1)
 
         return super().__new__(TimeStep, env_spec, num_skills, skill, state,
-                               next_state, observation, next_observation, action,
-                               reward, terminal, env_info, agent_info)
+                               next_state, next_observation, action, reward,
+                               terminal, env_info, agent_info)
