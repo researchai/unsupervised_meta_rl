@@ -33,6 +33,7 @@ diayn:
     how to pass z as the data
 
 - need to change the parameter when initializing the worker_factory that is passed into local_skill_sampler
+    - which is in runner's setup and makesampler
 
 - remove all the unused external rewards
 

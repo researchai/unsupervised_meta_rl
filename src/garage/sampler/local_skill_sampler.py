@@ -2,6 +2,7 @@ from garage import SkillTrajectoryBatch
 from garage.sampler import SkillWorker
 from garage.sampler.local_sampler import LocalSampler
 
+
 class LocalSkillSampler(LocalSampler):
     def __init__(self, worker_factory, agents, envs):
         super().__init__(worker_factory, agents, envs)
