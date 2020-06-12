@@ -15,8 +15,8 @@ from garage.sampler import SkillWorker
 from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos import DIAYN
 from garage.torch.algos.discriminator import MLPDiscriminator
-from garage.torch.policies import TanhGaussianMLPPolicy
-from garage.torch.q_functions import ContinuousMLPQFunction
+from garage.torch.policies import TanhGaussianMLPSkillPolicy
+from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 
 @wrap_experiment(snapshot_mode='none')
@@ -29,8 +29,9 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
 
     # need to write a function that is able to modify env.spec
 
-    policy = TanhGaussianMLPPolicy(
+    policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
+        skills_num=skills_num,
         hidden_sizes=[256, 256],
         hidden_nonlinearity=nn.ReLU,
         output_nonlinearity=None,
@@ -38,13 +39,15 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
         max_std=np.exp(2.),
     )
 
-    qf1 = ContinuousMLPQFunction(env_spec=env.spec,
-                                 hidden_sizes=[256, 256],
-                                 hidden_nonlinearity=F.relu)
+    qf1 = ContinuousMLPSkillQFunction(env_spec=env.spec,
+                                      skills_num=skills_num,
+                                      hidden_sizes=[256, 256],
+                                      hidden_nonlinearity=F.relu)
 
-    qf2 = ContinuousMLPQFunction(env_spec=env.spec,
-                                 hidden_sizes=[256, 256],
-                                 hidden_nonlinearity=F.relu)
+    qf2 = ContinuousMLPSkillQFunction(env_spec=env.spec,
+                                      skills_num=skills_num,
+                                      hidden_sizes=[256, 256],
+                                      hidden_nonlinearity=F.relu)
 
     discriminator = MLPDiscriminator(env_spec=env.spec,
                                      skills_num=skills_num,
