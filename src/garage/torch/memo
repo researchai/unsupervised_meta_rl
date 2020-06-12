@@ -32,6 +32,10 @@ diayn:
 - use replay buffer -> what is the structure of that part
     how to pass z as the data
 
+- need to change the parameter when initializing the worker_factory that is passed into local_skill_sampler
+
+- remove all the unused external rewards
+
 - just need to change the reward
 
 - need to add z as one-hot to obs in sac
