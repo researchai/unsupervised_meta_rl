@@ -16,7 +16,7 @@ class LocalSkillSampler(LocalSampler):
         batches = []
         completed_samples = 0
         while True:
-            for worker in self._wrokers:
+            for worker in self._workers:
                 if not isinstance(worker, SkillWorker):
                     raise ValueError('Worker used by Local Skill Sampler class'
                                      ' must be a Skill Worker object, but got '
