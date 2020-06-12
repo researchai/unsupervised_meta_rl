@@ -5,17 +5,17 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+import garage.torch.utils as tu
 from garage import wrap_experiment
 from garage.envs import GarageEnv
 from garage.envs import normalize
 from garage.experiment import deterministic, LocalRunner
 from garage.replay_buffer import PathBuffer
-from garage.sampler import LocalSampler, SkillWorker
+from garage.sampler import SkillWorker
 from garage.sampler.local_skill_sampler import LocalSkillSampler
-from garage.torch.algos import SAC, DIAYN
+from garage.torch.algos import DIAYN
 from garage.torch.policies import TanhGaussianMLPPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
-import garage.torch.utils as tu
 
 
 @wrap_experiment(snapshot_mode='none')

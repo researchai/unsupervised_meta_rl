@@ -35,6 +35,8 @@ diayn:
 - need to change the parameter when initializing the worker_factory that is passed into local_skill_sampler
     - which is in runner's setup and makesampler
 
+- need to create a new policy? or rewrite observation_space in sac
+
 - remove all the unused external rewards
 
 - just need to change the reward
