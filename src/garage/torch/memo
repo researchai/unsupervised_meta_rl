@@ -56,6 +56,8 @@ need to go over the code on how it takes action rn
 
 - after debug, add simple documentation
 
+- need to write sanity check on the pass-in models
+
 more on research objectives:
 - finish up diayn & write extensible evaluation: allows pearl
 - run diayn with pearl (doesn't seem too hard to write?)

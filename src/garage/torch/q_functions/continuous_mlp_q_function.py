@@ -61,10 +61,10 @@ class ContinuousMLPSkillQFunction(MLPModule):
                            output_dim=1,
                            **kwargs)
 
-    def forward(self, observations, actions, skills):
+    def forward(self, states, actions, skills):
         """Return Q-value(s)."""
-        if not isinstance(observations, torch.Tensor):
-            observations = torch.from_numpy(observations).float().to(
+        if not isinstance(states, torch.Tensor):
+            states = torch.from_numpy(states).float().to(
                 tu.global_device())
         if not isinstance(actions, torch.Tensor):
             actions = torch.from_numpy(actions).float().to(
@@ -73,4 +73,12 @@ class ContinuousMLPSkillQFunction(MLPModule):
             skills = torch.from_numpy(skills).float().to(
                 tu.global_device())
 
-        return super().forward(torch.cat([observations, actions, skills], 1))
+        return super().forward(torch.cat([states, skills, actions], 1))
+
+    def forward(self, observations, actions):
+        """Return Q-value(s)."""
+        if not isinstance(actions, torch.Tensor):
+            actions = torch.from_numpy(actions).float().to(
+                tu.global_device())
+
+        return super().forward(torch.cat([observations, actions], 1))

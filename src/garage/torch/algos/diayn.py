@@ -101,7 +101,7 @@ class DIAYN(SAC):
                     policy_loss, qf1_loss, qf2_loss, discriminator_loss = \
                         self._learn_once()
                 # last_return = self._evaluate_policy(runner.step_itr)
-                # self._log_statistics(policy_loss, qf1_loss, qf2_loss)
+                self._log_statistics(policy_loss, qf1_loss, qf2_loss, discriminator_loss)
                 tabular.record('TotalEnvSteps', runner.total_env_steps)
                 runner.step_itr += 1
 
@@ -117,6 +117,83 @@ class DIAYN(SAC):
             discriminator_loss = self.optimize_discriminator(samples)
 
         return policy_loss, qf1_loss, qf2_loss, discriminator_loss
+
+    def optimize_policy(self, itr, samples_data):
+        states = samples_data['state']
+        skills = samples_data['skill']
+        qf1_loss, qf2_loss = self._critic_objective(samples_data)
+
+        self._qf1_optimizer.zero_grad()
+        qf1_loss.backward()
+        self._qf1_optimizer.step()
+
+        self._qf2_optimizer.zero_grad()
+        qf2_loss.backward()
+        self._qf2_optimizer.step()
+
+        action_dists = self._policy(states, skills)
+        new_actions_pre_tanh, new_actions = (
+            action_dists.rsample_with_pre_tanh_value())
+        log_pi_new_actions = action_dists.log_prob(
+            value=new_actions, pre_tanh_value=new_actions_pre_tanh)
+
+        policy_loss = self._actor_objective(samples_data, new_actions,
+                                            log_pi_new_actions)
+        self._policy_optimizer.zero_grad()
+        policy_loss.backward()
+
+        self._policy_optimizer.step()
+
+        if self._use_automatic_entropy_tuning:
+            alpha_loss = self._temperature_objective(log_pi_new_actions,
+                                                     samples_data)
+            self._alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self._alpha_optimizer.step()
+
+        return policy_loss, qf1_loss, qf2_loss
+
+    def _actor_objective(self, samples_data, new_actions, log_pi_new_actions):
+        states = samples_data['state']
+        skills = samples_data['skill']
+        with torch.no_grad():
+            alpha = self._get_log_alpha(samples_data).exp()
+        min_q_new_actions = torch.min(self._qf1(states, new_actions, skills),
+                                      self._qf2(states, new_actions, skills))
+        policy_objective = ((alpha * log_pi_new_actions) -
+                            min_q_new_actions.flatten()).mean()
+        return policy_objective
+
+    def _critic_objective(self, samples_data):
+        states = samples_data['state']
+        actions = samples_data['action']
+        rewards = samples_data['reward'].flatten()
+        terminals = samples_data['terminal'].flatten()
+        next_states = samples_data['next_state']
+        skills = samples_data['skill']
+        with torch.no_grad():
+            alpha = self._get_log_alpha(samples_data).exp()
+
+        q1_pred = self._qf1(states, actions, skills)
+        q2_pred = self._qf2(states, actions, skills)
+
+        new_next_actions_dist = self._policy(next_states, skills)
+        new_next_actions_pre_tanh, new_next_actions = (
+            new_next_actions_dist.rsample_with_pre_tanh_value())
+        new_log_pi = new_next_actions_dist.log_prob(
+            value=new_next_actions, pre_tanh_value=new_next_actions_pre_tanh)
+
+        target_q_values = torch.min(
+            self._target_qf1(next_states, new_next_actions, skills),
+            self._target_qf2(
+                next_states, new_next_actions, skills)).flatten() - (alpha * new_log_pi)
+        with torch.no_grad():
+            q_target = rewards * self.reward_scale + (
+                1. - terminals) * self.discount * target_q_values
+        qf1_loss = F.mse_loss(q1_pred.flatten(), q_target)
+        qf2_loss = F.mse_loss(q2_pred.flatten(), q_target)
+
+        return qf1_loss, qf2_loss
 
     # def _get_log_alpha(self, samples_data):
     #     pass
@@ -157,6 +234,19 @@ class DIAYN(SAC):
 
         # def _temperature_objective(self, log_pi, samples_data):
         # pass
+
+    def _log_statistics(self, policy_loss, qf1_loss, qf2_loss, discriminator_loss):
+        with torch.no_grad():
+            tabular.record('AlphaTemperature/mean',
+                           self._log_alpha.exp().mean().item())
+        tabular.record('Discriminator/Loss', float(discriminator_loss))
+        tabular.record('Policy/Loss', policy_loss.item())
+        tabular.record('QF/{}'.format('Qf1Loss'), float(qf1_loss))
+        tabular.record('QF/{}'.format('Qf2Loss'), float(qf2_loss))
+        tabular.record('ReplayBuffer/buffer_size',
+                       self.replay_buffer.n_transitions_stored)
+        tabular.record('Average/TrainAverageReturn',
+                       np.mean(self.episode_rewards))
 
     @property
     def networks(self):

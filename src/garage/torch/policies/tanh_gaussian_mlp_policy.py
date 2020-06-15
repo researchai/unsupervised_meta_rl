@@ -217,7 +217,7 @@ class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
         self._action_dim = env_spec.action_space.flat_dim
         self._skills_num = skills_num
 
-        Policy.__init__(self, env_spec, name='TanhGaussianPolicy')
+        Policy.__init__(self, env_spec, name='TanhGaussianSkillPolicy')
         GaussianMLPTwoHeadedModule.__init__(
             self,
             input_dim=self._obs_dim + self._skills_num,
@@ -236,55 +236,40 @@ class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
             layer_normalization=layer_normalization,
             normal_distribution_cls=TanhNormal)
 
-    def get_action(self, observation, skill):
+    def forward(self, states, skills):
+        if not isinstance(states, torch.Tensor):
+            states = torch.from_numpy(states).float().to(
+                tu.global_device())
+            if len(states.shape) == 1:
+                states = states.unsqueeze(0)
+        if not isinstance(skills, torch.Tensor):
+            skills = torch.from_numpy(skills).float().to(
+                tu.global_device())
+            if len(skills.shape) == 1:
+                skills = skills.unsqueeze(0)
+        return super(GaussianMLPTwoHeadedModule).forward(torch.cat((states,
+                                                                    skills), 1))
+
+    def get_action(self, state, skill):
         with torch.no_grad():
-            if not isinstance(observation, torch.Tensor):
-                observation = torch.from_numpy(observation).float().to(
-                    tu.global_device())
-            if not isinstance(skill, torch.Tensor):
-                skill = torch.from_numpy(skill).float().to(
-                    tu.global_device())
-            inputs = torch.cat((observation, skill), dim=1)
-            inputs = inputs.unsqueeze(0)
-            dist = self.forward(input)
+            dist = self.forward(state, skill)
             ret_mean = dist.mean.squeeze(0).cpu().numpy()
             ret_log_std = (dist.variance.sqrt()).log().squeeze(0).cpu().numpy()
             return (dist.rsample().squeeze(0).cpu().numpy(),
                     dict(mean=ret_mean, log_std=ret_log_std))
 
-    def get_actions(self, observations, skills):
+    def get_actions(self, states, skills):
         with torch.no_grad():
-            if not isinstance(observations, torch.Tensor):
-                observations = torch.from_numpy(observations).float().to(
-                    tu.global_device())
-            if not isinstance(skills, torch.Tensor):
-                skills = torch.from_numpy(skills).float().to(
-                    tu.global_device())
-            inputs = torch.cat((observations, skills), dim=1)
-            dist = self.forward(inputs)
+            dist = self.forward(states, skills)
             ret_mean = dist.mean.cpu().numpy()
             ret_log_std = (dist.variance.sqrt()).log().cpu().numpy()
             return (dist.rsample().cpu().numpy(),
                     dict(mean=ret_mean, log_std=ret_log_std))
 
-    def log_likelihood(self, observations, skills, action):
-        if not isinstance(observations, torch.Tensor):
-            observations = torch.from_numpy(observations).float().to(
-                tu.global_device())
-        if not isinstance(skills, torch.Tensor):
-            skills = torch.from_numpy(skills).float().to(
-                tu.global_device())
-        inputs = torch.cat((observations, skills), dim=1)
-        dist = self.forward(inputs)
+    def log_likelihood(self, states, skills, action):
+        dist = self.forward(states, skills)
         return dist.log_prob(action)
 
-    def entropy(self, observation, skill):
-        if not isinstance(observation, torch.Tensor):
-            observation = torch.from_numpy(observation).float().to(
-                tu.global_device())
-        if not isinstance(skill, torch.Tensor):
-            skill = torch.from_numpy(skill).float().to(
-                tu.global_device())
-        inputs = torch.cat((observation, skill), dim=1)
-        dist = self.forward(inputs)
+    def entropy(self, state, skill):
+        dist = self.forward(state, skill)
         return dist.entropy()
