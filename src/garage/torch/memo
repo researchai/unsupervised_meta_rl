@@ -36,6 +36,7 @@ diayn:
     - which is in runner's setup and makesampler
 
 - need to create a new policy? or rewrite observation_space in sac
+    - ended up creating new policy
 
 - remove all the unused external rewards
 
@@ -51,3 +52,15 @@ diayn:
 # todo:
 check runner choose action: need to add skill?
 
+need to go over the code on how it takes action rn
+
+- after debug, add simple documentation
+
+more on research objectives:
+- finish up diayn & write extensible evaluation: allows pearl
+- run diayn with pearl (doesn't seem too hard to write?)
+- go over diayn and pearl again-> maybe try to think of better ways of combining them?
+
+goal this week:
+writes up example of training with diayn -> sac and pearl
+debugs over the code on diayn

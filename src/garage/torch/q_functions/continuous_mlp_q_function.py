@@ -3,6 +3,7 @@
 import torch
 
 from garage.torch.modules import MLPModule
+import garage.torch.utils as tu
 
 
 class ContinuousMLPQFunction(MLPModule):
@@ -62,4 +63,14 @@ class ContinuousMLPSkillQFunction(MLPModule):
 
     def forward(self, observations, actions, skills):
         """Return Q-value(s)."""
+        if not isinstance(observations, torch.Tensor):
+            observations = torch.from_numpy(observations).float().to(
+                tu.global_device())
+        if not isinstance(actions, torch.Tensor):
+            actions = torch.from_numpy(actions).float().to(
+                tu.global_device())
+        if not isinstance(skills, torch.Tensor):
+            skills = torch.from_numpy(skills).float().to(
+                tu.global_device())
+
         return super().forward(torch.cat([observations, actions, skills], 1))

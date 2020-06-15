@@ -283,7 +283,7 @@ class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
             observation = torch.from_numpy(observation).float().to(
                 tu.global_device())
         if not isinstance(skill, torch.Tensor):
-            skills = torch.from_numpy(skill).float().to(
+            skill = torch.from_numpy(skill).float().to(
                 tu.global_device())
         inputs = torch.cat((observation, skill), dim=1)
         dist = self.forward(inputs)

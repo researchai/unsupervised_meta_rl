@@ -27,8 +27,6 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
     env = GarageEnv(normalize(gym.make('HalfCheetah-v2')))
     skills_num = 8
 
-    # need to write a function that is able to modify env.spec
-
     policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
         skills_num=skills_num,
@@ -82,4 +80,4 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
 
 
 s = np.random.randint(0, 1000)
-sac_half_cheetah_batch(seed=521)
+sac_half_cheetah_batch(seed=s)  # 521 in the sac_cheetah example
