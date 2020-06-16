@@ -43,7 +43,7 @@ class LocalSampler(Sampler):
             worker.update_env(env)
 
     @classmethod
-    def from_worker_factory(cls, worker_factory, agents, envs):
+    def from_worker_factory(cls, worker_factory, agents, envs, skills_num=None):
         """Construct this sampler.
 
         Args:
@@ -64,7 +64,7 @@ class LocalSampler(Sampler):
             Sampler: An instance of `cls`.
 
         """
-        return cls(worker_factory, agents, envs)
+        return cls(worker_factory, agents, envs, skills_num=skills_num)
 
     def _update_workers(self, agent_update, env_update):
         """Apply updates to the workers.

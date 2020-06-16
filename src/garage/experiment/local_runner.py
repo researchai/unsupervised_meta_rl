@@ -14,6 +14,7 @@ from garage.sampler.sampler_deprecated import BaseSampler
 # This is avoiding a circular import
 from garage.sampler.default_worker import DefaultWorker  # noqa: I100
 from garage.sampler.worker_factory import WorkerFactory
+from garage.torch.algos import DIAYN
 
 
 class ExperimentStats:
@@ -202,6 +203,10 @@ class LocalRunner:
             sampler_args = {}
         if worker_args is None:
             worker_args = {}
+        if isinstance(self._algo, DIAYN):
+            skills_num = self._algo.get_skills_num()
+        else:
+            skills_num = None
         if issubclass(sampler_cls, BaseSampler):
             return sampler_cls(self._algo, self._env, **sampler_args)
         else:
@@ -212,7 +217,8 @@ class LocalRunner:
                 worker_class=worker_class,
                 worker_args=worker_args),
                                                    agents=self._algo.policy,
-                                                   envs=self._env)
+                                                   envs=self._env,
+                                                   skills_num=skills_num)
 
     def setup(self,
               algo,

@@ -429,3 +429,7 @@ class DIAYN(SAC):
                 tabular.record('SuccessRate', np.mean(success))
 
         return undiscounted_self_returns, undiscounted_env_returns
+
+    @property
+    def get_skills_num(self):
+        return self._skills_num
