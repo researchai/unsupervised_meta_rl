@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from dowel import tabular
 
 import garage.torch.utils as tu
-from garage import SkillTrajectoryBatch, log_performance
+from garage import SkillTrajectoryBatch
 from garage.misc import tensor_utils
+from garage.misc.tensor_utils import discount_cumsum
 from garage.torch.algos import SAC
 
 
@@ -72,7 +73,8 @@ class DIAYN(SAC):
     def train(self, runner):
         if not self._eval_env:
             self._eval_env = runner.get_env_copy()
-        last_return = None
+        last_env_return = None
+        last_self_return = None
 
         for _ in runner.step_epoches():
             for _ in range(self.steps_per_epoch):  # step refers to episode ?
@@ -86,9 +88,9 @@ class DIAYN(SAC):
                 path_returns = []
 
                 for path in runner.step_path:
-                    reward = self._obtain_pseudo_reward(path['states'],
-                                                        path['skills']).reshape(
-                        -1, 1),
+                    reward = self._obtain_pseudo_reward \
+                                 (path['states'], path['skills']).reshape(-1,
+                                                                          1),
                     self.replay_buffer.add_path(
                         dict(action=path['actions'],
                              state=path['states'],
@@ -104,10 +106,17 @@ class DIAYN(SAC):
                 for _ in range(self._gradient_steps):
                     policy_loss, qf1_loss, qf2_loss, discriminator_loss = \
                         self._learn_once()
-                # last_return = self._evaluate_policy(runner.step_itr)
-                self._log_statistics(policy_loss, qf1_loss, qf2_loss, discriminator_loss)
-                tabular.record('TotalEnvSteps', runner.total_env_steps)
-                runner.step_itr += 1
+
+            last_self_return, last_env_return = self._evaluate_policy(
+                runner.step_itr)
+            self._log_statistics(policy_loss,
+                                 qf1_loss,
+                                 qf2_loss,
+                                 discriminator_loss)
+            tabular.record('TotalEnvSteps', runner.total_env_steps)
+            runner.step_itr += 1
+
+        return np.mean(last_self_return)  # last_env_return
 
     def _learn_once(self, itr=None, paths=None):
         del itr
@@ -190,7 +199,8 @@ class DIAYN(SAC):
         target_q_values = torch.min(
             self._target_qf1(next_states, new_next_actions, skills),
             self._target_qf2(
-                next_states, new_next_actions, skills)).flatten() - (alpha * new_log_pi)
+                next_states, new_next_actions, skills)).flatten() - (
+                              alpha * new_log_pi)
 
         with torch.no_grad():
             q_target = rewards * self.reward_scale + (
@@ -233,16 +243,14 @@ class DIAYN(SAC):
 
     def _evaluate_policy(self, epoch):
         # TODO: picks the most often policy and runs it - enable OpenGL visualization (saves as clip)
-        for skill in range(self._skills_num):
-            eval_trajectories = self._obtain_evaluation_samples(
-                                                                self._eval_env,
-                                                                skill=skill, num_trajs=self._num_evaluation_trajectories)
-            last_return = log_performance(epoch,
-                                          eval_trajectories,
-                                          discount=self.discount)
-            return last_return
-        # pass
-
+        eval_trajectories = self._obtain_evaluation_samples(
+            self._eval_env,
+            num_trajs=self._num_evaluation_trajectories)
+        last_return = self._log_performance(itr=epoch,
+                                            batch=eval_trajectories,
+                                            discount=self.discount)
+        return last_return
+        
     def _obtain_evaluation_samples(self, env, num_trajs=100):
         """Sample the policy for 10 trajectories and return average values.
 
@@ -271,9 +279,12 @@ class DIAYN(SAC):
                                  deterministic=True)
             paths.append(path)
 
-        return SkillTrajectoryBatch.from_trajectory_list(self.env_spec, self._skills_num, paths)
+        return SkillTrajectoryBatch.from_trajectory_list(self.env_spec,
+                                                         self._skills_num,
+                                                         paths)
 
-    def _log_statistics(self, policy_loss, qf1_loss, qf2_loss, discriminator_loss):
+    def _log_statistics(self, policy_loss, qf1_loss, qf2_loss,
+                        discriminator_loss):
         with torch.no_grad():
             tabular.record('AlphaTemperature/mean',
                            self._log_alpha.exp().mean().item())
@@ -314,14 +325,15 @@ class DIAYN(SAC):
                  speedup=1,
                  deterministic=False):
 
-        #TODO: sanity check if agent isinstance of skill algo
+        # TODO: sanity check if agent isinstance of skill algo
 
         if skill is None:
             skill = self._sample_skill()
         skills = []
         states = []
         actions = []
-        rewards = []
+        self_rewards = []
+        env_rewards = []
         agent_infos = []
         env_infos = []
         dones = []
@@ -339,10 +351,11 @@ class DIAYN(SAC):
             a, agent_info = agent.get_action(s, z)
             if deterministic and 'mean' in agent_infos:
                 a = agent_info['mean']
-            next_s, _, d, env_info = env.step(a)
-            r = self._obtain_pseudo_reward(s, z)
+            next_s, env_r, d, env_info = env.step(a)
+            self_r = self._obtain_pseudo_reward(s, z)
             states.append(s)
-            rewards.append(r)
+            self_rewards.append(self_r)
+            env_rewards.append(env_r)
             actions.append(a)
             skills.append(skill)
             agent_infos.append(agent_info)
@@ -358,11 +371,61 @@ class DIAYN(SAC):
                 time.sleep(timestep / speedup)
 
         return dict(
-                    skill=skill,
-                    states=np.array(states),
-                    actions=np.array(actions),
-                    rewards=np.array(rewards),
-                    agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-                    env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
-                    dones=np.array(dones),
-                    )
+            skill=skills,
+            states=np.array(states),
+            actions=np.array(actions),
+            self_rewards=np.array(self_rewards),
+            env_rewards=np.array(env_rewards),
+            agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+            env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+            dones=np.array(dones),
+        )
+
+    def _log_performance(self, itr, batch, discount, prefix='Evaluation'):
+        self_returns = []
+        env_returns = []
+        undiscounted_self_returns = []
+        undiscounted_env_returns = []
+        completion = []
+        success = []
+        for trajectory in batch.split():
+            self_returns.append(
+                discount_cumsum(trajectory.self_rewards, discount))
+            env_returns.append(
+                discount_cumsum(trajectory.env_rewards, discount))
+            undiscounted_self_returns.append(sum(trajectory.self_rewards))
+            undiscounted_env_returns.append(sum(trajectory.env_rewards))
+            completion.append(float(trajectory.terminals.any()))
+            if 'success' in trajectory.env_infos:
+                success.append(float(trajectory.env_infos['success'].any()))
+
+        average_discounted_self_return = np.mean(
+            [rtn[0] for rtn in self_returns])
+        average_discounted_env_return = np.mean(
+            [rtn[0] for rtn in env_returns])
+
+        with tabular.prefix(prefix + '/'):
+            tabular.record('Iteration', itr)
+            tabular.record('NumTrajs', len(self_returns))
+            # pseudo reward
+            tabular.record('AverageDiscountedSelfReturn',
+                           average_discounted_self_return)
+            tabular.record('AverageSelfReturn',
+                           np.mean(undiscounted_self_returns))
+            tabular.record('StdSelfReturn', np.std(undiscounted_self_returns))
+            tabular.record('MaxSelfReturn', np.max(undiscounted_self_returns))
+            tabular.record('MinSelfReturn', np.min(undiscounted_self_returns))
+            # env reward
+            tabular.record('AverageDiscountedEnvReturn',
+                           average_discounted_env_return)
+            tabular.record('AverageEnvReturn',
+                           np.mean(undiscounted_env_returns))
+            tabular.record('StdEnvReturn', np.std(undiscounted_env_returns))
+            tabular.record('MaxEnvReturn', np.max(undiscounted_env_returns))
+            tabular.record('MinEnvReturn', np.min(undiscounted_env_returns))
+
+            tabular.record('CompletionRate', np.mean(completion))
+            if success:
+                tabular.record('SuccessRate', np.mean(success))
+
+        return undiscounted_self_returns, undiscounted_env_returns

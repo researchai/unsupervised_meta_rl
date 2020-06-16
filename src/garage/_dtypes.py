@@ -783,16 +783,11 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             traj = SkillTrajectoryBatch(env_spec=self.env_spec,
                                         num_skills=self.num_skills,
                                         skills=self.skills[start:stop],
-                                        skills_onehot=self.skills_onehot[
-                                                      start:stop],
                                         states=self.states[start:stop],
                                         last_states=np.asarray(
                                             [self.last_states[i]]),
                                         actions=self.actions[start:stop],
-                                        env_rewards=self.env_rewards[
-                                                    start:stop],
-                                        self_rewards=self.self_rewards[
-                                                     start:stop],
+                                        env_rewards=self.env_rewards[start:stop],
                                         terminals=self.terminals[start:stop],
                                         env_infos=tensor_utils.slice_nested_dict(
                                             self.env_infos, start, stop),
@@ -845,28 +840,21 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
 
     @classmethod
     def from_trajectory_list(cls, env_spec, num_skills, paths):
-        lengths = np.asarray([len(p['rewards']) for p in paths])
+        lengths = np.asarray([len(p['self_rewards']) for p in paths])
         if all(
-            len(path['observations']) == length + 1
-            for (path, length) in zip(paths, lengths)):
-            last_observations = np.asarray(
-                [p['observations'][-1] for p in paths])
-            observations = np.concatenate(
-                [p['observations'][:-1] for p in paths])
+            len(path['states']) == length + 1 for (path, length) in zip(paths,
+                                                                        lengths)):
+            last_states = np.asarray([p['states'][-1] for p in paths])
+            states = np.concatenate([p['states'][:-1] for p in paths])
         else:
             # The number of observations and timesteps must match.
-            observations = np.concatenate([p['observations'] for p in paths])
+            states = np.concatenate([p['states'] for p in paths])
 
-            if paths[0].get('next_observations') is not None:
-                last_observations = np.asarray(
-                    [p['next_observations'][-1] for p in paths])
+            if paths[0].get('next_states') is not None:
+                last_states = np.asarray([p['next_states'][-1] for p in paths])
             else:
-                last_observations = np.asarray(
-                    [p['observations'][-1] for p in paths])
+                last_states = np.asarray([p['states'][-1] for p in paths])
 
-        [states, _] = np.split(observations, [-num_skills], dim=1)
-        [last_states, _] = np.split(last_observations, [-num_skills],
-                                    dim=1)
         stacked_paths = tensor_utils.concat_tensor_dict_list(paths)
         return cls(env_spec=env_spec,
                    num_skills=num_skills,
@@ -874,7 +862,6 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                    skills_onehot=np.eye(num_skills)[stacked_paths['skills']],
                    states=states,
                    last_states=last_states,
-                   observations=observations,
                    actions=stacked_paths['actions'],
                    env_rewards=stacked_paths['env_rewards'],
                    self_rewards=stacked_paths['self_rewards'],
