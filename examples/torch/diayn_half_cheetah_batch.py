@@ -80,4 +80,4 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
 
 
 s = np.random.randint(0, 1000)
-sac_half_cheetah_batch(seed=s)  # 521 in the sac_cheetah example
+sac_half_cheetah_batch(seed=521)  # 521 in the sac_cheetah example

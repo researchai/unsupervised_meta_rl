@@ -28,14 +28,15 @@ class LocalSampler(Sampler):
 
     """
 
-    def __init__(self, worker_factory, agents, envs):
+    def __init__(self, worker_factory, agents, envs, skills_num=None):
         # pylint: disable=super-init-not-called
         self._factory = worker_factory
         self._agents = worker_factory.prepare_worker_messages(agents)
         self._envs = worker_factory.prepare_worker_messages(
             envs, preprocess=copy.deepcopy)
         self._workers = [
-            worker_factory(i) for i in range(worker_factory.n_workers)
+            worker_factory(i, skills_num) for i in
+            range(worker_factory.n_workers)
         ]
         for worker, agent, env in zip(self._workers, self._agents, self._envs):
             worker.update_agent(agent)

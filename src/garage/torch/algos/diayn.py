@@ -250,7 +250,7 @@ class DIAYN(SAC):
                                             batch=eval_trajectories,
                                             discount=self.discount)
         return last_return
-        
+
     def _obtain_evaluation_samples(self, env, num_trajs=100):
         """Sample the policy for 10 trajectories and return average values.
 
