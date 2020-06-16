@@ -37,14 +37,14 @@ class SkillWorker(DefaultWorker):
         self._path_length = 0
         self._prev_s = self.env.reset()
         self._cur_z = self._sample_skill()
-        self._prev_obs = np.concatenate((self._prev_s, self._cur_z), dim=1)
         self.agent.reset()
 
     def step_rollout(self):
         if self._path_length < self._max_path_length:
-            a, agent_info = self.agent.get_action(self._prev_obs)
+            z_onehot = np.eye(self._skills_num)[self._cur_z]
+            a, agent_info = self.agent.get_action(self._prev_s, z_onehot)
             next_s, r, d, env_info = self.env.step(a)
-            self._observations.append(self._prev_obs)
+            self._states.append(self._prev_s)
             self._rewards.append(r)
             self._actions.append(a)
             self._skills.append(self._cur_z)
@@ -56,11 +56,9 @@ class SkillWorker(DefaultWorker):
             self._terminals.append(d)
             if not d:
                 self._prev_s = next_s
-                self._prev_obs = np.concatenate((next_s, self._cur_z), dim=1)
                 return False
         self._lengths.append(self._path_length)
         self._last_states.append(self._prev_s)
-        self._last_observations.append(self._prev_obs)
 
     def collect_rollout(self):
         states = self._states
@@ -69,10 +67,6 @@ class SkillWorker(DefaultWorker):
         self._last_states = []
         skills = self._skills
         self._skills = []
-        observations = self._observations
-        self._observations = []
-        last_observations = self._last_observations
-        self._last_observations = []
         actions = self._actions
         self._actions = []
         rewards = self._rewards
@@ -90,12 +84,17 @@ class SkillWorker(DefaultWorker):
         lengths = self._lengths
         self._lengths = []
 
-        return SkillTrajectoryBatch(self.env.spec, self._skills_num,
-                                    np.asarray(skills), np.asarray(states),
-                                    np.asarray(last_states), np.asarray(observations),
-                                    np.asarray(actions), np.asarray(rewards),
-                                    np.asarray(terminals), dict(env_infos),
-                                    dict(agent_infos), np.asarray(lengths, dtype='i'))
+        return SkillTrajectoryBatch(self.env.spec,
+                                    self._skills_num,
+                                    np.asarray(skills),
+                                    np.asarray(states),
+                                    np.asarray(last_states),
+                                    np.asarray(actions),
+                                    np.asarray(rewards),  # env_rewards
+                                    np.asarray(terminals),
+                                    dict(env_infos),
+                                    dict(agent_infos),
+                                    np.asarray(lengths, dtype='i'))
 
     # def rollout(self)
 

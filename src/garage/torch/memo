@@ -58,6 +58,10 @@ need to go over the code on how it takes action rn
 
 - need to write sanity check on the pass-in models
 
+- have u turned all skills into one-hot? FIXME
+
+- saves external and internal rewards FIXME
+
 more on research objectives:
 - finish up diayn & write extensible evaluation: allows pearl
 - run diayn with pearl (doesn't seem too hard to write?)

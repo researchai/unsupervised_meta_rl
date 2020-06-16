@@ -1,10 +1,14 @@
+import time
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
 from dowel import tabular
 
-from garage.torch.algos import SAC
 import garage.torch.utils as tu
+from garage import SkillTrajectoryBatch, log_performance
+from garage.misc import tensor_utils
+from garage.torch.algos import SAC
 
 
 class DIAYN(SAC):
@@ -82,16 +86,16 @@ class DIAYN(SAC):
                 path_returns = []
 
                 for path in runner.step_path:
-                    reward = self._obtain_pseudo_reward(path['state'],
-                                                        path['skill']).reshape(
+                    reward = self._obtain_pseudo_reward(path['states'],
+                                                        path['skills']).reshape(
                         -1, 1),
                     self.replay_buffer.add_path(
-                        dict(observation=path['observations'],
-                             action=path['actions'],
+                        dict(action=path['actions'],
                              state=path['states'],
                              next_state=path['next_states'],
-                             skill=path['skills'],
-                             reward=reward,
+                             skill_onehot=path['skills_onehot'],
+                             env_reward=path['env_rewards'],
+                             self_reward=reward,
                              next_observation=path['next_observations'],
                              terminal=path['dones'].reshape(-1, 1)))
                     path_returns.append(sum(reward))
@@ -120,7 +124,7 @@ class DIAYN(SAC):
 
     def optimize_policy(self, itr, samples_data):
         states = samples_data['state']
-        skills = samples_data['skill']
+        skills = samples_data['skill_onehot']
         qf1_loss, qf2_loss = self._critic_objective(samples_data)
 
         self._qf1_optimizer.zero_grad()
@@ -155,7 +159,7 @@ class DIAYN(SAC):
 
     def _actor_objective(self, samples_data, new_actions, log_pi_new_actions):
         states = samples_data['state']
-        skills = samples_data['skill']
+        skills = samples_data['skill_onehot']
         with torch.no_grad():
             alpha = self._get_log_alpha(samples_data).exp()
         min_q_new_actions = torch.min(self._qf1(states, new_actions, skills),
@@ -170,7 +174,7 @@ class DIAYN(SAC):
         rewards = samples_data['reward'].flatten()
         terminals = samples_data['terminal'].flatten()
         next_states = samples_data['next_state']
-        skills = samples_data['skill']
+        skills = samples_data['skill_onehot']
         with torch.no_grad():
             alpha = self._get_log_alpha(samples_data).exp()
 
@@ -187,6 +191,7 @@ class DIAYN(SAC):
             self._target_qf1(next_states, new_next_actions, skills),
             self._target_qf2(
                 next_states, new_next_actions, skills)).flatten() - (alpha * new_log_pi)
+
         with torch.no_grad():
             q_target = rewards * self.reward_scale + (
                 1. - terminals) * self.discount * target_q_values
@@ -203,12 +208,10 @@ class DIAYN(SAC):
     # def _critic_objective(self, samples_data):
 
     def _discriminator_objective(self, samples_data):
-        state = samples_data['next_state']
-        skill = samples_data['skill']
+        states = samples_data['next_states']
 
-        discriminator_pred = self._discriminator(state)
-        discriminator_target = self._get_one_hot_tensor(self._skills_num,
-                                                        skill)
+        discriminator_pred = self._discriminator(states)
+        discriminator_target = samples_data['skills_onehot']
 
         discriminator_loss = F.mse_loss(discriminator_pred.flatten(),
                                         discriminator_target)
@@ -229,11 +232,46 @@ class DIAYN(SAC):
     # def optimize_policy(self, itr, samples_data):
 
     def _evaluate_policy(self, epoch):
-        pass
-        # TODO: test how it improves the training of sac
-
-        # def _temperature_objective(self, log_pi, samples_data):
+        # TODO: picks the most often policy and runs it - enable OpenGL visualization (saves as clip)
+        for skill in range(self._skills_num):
+            eval_trajectories = self._obtain_evaluation_samples(
+                                                                self._eval_env,
+                                                                skill=skill, num_trajs=self._num_evaluation_trajectories)
+            last_return = log_performance(epoch,
+                                          eval_trajectories,
+                                          discount=self.discount)
+            return last_return
         # pass
+
+    def _obtain_evaluation_samples(self, env, num_trajs=100):
+        """Sample the policy for 10 trajectories and return average values.
+
+        Args:
+            env (garage.envs.GarageEnv): The environement used to obtain
+                trajectories.
+                num_trajs (int): Number of trajectories.
+
+        Returns:
+            TrajectoryBatch: Evaluation trajectories, representing the best
+                current performance of the algorithm.
+
+        """
+        paths = []
+        max_path_length = self.max_eval_path_length
+        if max_path_length is None:
+            max_path_length = self.max_path_length
+        # Use a finite length rollout for evaluation.
+        if max_path_length is None or np.isinf(max_path_length):
+            max_path_length = 1000
+
+        for _ in range(num_trajs):
+            path = self._rollout(env,
+                                 self.policy,
+                                 max_path_length=max_path_length,
+                                 deterministic=True)
+            paths.append(path)
+
+        return SkillTrajectoryBatch.from_trajectory_list(self.env_spec, self._skills_num, paths)
 
     def _log_statistics(self, policy_loss, qf1_loss, qf2_loss, discriminator_loss):
         with torch.no_grad():
@@ -266,5 +304,65 @@ class DIAYN(SAC):
             skill]))  # TODO: is it working?
         return reward
 
-    def _get_one_hot_tensor(self, size, indices):  # size-length vector  # TODO: need to change N-D one_hot
-        return np.eye(size)[indices]
+    def _rollout(self,
+                 env,
+                 agent,  # self.policy
+                 *,
+                 skill=None,
+                 max_path_length=np.inf,
+                 animated=False,
+                 speedup=1,
+                 deterministic=False):
+
+        #TODO: sanity check if agent isinstance of skill algo
+
+        if skill is None:
+            skill = self._sample_skill()
+        skills = []
+        states = []
+        actions = []
+        rewards = []
+        agent_infos = []
+        env_infos = []
+        dones = []
+
+        s = env.reset()
+        z = np.eye(self._skills_num)[skill]
+        agent.reset()
+        path_length = 0
+
+        if animated:
+            env.render()
+
+        while path_length < (max_path_length or np.inf):
+            s = env.observation_space.flatten(s)
+            a, agent_info = agent.get_action(s, z)
+            if deterministic and 'mean' in agent_infos:
+                a = agent_info['mean']
+            next_s, _, d, env_info = env.step(a)
+            r = self._obtain_pseudo_reward(s, z)
+            states.append(s)
+            rewards.append(r)
+            actions.append(a)
+            skills.append(skill)
+            agent_infos.append(agent_info)
+            env_infos.append(env_info)
+            dones.append(d)
+            path_length += 1
+            if d:
+                break
+            s = next_s
+            if animated:
+                env.render()
+                timestep = 0.05
+                time.sleep(timestep / speedup)
+
+        return dict(
+                    skill=skill,
+                    states=np.array(states),
+                    actions=np.array(actions),
+                    rewards=np.array(rewards),
+                    agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+                    env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+                    dones=np.array(dones),
+                    )

@@ -339,7 +339,8 @@ class LocalRunner:
                 env_update=env_update)
             paths = paths.to_trajectory_list()
 
-        self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
+        # self._stats.total_env_steps += sum([len(p['rewards']) for p in paths])
+        self._stats.total_env_steps += sum([len(p['actions']) for p in paths])
 
         return paths
 

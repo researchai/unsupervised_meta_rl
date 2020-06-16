@@ -565,11 +565,13 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
     'env_spec',
     'num_skills',
     'skills',  # [N \bullet T]
+    'skills_onehot',
     'states',
     'last_states',
     'observations',  # concatenate state and skill
     'actions',
-    'rewards',
+    'env_rewards',
+    'self_rewards',
     'terminals',
     'env_infos',
     'agent_infos',
@@ -582,7 +584,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
     __slots__ = ()
 
     def __new__(cls, env_spec, num_skills, skills, states, last_states,
-                actions, rewards, terminals, env_infos, agent_infos, lengths):
+                actions, env_rewards, terminals, env_infos, agent_infos,
+                lengths):
 
         first_state = states[0]
         first_action = actions[0]
@@ -616,8 +619,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                     'got data with shape {} instead.'.format(
                         env_spec.observation_space, first_state))
 
-        if states.shape[
-            0] != inferred_batch_size:  # states have been flattened
+        if states.shape[0] != inferred_batch_size:  # states have been flattened
             raise ValueError(
                 'Expected batch dimension of observations to be length {}, '
                 'but got length {} instead.'.format(inferred_batch_size,
@@ -626,14 +628,12 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         if not env_spec.observation_space.contains(last_states[0]):
             if isinstance(env_spec.observation_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
-                if env_spec.observation_space.flat_dim != np.prod(
-                    last_states[0].shape):
+                if env_spec.observation_space.flat_dim != np.prod(last_states[0].shape):
                     raise ValueError('observations should have the same '
                                      'dimensionality as the observation_space '
                                      '({}), but got data with shape {} instead'
-                        .format(
-                        env_spec.observation_space.flat_dim,
-                        last_states[0].shape))
+                                     .format(env_spec.observation_space.flat_dim,
+                                             last_states[0].shape))
             else:
                 raise ValueError(
                     'observations must conform to observation_space {}, but '
@@ -653,8 +653,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             # encoded.
             if isinstance(env_spec.action_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
-                if env_spec.action_space.flat_dim != np.prod(
-                    first_action.shape):
+                if env_spec.action_space.flat_dim != np.prod(first_action.shape):
                     raise ValueError('actions should have the same '
                                      'dimensionality as the action_space '
                                      '({}), but got data with shape {} '
@@ -672,6 +671,14 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                 'Expected batch dimension of actions to be length {}, but got '
                 'length {} instead.'.format(inferred_batch_size,
                                             actions.shape[0]))
+
+        # rewards
+        if env_rewards.shape != (inferred_batch_size,):
+            raise ValueError(
+                'Rewards tensor must have shape {}, but got shape {} '
+                'instead.'.format(inferred_batch_size, env_rewards.shape))
+
+        self_rewards = np.zeros(env_rewards.shape)
 
         # terminals
         if terminals.shape != (inferred_batch_size,):
@@ -725,16 +732,24 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                     'length {}, but got key {} with batch size {} instead.'.
                         format(inferred_batch_size, key, val.shape[0]))
 
-        skills_one_hot = np.eye(num_skills)[skills]
-        observations = np.concatenate((states, skills_one_hot), axis=1)
+        skills_onehot = np.eye(num_skills)[skills]
+        observations = np.concatenate((states, skills_onehot), axis=1)
 
-        # throw away the rewards from env
-        _ = np.zeros(rewards.shape)
-
-        return super().__new__(SkillTrajectoryBatch, env_spec, num_skills,
+        return super().__new__(SkillTrajectoryBatch,
+                               env_spec,
+                               num_skills,
                                skills,
-                               states, last_states, observations, actions, _,
-                               terminals, env_infos, agent_infos, lengths)
+                               skills_onehot,
+                               states,
+                               last_states,
+                               observations,
+                               actions,
+                               env_rewards,
+                               self_rewards,
+                               terminals,
+                               env_infos,
+                               agent_infos,
+                               lengths)
 
     @classmethod
     def concatenate(cls, *batches):
@@ -750,11 +765,13 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             batches[0].env_spec,
             batches[0].num_skills,
             np.concatenate([batch.skills for batch in batches]),
+            np.concatenate([batch.skills_onehot for batch in batches]),
             np.concatenate([batch.states for batch in batches]),
             np.concatenate([batch.last_states for batch in batches]),
             np.concatenate([batch.observations for batch in batches]),
             np.concatenate([batch.actions for batch in batches]),
-            np.concatenate([batch.rewards for batch in batches]),
+            np.concatenate([batch.env_rewards for batch in batches]),
+            np.concatenate([batch.self_rewards for batch in batches]),
             np.concatenate([batch.terminals for batch in batches]), env_infos,
             agent_infos, np.concatenate([batch.lengths for batch in batches]))
 
@@ -766,11 +783,16 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             traj = SkillTrajectoryBatch(env_spec=self.env_spec,
                                         num_skills=self.num_skills,
                                         skills=self.skills[start:stop],
+                                        skills_onehot=self.skills_onehot[
+                                                      start:stop],
                                         states=self.states[start:stop],
                                         last_states=np.asarray(
                                             [self.last_states[i]]),
                                         actions=self.actions[start:stop],
-                                        rewards=self.rewards[start:stop],
+                                        env_rewards=self.env_rewards[
+                                                    start:stop],
+                                        self_rewards=self.self_rewards[
+                                                     start:stop],
                                         terminals=self.terminals[start:stop],
                                         env_infos=tensor_utils.slice_nested_dict(
                                             self.env_infos, start, stop),
@@ -791,6 +813,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             trajectories.append({
                 'skills':
                     self.skills[start:stop],
+                'skills_onehot':
+                    self.skills_onehot[start:stop],
                 'states':
                     self.states[start:stop],
                 'next_states':
@@ -803,8 +827,10 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                         (self.observations[1 + start:stop], last_observation)),
                 'actions':
                     self.actions[start:stop],
-                'rewards':
-                    self.rewards[start:stop],
+                'env_rewards':
+                    self.env_rewards[start:stop],
+                'self_rewards':
+                    self.self_rewards[start:stop],
                 'env_infos':
                     {k: v[start:stop]
                      for (k, v) in self.env_infos.items()},
@@ -845,11 +871,13 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         return cls(env_spec=env_spec,
                    num_skills=num_skills,
                    skills=stacked_paths['skills'],
+                   skills_onehot=np.eye(num_skills)[stacked_paths['skills']],
                    states=states,
                    last_states=last_states,
                    observations=observations,
                    actions=stacked_paths['actions'],
-                   rewards=stacked_paths['rewards'],
+                   env_rewards=stacked_paths['env_rewards'],
+                   self_rewards=stacked_paths['self_rewards'],
                    terminals=stacked_paths['dones'],
                    env_infos=stacked_paths['env_infos'],
                    agent_infos=stacked_paths['agent_infos'],
@@ -861,12 +889,14 @@ class SkillTimeStep(
         'env_spec',
         'num_skills',
         'skill',
+        'skill_onehot',
         'state',
         'next_state',
         'observation',
         'next_observation',
         'action',
-        'reward',
+        'env_reward',
+        'self_reward',
         'terminal',
         'env_info',
         'agent_info',
@@ -948,10 +978,12 @@ class SkillTimeStep(
                 'terminal must be dtype bool, but got dtype {} instead.'.
                     format(type(terminal)))
 
-        skill_one_hot = np.eye(num_skills)[skill]
-        observation = np.concatenate((state, skill_one_hot), dim=1)
-        next_observation = np.concatenate((next_state, skill_one_hot), dim=1)
+        skill_onehot = np.eye(num_skills)[skill]
+        observation = np.concatenate((state, skill_onehot), dim=1)
+        next_observation = np.concatenate((next_state, skill_onehot), dim=1)
 
-        return super().__new__(TimeStep, env_spec, num_skills, skill, state,
-                               next_state, observation, next_observation, action, reward,
+        return super().__new__(TimeStep, env_spec, num_skills, skill,
+                               skill_onehot, state,
+                               next_state, observation, next_observation,
+                               action, reward,
                                terminal, env_info, agent_info)
