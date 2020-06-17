@@ -4,8 +4,12 @@ from garage.sampler.local_sampler import LocalSampler
 
 
 class LocalSkillSampler(LocalSampler):
-    def __init__(self, worker_factory, agents, envs):
+    def __init__(self, worker_factory, agents, envs, skills_num=None):
         super().__init__(worker_factory, agents, envs)
+        self._workers = [
+            worker_factory(i, skills_num) for i in
+            range(worker_factory.n_workers)
+        ]
 
     # @classmethod
     # def from_worker_factory(cls, worker_factory, agents, envs):

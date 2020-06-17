@@ -87,7 +87,7 @@ class WorkerFactory:
         else:
             return [preprocess(objs) for _ in range(self.n_workers)]
 
-    def __call__(self, worker_number, skills_num=None):
+    def __call__(self, worker_number):
         """Construct a worker given its number.
 
         Args:
@@ -103,15 +103,9 @@ class WorkerFactory:
         """
         if worker_number >= self.n_workers:
             raise ValueError('Worker number is too big')
-        if skills_num is not None:
-            return self._worker_class(worker_number=worker_number,
-                                      seed=self._seed,
-                                      skills_num=skills_num,
-                                      max_path_length=self._max_path_length,
-                                      **self._worker_args)
-        else:
-            return self._worker_class(worker_number=worker_number,
-                                      seed=self._seed,
-                                      max_path_length=self._max_path_length,
-                                      **self._worker_args)
+
+        return self._worker_class(worker_number=worker_number,
+                                  seed=self._seed,
+                                  max_path_length=self._max_path_length,
+                                  **self._worker_args)
 

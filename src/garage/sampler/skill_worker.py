@@ -9,12 +9,12 @@ from garage.sampler import DefaultWorker
 
 class SkillWorker(DefaultWorker):
     def __init__(
-            self,
-            *,
-            seed,
-            skills_num,
-            max_path_length,
-            worker_number):
+                self,
+                *,
+                seed,
+                max_path_length,
+                worker_number,
+                skills_num):
         super().__init__(seed=seed,
                          max_path_length=max_path_length,
                          worker_number=worker_number)
