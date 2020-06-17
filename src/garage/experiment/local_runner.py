@@ -4,17 +4,16 @@ import os
 import time
 
 import cloudpickle
-from dowel import logger, tabular
 import psutil
+from dowel import logger, tabular
 
 from garage.experiment.deterministic import get_seed, set_seed
 from garage.experiment.snapshotter import Snapshotter
 from garage.sampler import parallel_sampler
-from garage.sampler.sampler_deprecated import BaseSampler
 # This is avoiding a circular import
 from garage.sampler.default_worker import DefaultWorker  # noqa: I100
+from garage.sampler.sampler_deprecated import BaseSampler
 from garage.sampler.worker_factory import WorkerFactory
-from garage.torch.algos import DIAYN
 
 
 class ExperimentStats:
@@ -267,6 +266,7 @@ class LocalRunner:
                                               sampler_args=sampler_args,
                                               n_workers=n_workers,
                                               worker_class=worker_class,
+                                              max_path_length=200,  # hardcoded
                                               worker_args=worker_args)
 
         self._has_setup = True
