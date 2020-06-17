@@ -75,7 +75,9 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
     else:
         tu.set_gpu_mode(False)
     diayn.to()
-    runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler, worker_class=SkillWorker)
+    worker_args = {"skills_num": skills_num}
+    runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
+                 worker_class=SkillWorker, worker_args=worker_args)
     runner.train(n_epochs=1000, batch_size=1000)
 
 

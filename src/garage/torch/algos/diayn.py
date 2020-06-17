@@ -76,7 +76,7 @@ class DIAYN(SAC):
         last_env_return = None
         last_self_return = None
 
-        for _ in runner.step_epoches():
+        for _ in runner.step_epochs():
             for _ in range(self.steps_per_epoch):  # step refers to episode ?
 
                 if not self._buffer_prefilled:
