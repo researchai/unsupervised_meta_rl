@@ -273,3 +273,11 @@ class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
     def entropy(self, state, skill):
         dist = self.forward(state, skill)
         return dist.entropy()
+
+    def reset(self, dones=None):
+        """Reset the environment.
+        """
+
+    @property
+    def vectorized(self):
+        return True
