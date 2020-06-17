@@ -203,10 +203,10 @@ class LocalRunner:
             sampler_args = {}
         if worker_args is None:
             worker_args = {}
-        if isinstance(self._algo, DIAYN):
-            skills_num = self._algo.skills_num
-        else:
-            skills_num = None
+        # if isinstance(self._algo, DIAYN):   # FIXME: move it to worker_args
+        #     skills_num = self._algo.skills_num
+        # else:
+        #    skills_num = None
         if issubclass(sampler_cls, BaseSampler):
             return sampler_cls(self._algo, self._env, **sampler_args)
         else:
@@ -217,8 +217,8 @@ class LocalRunner:
                 worker_class=worker_class,
                 worker_args=worker_args),
                                                    agents=self._algo.policy,
-                                                   envs=self._env,
-                                                   skills_num=skills_num)
+                                                   envs=self._env)
+                                                   #skills_num=skills_num)
 
     def setup(self,
               algo,
