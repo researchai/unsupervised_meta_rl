@@ -247,8 +247,7 @@ class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
                 tu.global_device())
             if len(skills.shape) == 1:
                 skills = skills.unsqueeze(0)
-        return super(GaussianMLPTwoHeadedModule).forward(torch.cat((states,
-                                                                    skills), 1))
+        return super().forward(torch.cat((states, skills), 1))
 
     def get_action(self, state, skill):
         with torch.no_grad():
