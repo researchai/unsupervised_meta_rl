@@ -101,4 +101,4 @@ class SkillWorker(DefaultWorker):
     # def shutdown(self)
 
     def _sample_skill(self):  # uniform dist. in order to maximize entropy
-        return np.random.choice(self._skills_num, self._prob_skill)
+        return np.random.choice(self._skills_num, p=self._prob_skill)
