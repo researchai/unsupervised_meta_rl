@@ -266,7 +266,6 @@ class LocalRunner:
                                               sampler_args=sampler_args,
                                               n_workers=n_workers,
                                               worker_class=worker_class,
-                                              max_path_length=200,  # hardcoded
                                               worker_args=worker_args)
 
         self._has_setup = True

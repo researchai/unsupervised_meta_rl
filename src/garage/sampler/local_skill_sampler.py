@@ -4,7 +4,7 @@ from garage.sampler.local_sampler import LocalSampler
 
 
 class LocalSkillSampler(LocalSampler):
-    def __init__(self, worker_factory, agents, envs, skills_num=None):
+    def __init__(self, worker_factory, agents, envs):
         super().__init__(worker_factory, agents, envs)
 
     # @classmethod
