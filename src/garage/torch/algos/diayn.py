@@ -63,7 +63,7 @@ class DIAYN(SAC):
                          num_evaluation_trajectories=num_evaluation_trajectories,
                          eval_env=eval_env)
 
-        self._skills_num = skills_num
+        self.skills_num = skills_num
         self._prob_skill = np.full(skills_num, 1.0 / skills_num)
         self._discriminator = discriminator
         self._discriminator_optimizer = self._optimizer(
@@ -280,7 +280,7 @@ class DIAYN(SAC):
             paths.append(path)
 
         return SkillTrajectoryBatch.from_trajectory_list(self.env_spec,
-                                                         self._skills_num,
+                                                         self.skills_num,
                                                          paths)
 
     def _log_statistics(self, policy_loss, qf1_loss, qf2_loss,
@@ -307,7 +307,7 @@ class DIAYN(SAC):
     # def to(self, device=None):
 
     def _sample_skill(self):  # to maximize entropy
-        return np.random.choice(self._skills_num, self._prob_skill)
+        return np.random.choice(self.skills_num, self._prob_skill)
 
     def _obtain_pseudo_reward(self, state, skill):
         q_z = self._discriminator(state)[-1, skill]
@@ -339,7 +339,7 @@ class DIAYN(SAC):
         dones = []
 
         s = env.reset()
-        z = np.eye(self._skills_num)[skill]
+        z = np.eye(self.skills_num)[skill]
         agent.reset()
         path_length = 0
 
@@ -430,6 +430,3 @@ class DIAYN(SAC):
 
         return undiscounted_self_returns, undiscounted_env_returns
 
-    @property
-    def get_skills_num(self):
-        return self._skills_num

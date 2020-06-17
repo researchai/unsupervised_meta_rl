@@ -204,7 +204,7 @@ class LocalRunner:
         if worker_args is None:
             worker_args = {}
         if isinstance(self._algo, DIAYN):
-            skills_num = self._algo.get_skills_num()
+            skills_num = self._algo.skills_num
         else:
             skills_num = None
         if issubclass(sampler_cls, BaseSampler):
