@@ -89,17 +89,17 @@ class SkillWorker(DefaultWorker):
         lengths = self._lengths
         self._lengths = []
 
-        return SkillTrajectoryBatch(self.env.spec,
-                                    self._skills_num,
-                                    np.asarray(skills),
-                                    np.asarray(states),
-                                    np.asarray(last_states),
-                                    np.asarray(actions),
-                                    np.asarray(rewards),  # env_rewards
-                                    np.asarray(terminals),
-                                    dict(env_infos),
-                                    dict(agent_infos),
-                                    np.asarray(lengths, dtype='i'))
+        return SkillTrajectoryBatch(env_spec=self.env.spec,
+                                    num_skills=self._skills_num,
+                                    skills=np.asarray(skills),
+                                    states=np.asarray(states),
+                                    last_states=np.asarray(last_states),
+                                    actions=np.asarray(actions),
+                                    env_rewards=np.asarray(rewards),  # env_rewards
+                                    terminals=np.asarray(terminals),
+                                    env_infos=dict(env_infos),
+                                    agent_infos=dict(agent_infos),
+                                    lengths=np.asarray(lengths, dtype='i'))
 
     # def rollout(self)
 

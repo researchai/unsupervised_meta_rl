@@ -584,8 +584,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
     __slots__ = ()
 
     def __new__(cls, env_spec, num_skills, skills, states, last_states,
-                actions, env_rewards, terminals, env_infos, agent_infos,
-                lengths):
+                actions, env_rewards, terminals, env_infos, agent_infos, lengths,
+                self_rewards=None, observations=None):
 
         first_state = states[0]
         first_action = actions[0]
@@ -675,10 +675,15 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         # rewards
         if env_rewards.shape != (inferred_batch_size,):
             raise ValueError(
-                'Rewards tensor must have shape {}, but got shape {} '
+                'Env rewards tensor must have shape {}, but got shape {} '
                 'instead.'.format(inferred_batch_size, env_rewards.shape))
 
-        self_rewards = np.zeros(env_rewards.shape)
+        if self_rewards is None:
+            self_rewards = np.zeros(env_rewards.shape)
+        elif self_rewards.shape != (inferred_batch_size,):
+            raise ValueError(
+                'Pseudo rewards tensor must have shape {}, but got shape {} '
+                'instead.'.format(inferred_batch_size, self_rewards.shape))
 
         # terminals
         if terminals.shape != (inferred_batch_size,):
@@ -762,18 +767,20 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             for k in batches[0].agent_infos.keys()
         }
         return cls(
-            batches[0].env_spec,
-            batches[0].num_skills,
-            np.concatenate([batch.skills for batch in batches]),
-            np.concatenate([batch.skills_onehot for batch in batches]),
-            np.concatenate([batch.states for batch in batches]),
-            np.concatenate([batch.last_states for batch in batches]),
-            np.concatenate([batch.observations for batch in batches]),
-            np.concatenate([batch.actions for batch in batches]),
-            np.concatenate([batch.env_rewards for batch in batches]),
-            np.concatenate([batch.self_rewards for batch in batches]),
-            np.concatenate([batch.terminals for batch in batches]), env_infos,
-            agent_infos, np.concatenate([batch.lengths for batch in batches]))
+            env_spec=batches[0].env_spec,
+            num_skills=batches[0].num_skills,
+            skills=np.concatenate([batch.skills for batch in batches]),
+            # np.concatenate([batch.skills_onehot for batch in batches]),
+            states=np.concatenate([batch.states for batch in batches]),
+            last_states=np.concatenate([batch.last_states for batch in batches]),
+            # np.concatenate([batch.observations for batch in batches]),
+            actions=np.concatenate([batch.actions for batch in batches]),
+            env_rewards=np.concatenate([batch.env_rewards for batch in batches]),
+            self_rewards=np.concatenate([batch.self_rewards for batch in batches]),
+            terminals=np.concatenate([batch.terminals for batch in batches]),
+            env_infos=env_infos,
+            agent_infos=agent_infos,
+            lengths=np.concatenate([batch.lengths for batch in batches]))
 
     def split(self):
         trajectories = []
