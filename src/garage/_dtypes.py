@@ -818,12 +818,11 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             print(self.env_rewards.shape)
             print(self.self_rewards.shape)
             print(self.terminals.shape)
-            skills_copy = np.copy(self.skills).reshape((self.skills.shape[0],
-                                                        1 ,1))
+            skills_copy = np.copy(self.skills).reshape((self.skills.shape[0], 1))
                 # FIXME: make reshape more extensible
             print(skills_copy.shape)
             last_observation = np.concatenate(
-                (skills_copy[stop], self.last_states[i]), axis=1)
+                (skills_copy[stop], self.last_states[i]))
             trajectories.append({
                 'skills':
                     self.skills[start:stop],
@@ -985,8 +984,8 @@ class SkillTimeStep(
                     format(type(terminal)))
 
         skill_onehot = np.eye(num_skills)[skill]
-        observation = np.concatenate((state, skill_onehot), axis=1)
-        next_observation = np.concatenate((next_state, skill_onehot), axis=1)
+        observation = np.concatenate((state, skill_onehot))
+        next_observation = np.concatenate((next_state, skill_onehot))
 
         return super().__new__(TimeStep, env_spec, num_skills, skill,
                                skill_onehot, state,
