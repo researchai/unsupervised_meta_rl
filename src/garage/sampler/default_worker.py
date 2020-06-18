@@ -174,12 +174,12 @@ class DefaultWorker(Worker):
             garage.TrajectoryBatch: The collected trajectory.
 
         """
-        step = 1
+        # step = 1
         self.start_rollout()
-        print("rollout started")
+        # print("rollout started")
         while not self.step_rollout():
-            print("rollout step={}".format(step))
-            step = step+1
+            # print("rollout step={}".format(step))
+            # step = step+1
             pass
         return self.collect_rollout()
 

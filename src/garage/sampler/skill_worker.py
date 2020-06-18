@@ -56,8 +56,8 @@ class SkillWorker(DefaultWorker):
             self._path_length += 1
             self._terminals.append(d)
             np.set_printoptions(threshold=sys.maxsize)
-            print("action")
-            a
+            # print("action")
+            # a
             if not d:
                 self._prev_s = next_s
                 return False

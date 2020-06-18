@@ -810,21 +810,16 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         trajectories = []
         for i, length in enumerate(self.lengths):
             stop = start + length
-            print(self.skills.shape)
-            print(self.skills_onehot.shape)
-            #print(self.skills[stop].shape)
-            print(self.last_states.shape)
-            print(self.states.shape)
-            print(self.env_rewards.shape)
-            print(self.self_rewards.shape)
-            print(self.terminals.shape)
-            # skills_copy = np.copy(self.skills).reshape((self.skills.shape[0], 1))
-                # FIXME: make reshape more extensible
-            # print(skills_copy.shape)
+            # print(self.skills.shape)
+            # print(self.skills_onehot.shape)
+            # print(self.skills[stop].shape)
+            # print(self.last_states.shape)
+            # print(self.states.shape)
+            # print(self.env_rewards.shape)
+            # print(self.self_rewards.shape)
+            # print(self.terminals.shape)
             last_observation = np.concatenate(
                 (self.last_states[i], self.skills_onehot[stop-1]))
-            # print(last_observation.shape)
-            # print(self.states[1 + start:stop].shape)
             trajectories.append({
                 'skills':
                     self.skills[start:stop],

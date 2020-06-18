@@ -88,6 +88,8 @@ class DIAYN(SAC):
                 path_returns = []
 
                 for path in runner.step_path:
+                    print(path['states'].dtype)
+                    print(path['skills'].dtype)
                     reward = self._obtain_pseudo_reward \
                                  (path['states'], path['skills']).reshape(-1,
                                                                           1),
@@ -429,4 +431,3 @@ class DIAYN(SAC):
                 tabular.record('SuccessRate', np.mean(success))
 
         return undiscounted_self_returns, undiscounted_env_returns
-
