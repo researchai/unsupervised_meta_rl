@@ -314,9 +314,9 @@ class DIAYN(SAC):
     def _obtain_pseudo_reward(self, state, skill):
         q_z = self._discriminator(state).detach()
         print(q_z.shape)
-        reward = np.log(q_z[:, skill]) - np.log(np.full(q_z.shape[0],
-                                                         self._prob_skill[
-                                                             skill]))
+        print(skill.shape)
+        reward = torch.log(q_z[:, skill]) \
+                 - torch.log(torch.full(q_z.shape[0], self._prob_skill[skill]))
         # TODO: is it working? no it is not
         return reward
 
