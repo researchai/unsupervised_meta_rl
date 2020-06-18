@@ -818,11 +818,11 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             print(self.env_rewards.shape)
             print(self.self_rewards.shape)
             print(self.terminals.shape)
-            skills_copy = np.copy(self.skills).reshape((self.skills.shape[0], 1))
+            # skills_copy = np.copy(self.skills).reshape((self.skills.shape[0], 1))
                 # FIXME: make reshape more extensible
-            print(skills_copy.shape)
+            # print(skills_copy.shape)
             last_observation = np.concatenate(
-                (skills_copy[stop], self.last_states[i]))
+                (self.last_states[i], [self.skills[stop]]))
             trajectories.append({
                 'skills':
                     self.skills[start:stop],
@@ -832,12 +832,12 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                     self.states[start:stop],
                 'next_states':
                     np.concatenate(
-                        (self.states[1 + start:stop], self.last_states[i])),
+                        (self.states[1 + start:stop], [self.last_states[i]])),
                 'observations':
                     self.observations[start:stop],
                 'next_observations':
                     np.concatenate(
-                        (self.observations[1 + start:stop], last_observation)),
+                        (self.observations[1 + start:stop], [last_observation])),
                 'actions':
                     self.actions[start:stop],
                 'env_rewards':
