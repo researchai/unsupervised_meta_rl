@@ -805,7 +805,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             start = stop
         return trajectories
 
-    def to_tragectory_list(self):
+    def to_trajectory_list(self):
         start = 0
         trajectories = []
         for i, length in enumerate(self.lengths):
