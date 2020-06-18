@@ -323,7 +323,7 @@ class DIAYN(SAC):
         print(q_z[:, skill])
         print(torch.log(q_z[:, skill]))
         print(torch.full(q_z[:, skill].shape, self._prob_skill))
-        print(torch.log(torch.full(q_z[:, skill].shape, self._prob_skill))
+        print(torch.log(torch.full(q_z[:, skill].shape, self._prob_skill)))
         print(reward.shape)
         return reward
 
