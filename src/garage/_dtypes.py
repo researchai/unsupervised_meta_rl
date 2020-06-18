@@ -810,6 +810,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         trajectories = []
         for i, length in enumerate(self.lengths):
             stop = start + length
+            print(self.skills.shape)
             print(self.skills[stop].shape)
             print(self.last_states.shape)
             last_observation = np.concatenate(
