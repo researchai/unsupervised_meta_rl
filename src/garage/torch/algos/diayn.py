@@ -312,9 +312,12 @@ class DIAYN(SAC):
         return np.random.choice(self.skills_num, self._prob_skill)
 
     def _obtain_pseudo_reward(self, state, skill):
-        q_z = self._discriminator(state)[-1, skill]
-        reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill[
-            skill]))  # TODO: is it working?
+        q_z = self._discriminator(state).detach()
+        print(q_z.shape)
+        reward = np.log(q_z[-1, skill]) - np.log(np.full(q_z.shape,
+                                                         self._prob_skill[
+                                                             skill]))
+        # TODO: is it working?
         return reward
 
     def _rollout(self,
