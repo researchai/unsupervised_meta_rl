@@ -811,7 +811,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         for i, length in enumerate(self.lengths):
             stop = start + length
             last_observation = np.concatenate(
-                (self.skills[stop], self.last_states[i]), dim=1)
+                (self.skills[stop], self.last_states[i]), axis=1)
             trajectories.append({
                 'skills':
                     self.skills[start:stop],
@@ -973,8 +973,8 @@ class SkillTimeStep(
                     format(type(terminal)))
 
         skill_onehot = np.eye(num_skills)[skill]
-        observation = np.concatenate((state, skill_onehot), dim=1)
-        next_observation = np.concatenate((next_state, skill_onehot), dim=1)
+        observation = np.concatenate((state, skill_onehot), axis=1)
+        next_observation = np.concatenate((next_state, skill_onehot), axis=1)
 
         return super().__new__(TimeStep, env_spec, num_skills, skill,
                                skill_onehot, state,
