@@ -55,12 +55,12 @@ class SkillWorker(DefaultWorker):
                 self._env_infos[k].append(v)
             self._path_length += 1
             self._terminals.append(d)
+            np.set_printoptions(threshold=sys.maxsize)
+            print("action")
+            a
             if not d:
                 self._prev_s = next_s
                 return False
-        np.set_printoptions(threshold=sys.maxsize)
-        print("action")
-        a
         self._lengths.append(self._path_length)
         self._last_states.append(self._prev_s)
 
