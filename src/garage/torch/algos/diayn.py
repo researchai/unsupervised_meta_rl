@@ -320,6 +320,10 @@ class DIAYN(SAC):
                  - torch.log(torch.full(q_z[:, skill].shape, self._prob_skill))
         # TODO: is it working? no it is not
         # TODO: Test with actual instances
+        print(q_z[:, skill])
+        print(torch.log(q_z[:, skill]))
+        print(torch.full(q_z[:, skill].shape, self._prob_skill))
+        print(torch.log(torch.full(q_z[:, skill].shape, self._prob_skill))
         print(reward.shape)
         return reward
 
