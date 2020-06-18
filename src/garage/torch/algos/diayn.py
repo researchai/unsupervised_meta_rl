@@ -316,8 +316,10 @@ class DIAYN(SAC):
         print(q_z.shape)
         print(skill.shape)
         reward = torch.log(q_z[:, skill]) \
-                 - torch.log(torch.full(q_z.shape[0], self._prob_skill[skill]))
+                 - torch.log(torch.full(q_z[:, skill].shape, self._prob_skill[skill]))
         # TODO: is it working? no it is not
+        # TODO: Test with actual instances
+        print(reward.shape)
         return reward
 
     def _rollout(self,
