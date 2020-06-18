@@ -64,7 +64,8 @@ class DIAYN(SAC):
                          eval_env=eval_env)
 
         self.skills_num = skills_num
-        self._prob_skill = np.full(skills_num, 1.0 / skills_num)
+        self._prob_skills = np.full(skills_num, 1.0 / skills_num)
+        self._prob_skill = 1.0 / skills_num
         self._discriminator = discriminator
         self._discriminator_optimizer = self._optimizer(
             self._discriminator.parameters(),
@@ -316,7 +317,7 @@ class DIAYN(SAC):
         print(q_z.shape)
         print(skill.shape)
         reward = torch.log(q_z[:, skill]) \
-                 - torch.log(torch.full(q_z[:, skill].shape, self._prob_skill[skill]))
+                 - torch.log(torch.full(q_z[:, skill].shape, self._prob_skill))
         # TODO: is it working? no it is not
         # TODO: Test with actual instances
         print(reward.shape)
