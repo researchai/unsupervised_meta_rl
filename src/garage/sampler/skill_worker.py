@@ -63,6 +63,7 @@ class SkillWorker(DefaultWorker):
                 return False
         self._lengths.append(self._path_length)
         self._last_states.append(self._prev_s)
+        return True
 
     def collect_rollout(self):
         states = self._states
