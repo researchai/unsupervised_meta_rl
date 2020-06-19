@@ -315,9 +315,8 @@ class DIAYN(SAC):
 
     def _obtain_pseudo_reward(self, states, skills):
         q = self._discriminator(states).detach()
-        q_z = torch.FloatTensor([q[i, skills[i]] for i in range(skills.shape[0])])
-        reward = torch.log(q_z) - torch.log(torch.full(q_z.shape,
-                                                       self._prob_skill))
+        q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
+        reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
         # TODO: should it be Tensor or np array
         return reward
 
