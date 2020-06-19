@@ -92,17 +92,16 @@ class DIAYN(SAC):
                     # print(path['states'].dtype)
                     # print(path['skills'].dtype)
                     reward = self._obtain_pseudo_reward \
-                                 (path['states'], path['skills']).reshape(-1,
-                                                                          1)
+                                 (path['states'], path['skills'])
                     print(reward.shape)
-                    print(path['env_rewards'])
+                    print(path['env_rewards'].shape)
                     self.replay_buffer.add_path(
                         dict(action=path['actions'],
                              state=path['states'],
                              next_state=path['next_states'],
                              skill_onehot=path['skills_onehot'],
                              env_reward=path['env_rewards'],
-                             self_reward=reward,
+                             self_reward=reward.reshape(-1, 1),
                              next_observation=path['next_observations'],
                              terminal=path['dones'].reshape(-1, 1)))
                     path_returns.append(sum(reward))
