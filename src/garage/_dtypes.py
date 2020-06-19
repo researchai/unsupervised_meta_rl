@@ -584,7 +584,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
     __slots__ = ()
 
     def __new__(cls, env_spec, num_skills, skills, states, last_states,
-                actions, env_rewards, terminals, env_infos, agent_infos, lengths,
+                actions, env_rewards, terminals, env_infos, agent_infos,
+                lengths,
                 self_rewards=None, observations=None):
 
         first_state = states[0]
@@ -619,7 +620,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                     'got data with shape {} instead.'.format(
                         env_spec.observation_space, first_state))
 
-        if states.shape[0] != inferred_batch_size:  # states have been flattened
+        if states.shape[
+            0] != inferred_batch_size:  # states have been flattened
             raise ValueError(
                 'Expected batch dimension of observations to be length {}, '
                 'but got length {} instead.'.format(inferred_batch_size,
@@ -628,12 +630,14 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         if not env_spec.observation_space.contains(last_states[0]):
             if isinstance(env_spec.observation_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
-                if env_spec.observation_space.flat_dim != np.prod(last_states[0].shape):
+                if env_spec.observation_space.flat_dim != np.prod(
+                    last_states[0].shape):
                     raise ValueError('observations should have the same '
                                      'dimensionality as the observation_space '
                                      '({}), but got data with shape {} instead'
-                                     .format(env_spec.observation_space.flat_dim,
-                                             last_states[0].shape))
+                        .format(
+                        env_spec.observation_space.flat_dim,
+                        last_states[0].shape))
             else:
                 raise ValueError(
                     'observations must conform to observation_space {}, but '
@@ -653,7 +657,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             # encoded.
             if isinstance(env_spec.action_space,
                           (akro.Box, akro.Discrete, akro.Dict)):
-                if env_spec.action_space.flat_dim != np.prod(first_action.shape):
+                if env_spec.action_space.flat_dim != np.prod(
+                    first_action.shape):
                     raise ValueError('actions should have the same '
                                      'dimensionality as the action_space '
                                      '({}), but got data with shape {} '
@@ -772,11 +777,14 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             skills=np.concatenate([batch.skills for batch in batches]),
             # np.concatenate([batch.skills_onehot for batch in batches]),
             states=np.concatenate([batch.states for batch in batches]),
-            last_states=np.concatenate([batch.last_states for batch in batches]),
+            last_states=np.concatenate(
+                [batch.last_states for batch in batches]),
             # np.concatenate([batch.observations for batch in batches]),
             actions=np.concatenate([batch.actions for batch in batches]),
-            env_rewards=np.concatenate([batch.env_rewards for batch in batches]),
-            self_rewards=np.concatenate([batch.self_rewards for batch in batches]),
+            env_rewards=np.concatenate(
+                [batch.env_rewards for batch in batches]),
+            self_rewards=np.concatenate(
+                [batch.self_rewards for batch in batches]),
             terminals=np.concatenate([batch.terminals for batch in batches]),
             env_infos=env_infos,
             agent_infos=agent_infos,
@@ -794,7 +802,10 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                                         last_states=np.asarray(
                                             [self.last_states[i]]),
                                         actions=self.actions[start:stop],
-                                        env_rewards=self.env_rewards[start:stop],
+                                        env_rewards=self.env_rewards[
+                                                    start:stop],
+                                        self_rewards=self.self_rewards[
+                                                     start:stop],
                                         terminals=self.terminals[start:stop],
                                         env_infos=tensor_utils.slice_nested_dict(
                                             self.env_infos, start, stop),
@@ -819,7 +830,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
             # print(self.self_rewards.shape)
             # print(self.terminals.shape)
             last_observation = np.concatenate(
-                (self.last_states[i], self.skills_onehot[stop-1]))
+                (self.last_states[i], self.skills_onehot[stop - 1]))
             trajectories.append({
                 'skills':
                     self.skills[start:stop],
@@ -834,7 +845,8 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
                     self.observations[start:stop],
                 'next_observations':
                     np.concatenate(
-                        (self.observations[1 + start:stop], [last_observation])),
+                        (self.observations[1 + start:stop],
+                         [last_observation])),
                 'actions':
                     self.actions[start:stop],
                 'env_rewards':
