@@ -325,6 +325,7 @@ class DIAYN(SAC):
         q = self._discriminator(states).detach()
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
+        print(reward.shape)
         return reward
 
     def _rollout(self,
@@ -386,7 +387,7 @@ class DIAYN(SAC):
             skills=skills,
             states=np.array(states),
             actions=np.array(actions),
-            self_rewards=np.array(self_rewards),
+            self_rewards=np.array(self_rewards)[:, 0],  # squeeze column
             env_rewards=np.array(env_rewards),
             agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
             env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
