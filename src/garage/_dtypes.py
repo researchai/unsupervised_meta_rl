@@ -874,7 +874,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         return cls(env_spec=env_spec,
                    num_skills=num_skills,
                    skills=stacked_paths['skills'],
-                   skills_onehot=np.eye(num_skills)[stacked_paths['skills']],
+                   # skills_onehot=np.eye(num_skills)[stacked_paths['skills']],
                    states=states,
                    last_states=last_states,
                    actions=stacked_paths['actions'],
