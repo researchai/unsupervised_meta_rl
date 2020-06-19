@@ -319,6 +319,8 @@ class DIAYN(SAC):
     def _obtain_pseudo_reward(self, states, skills):
         if len(states.shape) == 1:
             states = states.reshape(1, -1)
+        if isinstance(skills, int):
+            skills = np.array([skills])
         # if len(skills.shape) == 1:
         #     skills = skills.reshape(1, -1)
         # print(skills.shape)
@@ -366,7 +368,7 @@ class DIAYN(SAC):
             if deterministic and 'mean' in agent_infos:
                 a = agent_info['mean']
             next_s, env_r, d, env_info = env.step(a)
-            self_r = self._obtain_pseudo_reward(s, [skill])
+            self_r = self._obtain_pseudo_reward(s, skill)
             states.append(s)
             self_rewards.append(self_r)
             env_rewards.append(env_r)
