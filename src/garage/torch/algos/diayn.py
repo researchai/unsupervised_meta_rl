@@ -89,11 +89,13 @@ class DIAYN(SAC):
                 path_returns = []
 
                 for path in runner.step_path:
-                    print(path['states'].dtype)
-                    print(path['skills'].dtype)
+                    # print(path['states'].dtype)
+                    # print(path['skills'].dtype)
                     reward = self._obtain_pseudo_reward \
                                  (path['states'], path['skills']).reshape(-1,
-                                                                          1),
+                                                                          1)
+                    print(reward.shape)
+                    print(path['env_rewards'])
                     self.replay_buffer.add_path(
                         dict(action=path['actions'],
                              state=path['states'],
@@ -314,22 +316,10 @@ class DIAYN(SAC):
 
     def _obtain_pseudo_reward(self, states, skills):
         q = self._discriminator(states).detach()
-        print(q.shape)
-        print(skills.shape)
         q_z = torch.FloatTensor([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = torch.log(q_z) - torch.log(torch.full(q_z.shape,
                                                        self._prob_skill))
-        # TODO: is it working? no it is not
-        # TODO: Test with actual instances
-        print(q_z)
-        print(q_z.shape)
-        print(torch.log(q_z))
-        print(torch.log(q_z).shape)
-        print(torch.full(q_z.shape, self._prob_skill))
-        print(torch.full(q_z.shape, self._prob_skill).shape)
-        print(torch.log(torch.full(q_z.shape, self._prob_skill)))
-        print(torch.log(torch.full(q_z.shape, self._prob_skill)).shape)
-        print(reward.shape)
+        # TODO: should it be Tensor or np array
         return reward
 
     def _rollout(self,
