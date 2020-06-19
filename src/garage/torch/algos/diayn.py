@@ -99,8 +99,9 @@ class DIAYN(SAC):
                         dict(action=path['actions'],
                              state=path['states'],
                              next_state=path['next_states'],
+                             skill=path['skills'].reshape(-1, 1),
                              skill_onehot=path['skills_onehot'],
-                             env_reward=path['env_rewards'],
+                             env_reward=path['env_rewards'].reshape(-1, 1),
                              self_reward=reward.reshape(-1, 1),
                              next_observation=path['next_observations'],
                              terminal=path['dones'].reshape(-1, 1)))
