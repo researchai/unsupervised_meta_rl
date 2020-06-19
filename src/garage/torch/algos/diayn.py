@@ -317,7 +317,10 @@ class DIAYN(SAC):
         return np.random.choice(self.skills_num, p=self._prob_skills)
 
     def _obtain_pseudo_reward(self, states, skills):
+        print(states.shape)
+        print(skills.shape)
         q = self._discriminator(states).detach()
+        print(q.shape)
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
         # TODO: should it be Tensor or np array
