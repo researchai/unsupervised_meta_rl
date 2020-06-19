@@ -314,7 +314,7 @@ class DIAYN(SAC):
     # def to(self, device=None):
 
     def _sample_skill(self):  # to maximize entropy
-        return np.random.choice(self.skills_num, self._prob_skill)
+        return np.random.choice(self.skills_num, self._prob_skills)
 
     def _obtain_pseudo_reward(self, states, skills):
         q = self._discriminator(states).detach()
