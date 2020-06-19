@@ -223,10 +223,10 @@ class DIAYN(SAC):
     # def _critic_objective(self, samples_data):
 
     def _discriminator_objective(self, samples_data):
-        states = samples_data['next_states']
+        states = samples_data['next_state']
 
         discriminator_pred = self._discriminator(states)
-        discriminator_target = samples_data['skills_onehot']
+        discriminator_target = samples_data['skill_onehot']
 
         discriminator_loss = F.mse_loss(discriminator_pred.flatten(),
                                         discriminator_target)
