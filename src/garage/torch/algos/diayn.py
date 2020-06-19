@@ -93,8 +93,8 @@ class DIAYN(SAC):
                     # print(path['skills'].dtype)
                     reward = self._obtain_pseudo_reward \
                                  (path['states'], path['skills'])
-                    print(reward.shape)
-                    print(path['env_rewards'].shape)
+                    # print(reward.shape)
+                    # print(path['env_rewards'].shape)
                     self.replay_buffer.add_path(
                         dict(action=path['actions'],
                              state=path['states'],
@@ -185,7 +185,7 @@ class DIAYN(SAC):
     def _critic_objective(self, samples_data):
         states = samples_data['state']
         actions = samples_data['action']
-        rewards = samples_data['reward'].flatten()
+        rewards = samples_data['self_reward'].flatten()
         terminals = samples_data['terminal'].flatten()
         next_states = samples_data['next_state']
         skills = samples_data['skill_onehot']
