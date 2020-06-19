@@ -317,7 +317,10 @@ class DIAYN(SAC):
         return np.random.choice(self.skills_num, p=self._prob_skills)
 
     def _obtain_pseudo_reward(self, states, skills):
-        print(states.shape)
+        if len(states.shape) == 1:
+            states = states.reshape(1, -1)
+        # if len(skills.shape) == 1:
+        #     skills = skills.reshape(1, -1)
         print(skills.shape)
         q = self._discriminator(states).detach()
         print(q.shape)
@@ -363,7 +366,7 @@ class DIAYN(SAC):
             if deterministic and 'mean' in agent_infos:
                 a = agent_info['mean']
             next_s, env_r, d, env_info = env.step(a)
-            self_r = self._obtain_pseudo_reward(s, z)
+            self_r = self._obtain_pseudo_reward(s, [skill])
             states.append(s)
             self_rewards.append(self_r)
             env_rewards.append(env_r)
