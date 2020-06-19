@@ -321,14 +321,14 @@ class DIAYN(SAC):
                                                        self._prob_skill))
         # TODO: is it working? no it is not
         # TODO: Test with actual instances
-        print(q_z[:, skills])
-        print(q_z[:, skills].shape)
-        print(torch.log(q_z[:, skills]))
-        print(torch.log(q_z[:, skills]).shape)
-        print(torch.full(q_z[:, skills].shape, self._prob_skill))
-        print(torch.full(q_z[:, skills].shape, self._prob_skill).shape)
-        print(torch.log(torch.full(q_z[:, skills].shape, self._prob_skill)))
-        print(torch.log(torch.full(q_z[:, skills].shape, self._prob_skill)).shape)
+        print(q_z)
+        print(q_z.shape)
+        print(torch.log(q_z))
+        print(torch.log(q_z).shape)
+        print(torch.full(q_z.shape, self._prob_skill))
+        print(torch.full(q_z.shape, self._prob_skill).shape)
+        print(torch.log(torch.full(q_z.shape, self._prob_skill)))
+        print(torch.log(torch.full(q_z.shape, self._prob_skill)).shape)
         print(reward.shape)
         return reward
 
