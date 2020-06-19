@@ -312,22 +312,23 @@ class DIAYN(SAC):
     def _sample_skill(self):  # to maximize entropy
         return np.random.choice(self.skills_num, self._prob_skill)
 
-    def _obtain_pseudo_reward(self, state, skill):
-        q_z = self._discriminator(state).detach()
-        print(q_z.shape)
-        print(skill.shape)
-        reward = torch.log(q_z[:, skill]) \
-                 - torch.log(torch.full(q_z[:, skill].shape, self._prob_skill))
+    def _obtain_pseudo_reward(self, states, skills):
+        q = self._discriminator(states).detach()
+        print(q.shape)
+        print(skills.shape)
+        q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
+        reward = torch.log(q_z) - torch.log(torch.full(q_z.shape,
+                                                       self._prob_skill))
         # TODO: is it working? no it is not
         # TODO: Test with actual instances
-        print(q_z[:, skill])
-        print(q_z[:, skill].shape)
-        print(torch.log(q_z[:, skill]))
-        print(torch.log(q_z[:, skill]).shape)
-        print(torch.full(q_z[:, skill].shape, self._prob_skill))
-        print(torch.full(q_z[:, skill].shape, self._prob_skill).shape)
-        print(torch.log(torch.full(q_z[:, skill].shape, self._prob_skill)))
-        print(torch.log(torch.full(q_z[:, skill].shape, self._prob_skill)).shape)
+        print(q_z[:, skills])
+        print(q_z[:, skills].shape)
+        print(torch.log(q_z[:, skills]))
+        print(torch.log(q_z[:, skills]).shape)
+        print(torch.full(q_z[:, skills].shape, self._prob_skill))
+        print(torch.full(q_z[:, skills].shape, self._prob_skill).shape)
+        print(torch.log(torch.full(q_z[:, skills].shape, self._prob_skill)))
+        print(torch.log(torch.full(q_z[:, skills].shape, self._prob_skill)).shape)
         print(reward.shape)
         return reward
 
