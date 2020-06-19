@@ -313,7 +313,11 @@ class DIAYN(SAC):
 
     # def to(self, device=None):
 
-    def _sample_skill(self):  # to maximize entropy
+    def _sample_skill(self):  # uniform dist. in order to maximize entropy
+        print(self.skills_num)
+        print(self.skills_num.dtype)
+        print(self._prob_skills)
+        print(self._prob_skills.dtype)
         return np.random.choice(self.skills_num, self._prob_skills)
 
     def _obtain_pseudo_reward(self, states, skills):
