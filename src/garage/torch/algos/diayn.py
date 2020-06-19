@@ -321,14 +321,10 @@ class DIAYN(SAC):
             states = states.reshape(1, -1)
         if isinstance(skills, int):
             skills = np.array([skills])
-        # if len(skills.shape) == 1:
-        #     skills = skills.reshape(1, -1)
-        # print(skills.shape)
+
         q = self._discriminator(states).detach()
-        # print(q.shape)
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
-        # TODO: should it be Tensor or np array
         return reward
 
     def _rollout(self,
@@ -387,7 +383,7 @@ class DIAYN(SAC):
                 time.sleep(timestep / speedup)
 
         return dict(
-            skill=skills,
+            skills=skills,
             states=np.array(states),
             actions=np.array(actions),
             self_rewards=np.array(self_rewards),
