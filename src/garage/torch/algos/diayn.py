@@ -316,7 +316,7 @@ class DIAYN(SAC):
         q = self._discriminator(states).detach()
         print(q.shape)
         print(skills.shape)
-        q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
+        q_z = torch.FloatTensor([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = torch.log(q_z) - torch.log(torch.full(q_z.shape,
                                                        self._prob_skill))
         # TODO: is it working? no it is not
