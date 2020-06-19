@@ -227,6 +227,8 @@ class DIAYN(SAC):
 
         discriminator_pred = self._discriminator(states)
         discriminator_target = samples_data['skill_onehot']
+        print(discriminator_pred.shape)
+        print(discriminator_target.shape)
 
         discriminator_loss = F.mse_loss(discriminator_pred.flatten(),
                                         discriminator_target)
