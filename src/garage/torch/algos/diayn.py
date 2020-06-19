@@ -324,10 +324,10 @@ class DIAYN(SAC):
 
         q = self._discriminator(states).detach()
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
-        print(q.shape)
-        print(q_z.shape)
+        # print(q.shape)
+        # print(q_z.shape)
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
-        print(reward.shape)
+        # print(reward.shape)
         return reward
 
     def _rollout(self,
