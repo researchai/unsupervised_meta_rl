@@ -20,7 +20,7 @@ from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 
 @wrap_experiment(snapshot_mode='none')
-def sac_half_cheetah_batch(ctxt=None, seed=1):
+def diayn_half_cheetah_batch(ctxt=None, seed=1):
 
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
@@ -83,4 +83,4 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
 
 
 s = np.random.randint(0, 1000)
-sac_half_cheetah_batch(seed=521)  # 521 in the sac_cheetah example
+diayn_half_cheetah_batch(seed=521)  # 521 in the sac_cheetah example
