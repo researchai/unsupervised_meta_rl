@@ -64,6 +64,7 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
                   max_path_length=500,
                   replay_buffer=replay_buffer,
                   min_buffer_size=1e4,
+                  recorded=True,  # enable the video recording func
                   target_update_tau=5e-3,
                   discount=0.99,
                   buffer_batch_size=256,

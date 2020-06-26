@@ -1,5 +1,6 @@
 import time
 
+import imageio
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -38,7 +39,11 @@ class DIAYN(SAC):
                  optimizer=torch.optim.Adam,
                  steps_per_epoch=1,
                  num_evaluation_trajectories=10,
-                 eval_env=None):
+                 eval_env=None,
+                 time_per_render=60,
+                 recorded=False,
+                 video_save_path='/diayn_tmp/',
+                 video_record_epoch=100):
 
         super().__init__(env_spec=env_spec,
                          policy=policy,
@@ -70,6 +75,11 @@ class DIAYN(SAC):
         self._discriminator_optimizer = self._optimizer(
             self._discriminator.parameters(),
             lr=self._policy_lr)
+        # video recording params
+        self._time_per_render = time_per_render
+        self._video_save_path = video_save_path
+        self._recorded = recorded
+        self._video_record_epoch = video_record_epoch
 
     def train(self, runner):
         if not self._eval_env:
@@ -78,7 +88,7 @@ class DIAYN(SAC):
         last_self_return = None
 
         for _ in runner.step_epochs():
-            for _ in range(self.steps_per_epoch):  # step refers to episode ?
+            for _ in range(self.steps_per_epoch):
 
                 if not self._buffer_prefilled:
                     batch_size = int(self.min_buffer_size)
@@ -89,12 +99,8 @@ class DIAYN(SAC):
                 path_returns = []
 
                 for path in runner.step_path:
-                    # print(path['states'].dtype)
-                    # print(path['skills'].dtype)
                     reward = self._obtain_pseudo_reward \
-                                 (path['states'], path['skills'])
-                    # print(reward.shape)
-                    # print(path['env_rewards'].shape)
+                        (path['states'], path['skills'])
                     self.replay_buffer.add_path(
                         dict(action=path['actions'],
                              state=path['states'],
@@ -119,6 +125,9 @@ class DIAYN(SAC):
                                  qf2_loss,
                                  discriminator_loss)
             tabular.record('TotalEnvSteps', runner.total_env_steps)
+            if runner.step_itr % self._video_record_epoch == 0 and \
+                runner.step_itr != 0:
+                self.make_videos_skills(runner.step_itr)
             runner.step_itr += 1
 
         return np.mean(last_self_return)  # last_env_return
@@ -215,13 +224,6 @@ class DIAYN(SAC):
 
         return qf1_loss, qf2_loss
 
-    # def _get_log_alpha(self, samples_data):
-    #     pass
-
-    # def _actor_objective(self, samples_data, new_actions, log_pi_new_actions):
-
-    # def _critic_objective(self, samples_data):
-
     def _discriminator_objective(self, samples_data):
         states = samples_data['next_state']
 
@@ -235,8 +237,6 @@ class DIAYN(SAC):
 
         return discriminator_loss
 
-    # def _update_targets(self):
-
     def optimize_discriminator(self, samples_data):
         discriminator_loss = self._discriminator_objective(samples_data)
 
@@ -245,8 +245,6 @@ class DIAYN(SAC):
         self._discriminator_optimizer.step()
 
         return discriminator_loss
-
-    # def optimize_policy(self, itr, samples_data):
 
     def _evaluate_policy(self, epoch):
         # TODO: picks the most often policy and runs it - enable OpenGL visualization (saves as clip)
@@ -258,19 +256,26 @@ class DIAYN(SAC):
                                             discount=self.discount)
         return last_return
 
+    def make_videos_skills(self, current_epoch):
+        import os
+        if not os.path.exists(self._video_save_path):
+            os.makedirs(self._video_save_path)
+
+        max_path_length = self.max_eval_path_length
+        if max_path_length is None or np.isinf(max_path_length):
+            max_path_length = 1000
+        for skill in range(self.skills_num):
+            filename = "epoch{}_skill{}.mp4".format(current_epoch, skill)
+            _ = self._rollout(self._eval_env,
+                              self.policy,
+                              max_path_length=max_path_length,
+                              deterministic=True,
+                              recorded=True,
+                              save_video_filename="{}{}".format(
+                                  self._video_save_path,
+                                  filename))
+
     def _obtain_evaluation_samples(self, env, num_trajs=100):
-        """Sample the policy for 10 trajectories and return average values.
-
-        Args:
-            env (garage.envs.GarageEnv): The environement used to obtain
-                trajectories.
-                num_trajs (int): Number of trajectories.
-
-        Returns:
-            TrajectoryBatch: Evaluation trajectories, representing the best
-                current performance of the algorithm.
-
-        """
         paths = []
         max_path_length = self.max_eval_path_length
         if max_path_length is None:
@@ -311,8 +316,6 @@ class DIAYN(SAC):
             self._target_qf1, self._target_qf2
         ]
 
-    # def to(self, device=None):
-
     def _sample_skill(self):  # uniform dist. in order to maximize entropy
         return np.random.choice(self.skills_num, p=self._prob_skills)
 
@@ -324,10 +327,8 @@ class DIAYN(SAC):
 
         q = self._discriminator(states).detach()
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
-        # print(q.shape)
-        # print(q_z.shape)
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
-        # print(reward.shape)
+
         return reward
 
     def _rollout(self,
@@ -337,6 +338,8 @@ class DIAYN(SAC):
                  skill=None,
                  max_path_length=np.inf,
                  animated=False,
+                 recorded=False,
+                 save_video_filename=None,
                  speedup=1,
                  deterministic=False):
 
@@ -358,8 +361,12 @@ class DIAYN(SAC):
         agent.reset()
         path_length = 0
 
+        video_buffer = []
+        if recorded:
+            video_buffer.append(env.render(mode="rgb_array"))
+
         if animated:
-            env.render()
+            env.render(mode="human")
 
         while path_length < (max_path_length or np.inf):
             s = env.observation_space.flatten(s)
@@ -384,6 +391,12 @@ class DIAYN(SAC):
                 env.render()
                 timestep = 0.05
                 time.sleep(timestep / speedup)
+            if recorded:
+                video_buffer.append(env.render(mode="rgb_array"))
+
+        if recorded:
+            fps = (1 / self._time_per_render)
+            self._save_video(video_buffer, save_video_filename, fps)
 
         return dict(
             skills=skills,
@@ -395,6 +408,12 @@ class DIAYN(SAC):
             env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
             dones=np.array(dones),
         )
+
+    def _save_video(self, rgb_array, filename, fps):
+        writer = imageio.get_writer(filename, fps=fps)
+        for frame in rgb_array:
+            writer.append_data(frame)
+        writer.close()
 
     def _log_performance(self, itr, batch, discount, prefix='Evaluation'):
         self_returns = []
