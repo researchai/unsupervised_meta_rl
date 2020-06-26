@@ -42,8 +42,9 @@ class DIAYN(SAC):
                  eval_env=None,
                  time_per_render=60,
                  recorded=False,
-                 video_save_path='/diayn_tmp/',
-                 video_record_epoch=100):
+                 video_save_path='diayn_tmp/',
+                 video_record_epoch=100,
+                 steps_skip_per_second=300):
 
         super().__init__(env_spec=env_spec,
                          policy=policy,
@@ -80,6 +81,7 @@ class DIAYN(SAC):
         self._video_save_path = video_save_path
         self._recorded = recorded
         self._video_record_epoch = video_record_epoch
+        self._steps_skip_per_second = steps_skip_per_second
 
     def train(self, runner):
         if not self._eval_env:
@@ -411,8 +413,8 @@ class DIAYN(SAC):
 
     def _save_video(self, rgb_array, filename, fps):
         writer = imageio.get_writer(filename, fps=fps)
-        for frame in rgb_array:
-            writer.append_data(frame)
+        for idx in range(0, len(rgb_array), self._steps_skip_per_second):
+            writer.append_data(rgb_array[idx])
         writer.close()
 
     def _log_performance(self, itr, batch, discount, prefix='Evaluation'):
