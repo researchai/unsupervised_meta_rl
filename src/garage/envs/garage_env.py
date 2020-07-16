@@ -1,6 +1,7 @@
 """Wrapper class that converts gym.Env into GarageEnv."""
 
 import copy
+import numpy as np
 
 import akro
 import gym
@@ -107,7 +108,7 @@ class GarageEnv(gym.Wrapper):
                     # instance of a class that we know how to close here.
                     return
                 if (hasattr(self.env, 'viewer')
-                        and isinstance(self.env.viewer, MjViewer)):
+                    and isinstance(self.env.viewer, MjViewer)):
                     glfw.destroy_window(self.env.viewer.window)
             elif any(package in getattr(self.env.spec, 'entry_point', '')
                      for package in KNOWN_GYM_NOT_CLOSE_VIEWER):
@@ -197,3 +198,28 @@ class GarageEnv(gym.Wrapper):
 
         """
         self.__init__(state['_env'], state['_env_name'])
+
+
+class DiaynEnvWrapper(gym.Wrapper):
+    def __init__(self, env, d, num_s, s):
+        super.__init__(env)
+        self._discriminator = d
+        self._num_skills = num_s
+        self._skill = s
+
+    def step(self, action):
+        observation, _, done, info = self.env.step(action)
+        return observation, self._obtain_pseudo_reward(observation,
+                                                       self._skill), done, info
+
+    def _obtain_pseudo_reward(self, states, skills):
+        if len(states.shape) == 1:
+            states = states.reshape(1, -1)
+        if isinstance(skills, int):
+            skills = np.array([skills])
+
+        q = self._discriminator(states).detach()
+        q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
+        reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
+
+        return reward
