@@ -1,4 +1,4 @@
-"""An example to test diayn written in PyTorch."""
+"""An example to test diayn as task proposal to pearl written in PyTorch."""
 import random
 
 import gym
@@ -34,9 +34,9 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 skills_num = 8
 test_tasks_num = skills_num / 2
 
+
 @wrap_experiment(snapshot_mode='none')
 def diayn_half_cheetah_batch(ctxt=None, seed=1):
-
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
     env = GarageEnv(normalize(gym.make('HalfCheetah-v2')))
@@ -97,6 +97,7 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
 
     return discriminator
 
+
 @click.command()
 @click.option('--num_epochs', default=1000)
 @click.option('--num_train_tasks', default=skills_num)
@@ -113,28 +114,27 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
 @click.option('--max_path_length', default=150)
 @wrap_experiment
 def diayn_pearl_half_cheeth(
-                            task_proposer,
-                            ctxt=None,
-                            seed=1,
-                            num_epochs=1000,
-                            num_train_tasks=skills_num,
-                            num_test_tasks=skills_num,
-                            latent_size=7,
-                            encoder_hidden_size=200,
-                            net_size=300,
-                            meta_batch_size=16,
-                            num_steps_per_epoch=4000,
-                            num_initial_steps=4000,
-                            num_tasks_sample=15,
-                            num_steps_prior=750,
-                            num_extra_rl_steps_posterior=750,
-                            batch_size=256,
-                            embedding_batch_size=64,
-                            embedding_mini_batch_size=64,
-                            max_path_length=150,
-                            reward_scale=10.,
-                            use_gpu=False):
-
+    task_proposer,
+    ctxt=None,
+    seed=1,
+    num_epochs=1000,
+    num_train_tasks=skills_num,
+    num_test_tasks=skills_num,
+    latent_size=7,
+    encoder_hidden_size=200,
+    net_size=300,
+    meta_batch_size=16,
+    num_steps_per_epoch=4000,
+    num_initial_steps=4000,
+    num_tasks_sample=15,
+    num_steps_prior=750,
+    num_extra_rl_steps_posterior=750,
+    batch_size=256,
+    embedding_batch_size=64,
+    embedding_mini_batch_size=64,
+    max_path_length=150,
+    reward_scale=10.,
+    use_gpu=False):
     set_seed(seed)
     encoder_hidden_sizes = (encoder_hidden_size, encoder_hidden_size,
                             encoder_hidden_size)
@@ -142,12 +142,14 @@ def diayn_pearl_half_cheeth(
 
     env = gym.make('HalfCheetah-v2')
     ML_train_envs = [
-        GarageEnv(normalize(DiaynEnvWrapper(env, task_proposer, skills_num, task_name)))
+        GarageEnv(normalize(
+            DiaynEnvWrapper(env, task_proposer, skills_num, task_name)))
         for task_name in range(skills_num)
     ]
 
     ML_test_envs = [
-        GarageEnv(normalize(DiaynEnvWrapper(env, task_proposer, skills_num, task_name)))
+        GarageEnv(normalize(
+            DiaynEnvWrapper(env, task_proposer, skills_num, task_name)))
         for task_name in random.sample(range(skills_num), test_tasks_num)
     ]
 
@@ -210,9 +212,7 @@ def diayn_pearl_half_cheeth(
     runner.train(n_epochs=num_epochs, batch_size=batch_size)
 
 
-
-
 s = np.random.randint(0, 1000)
-task_proposer = diayn_half_cheetah_batch(seed=s)  # 521 in the sac_cheetah example
+task_proposer = diayn_half_cheetah_batch(
+    seed=s)  # 521 in the sac_cheetah example
 diayn_pearl_half_cheeth(task_proposer)
-
