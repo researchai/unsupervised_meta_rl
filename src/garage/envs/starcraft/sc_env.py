@@ -1,5 +1,7 @@
 import akro
-import gym
+from gym.spaces.box import Box
+from gym.spaces.discrete import Discrete
+from gym.spaces.tuple import Tuple
 import numpy as np
 from smac.env import StarCraft2Env
 
@@ -124,12 +126,11 @@ class SC2EnvWrapper(GarageEnv):
         return None
 
     def _get_action_space(self):
-        return akro.from_gym(gym.spaces.Box(0, self.n_actions,
-                                            self.concat_action_shape))
+        return akro.from_gym(Tuple([Box(0, self.n_actions)
+                                    for _ in range(self.n_agents)]))
 
     def _get_observation_space(self):
-        return akro.from_gym(gym.spaces.Box(-np.inf, np.inf,
-                                            self.concat_obs_shape))
+        return akro.from_gym(Box(-np.inf, np.inf, self.concat_obs_shape))
 
 
 sc2_env_wrap = SC2EnvWrapper
