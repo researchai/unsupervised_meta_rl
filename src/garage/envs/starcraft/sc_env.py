@@ -126,7 +126,7 @@ class SC2EnvWrapper(GarageEnv):
         return None
 
     def _get_action_space(self):
-        return akro.from_gym(Tuple([Box(0, self.n_actions)
+        return akro.from_gym(Tuple([Discrete(self.n_actions)
                                     for _ in range(self.n_agents)]))
 
     def _get_observation_space(self):
