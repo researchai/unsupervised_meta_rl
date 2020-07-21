@@ -8,9 +8,11 @@ class Policy(object):
     def action(self, obs):
         raise NotImplementedError()
 
+
 # interactive policy based on keyboard input
 # hard-coded to deal only with movement, not communication
 class InteractivePolicy(Policy):
+
     def __init__(self, env, agent_index):
         super(InteractivePolicy, self).__init__()
         self.env = env
@@ -45,6 +47,7 @@ class InteractivePolicy(Policy):
         if k==key.RIGHT: self.move[1] = True
         if k==key.UP:    self.move[2] = True
         if k==key.DOWN:  self.move[3] = True
+
     def key_release(self, k, mod):
         if k==key.LEFT:  self.move[0] = False
         if k==key.RIGHT: self.move[1] = False

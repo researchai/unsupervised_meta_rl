@@ -1,6 +1,6 @@
 import numpy as np
-from multiagent.core import World, Agent, Landmark
-from multiagent.scenario import BaseScenario
+from garage.envs.multiagent_scenario.core import World, Agent, Landmark
+from garage.envs.multiagent_scenario.scenario import BaseScenario
 
 class Scenario(BaseScenario):
     def make_world(self):
@@ -72,7 +72,7 @@ class Scenario(BaseScenario):
         neg_rew = np.sqrt(np.sum(np.square(agent.goal_a.state.p_pos - agent.state.p_pos)))
         #neg_rew = sum([np.sqrt(np.sum(np.square(a.state.p_pos - agent.state.p_pos))) for a in world.good_agents])
         return pos_rew - neg_rew
-               
+
     def observation(self, agent, world):
         # get positions of all entities in this agent's reference frame
         entity_pos = []

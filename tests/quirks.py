@@ -1,6 +1,6 @@
 """Documented breakages and quirks caused by dependencies."""
 
-# openai/gym environments known to not implement render()
+# multiagent_scenario/gym environments known to not implement render()
 #
 # e.g.
 # > gym/core.py", line 111, in render
