@@ -10,7 +10,7 @@ from garage.envs import GarageEnv
 
 class SC2EnvWrapper(GarageEnv):
     """
-    Wraps StarCraft2Env inside GarageEnv
+    Wraps smac.env.StarCraft2Env inside GarageEnv
     TODO: normalization - more precision on obs, reward, action ranges
     """
 
