@@ -116,3 +116,6 @@ class MetaEvaluator:
                 getattr(algo, 'discount', 1.0),
                 name_map=name_map)
         self._eval_itr += 1
+
+        rewards = TrajectoryBatch.concatenate(*adapted_trajectories).rewards
+        return sum(rewards) / len(rewards)

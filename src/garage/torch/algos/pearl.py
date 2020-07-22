@@ -173,6 +173,7 @@ class PEARL(MetaRLAlgorithm):
                                         worker_class=PEARLWorker,
                                         worker_args=worker_args,
                                         n_test_tasks=num_test_tasks)
+        self._average_rewards = []
 
         encoder_spec = self.get_env_spec(env[0](), latent_dim, 'encoder')
         encoder_in_dim = int(np.prod(encoder_spec.input_space.shape))
@@ -304,7 +305,9 @@ class PEARL(MetaRLAlgorithm):
             logger.log('Evaluating...')
             # evaluate
             self._policy.reset_belief()
-            self._evaluator.evaluate(self)
+            self._average_rewards.append(self._evaluator.evaluate(self))
+
+        return self._average_rewards
 
     def _train_once(self):
         """Perform one iteration of training."""

@@ -11,6 +11,8 @@ GYM_VERSION = '==0.15.4'
 REQUIRED = [
     # Please keep alphabetized
     'akro',
+    'altair',
+    'altair_saver',
     'cached_property',
     'click',
     'cloudpickle',
