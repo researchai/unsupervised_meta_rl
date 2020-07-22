@@ -1,16 +1,15 @@
 """An example to test diayn as task proposal to pearl written in PyTorch."""
-import random
 
+import altair as alt
+# import metaworld.benchmarks as mwb
+import click
 import gym
 import numpy as np
 import pandas as pd
-import altair as alt
-from altair_saver import save
 import torch
+from altair_saver import save
 from torch import nn
 from torch.nn import functional as F
-# import metaworld.benchmarks as mwb
-import click
 
 import garage.torch.utils as tu
 from garage import wrap_experiment
@@ -18,24 +17,24 @@ from garage.envs import GarageEnv, DiaynEnvWrapper
 from garage.envs import normalize
 from garage.envs.mujoco import HalfCheetahVelEnv
 from garage.experiment import deterministic, LocalRunner
+from garage.experiment.deterministic import set_seed
+from garage.experiment.task_sampler import EnvPoolSampler, SetTaskSampler
 from garage.replay_buffer import PathBuffer
+from garage.sampler import LocalSampler
 from garage.sampler import SkillWorker
 from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos import DIAYN
-from garage.torch.algos.discriminator import MLPDiscriminator
-from garage.torch.policies import TanhGaussianMLPSkillPolicy
-from garage.torch.q_functions import ContinuousMLPSkillQFunction
-from garage.experiment.deterministic import set_seed
-from garage.experiment.task_sampler import EnvPoolSampler, SetTaskSampler
-from garage.sampler import LocalSampler
 from garage.torch.algos import PEARL
+from garage.torch.algos.discriminator import MLPDiscriminator
 from garage.torch.algos.pearl import PEARLWorker
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies import ContextConditionedPolicy
 from garage.torch.policies import TanhGaussianMLPPolicy
+from garage.torch.policies import TanhGaussianMLPSkillPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
+from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
-#  TODO: consider to enlarge the number
+#  TODO: implements saving filename by algo+itr
 skills_num = 10
 
 
@@ -98,6 +97,7 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
     runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
                  worker_class=SkillWorker, worker_args=worker_args)
     runner.train(n_epochs=1000, batch_size=1000)
+    runner.save(1000)  # saves the last episode
 
     return discriminator
 
@@ -349,6 +349,7 @@ s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
 task_proposer = diayn_half_cheetah_batch(seed=s)
 diayn_pearl_returns = diayn_pearl_half_cheeth(task_proposer, seed=s)
 pearl_returns = pearl_half_cheetah(seed=s)
+
 assert (len(diayn_pearl_returns) == len(pearl_returns))
 
 n_subject = 2
