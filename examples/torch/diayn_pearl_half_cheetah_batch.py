@@ -96,7 +96,7 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
     worker_args = {"skills_num": skills_num}
     runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
                  worker_class=SkillWorker, worker_args=worker_args)
-    runner.train(n_epochs=1, batch_size=1000)  # 1000
+    runner.train(n_epochs=500, batch_size=1000)  # 1000
     runner.save(1000)  # saves the last episode
 
     return discriminator
