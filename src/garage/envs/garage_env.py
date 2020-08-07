@@ -218,7 +218,7 @@ class DiaynEnvWrapper(gym.Wrapper):
         if isinstance(skills, int):
             skills = np.array([skills])
 
-        q = self._discriminator(states).detach()
+        q = self._discriminator(states).detach().cpu().detach()
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
 
