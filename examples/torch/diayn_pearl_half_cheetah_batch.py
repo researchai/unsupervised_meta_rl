@@ -96,11 +96,14 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
     worker_args = {"skills_num": skills_num}
     runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
                  worker_class=SkillWorker, worker_args=worker_args)
-    runner.train(n_epochs=1000, batch_size=1000)
+    runner.train(n_epochs=1, batch_size=1000)  # 1000
     runner.save(1000)  # saves the last episode
 
     return discriminator
 
+
+s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
+task_proposer = diayn_half_cheetah_batch(seed=s)
 
 ########################## hyper params for PEARL ##########################
 
@@ -146,7 +149,6 @@ param_use_gpu = False
 @wrap_experiment
 def diayn_pearl_half_cheeth(
     ctxt=None,
-    task_proposer=None,
     seed=1,
     num_epochs=param_num_epoches,
     num_train_tasks=param_train_tasks_num,
@@ -349,8 +351,6 @@ def pearl_half_cheetah(ctxt=None,
     return average_returns
 
 
-s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
-task_proposer = diayn_half_cheetah_batch(seed=s)
 diayn_pearl_returns = diayn_pearl_half_cheeth(task_proposer=task_proposer, seed=s)
 pearl_returns = pearl_half_cheetah(seed=s)
 
