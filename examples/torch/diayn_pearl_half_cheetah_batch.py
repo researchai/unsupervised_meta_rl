@@ -127,6 +127,7 @@ param_meta_batch_size = 16
 param_reward_scale = 5.
 param_use_gpu = False
 
+
 ###########################################################################
 
 
@@ -168,7 +169,6 @@ def diayn_pearl_half_cheeth(
     max_path_length=param_max_path_length,
     reward_scale=param_reward_scale,
     use_gpu=param_use_gpu):
-
     if task_proposer is None:
         raise ValueError("Task proposer is empty")
 
@@ -260,10 +260,13 @@ def diayn_pearl_half_cheeth(
 @click.option('--num_steps_per_epoch', default=param_num_steps_per_epoch)
 @click.option('--num_initial_steps', default=param_num_initial_steps)
 @click.option('--num_steps_prior', default=param_num_steps_prior)
-@click.option('--num_extra_rl_steps_posterior', default=param_num_extra_rl_steps_posterior)
+@click.option('--num_extra_rl_steps_posterior',
+              default=param_num_extra_rl_steps_posterior)
 @click.option('--batch_size', default=param_batch_size)
-@click.option('--embedding_batch_size', default=param_embedding_mini_batch_size)
-@click.option('--embedding_mini_batch_size', default=param_embedding_mini_batch_size)
+@click.option('--embedding_batch_size',
+              default=param_embedding_mini_batch_size)
+@click.option('--embedding_mini_batch_size',
+              default=param_embedding_mini_batch_size)
 @click.option('--max_path_length', default=param_max_path_length)
 @wrap_experiment
 def pearl_half_cheetah(ctxt=None,
@@ -351,24 +354,20 @@ def pearl_half_cheetah(ctxt=None,
     return average_returns
 
 
-diayn_pearl_returns = diayn_pearl_half_cheeth(seed=s)
-pearl_returns = pearl_half_cheetah(seed=s)
+diayn_pearl_returns = diayn_pearl_half_cheeth()
+pearl_returns = pearl_half_cheetah()
 
 assert (len(diayn_pearl_returns) == len(pearl_returns))
 
 n_subject = 2
 save_dir = "tmp/avg_rewards.png"
 data = pd.DataFrame(
-    {'Epoch': [i for i in range(len(diayn_pearl_returns)*3)] * n_subject,
+    {'Epoch': [i for i in range(len(diayn_pearl_returns) * 3)] * n_subject,
      'Subjects': ["PEARL with DIAYN" for _ in range(len(diayn_pearl_returns))]
-        + ["PEARL" for _ in range(len(pearl_returns))],
+                 + ["PEARL" for _ in range(len(pearl_returns))],
      'Average Rewards': diayn_pearl_returns + pearl_returns})
 chart = alt.Chart(data).mark_line().encode(
     x='Epoch:Q',
     y='Average Rewards:Q',
     color='Subjects:N')
 save(chart, save_dir)
-
-
-
-
