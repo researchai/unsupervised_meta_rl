@@ -145,8 +145,8 @@ param_use_gpu = False
 @click.option('--max_path_length', default=param_max_path_length)
 @wrap_experiment
 def diayn_pearl_half_cheeth(
-    task_proposer,
     ctxt=None,
+    task_proposer=None,
     seed=1,
     num_epochs=param_num_epoches,
     num_train_tasks=param_train_tasks_num,
@@ -166,6 +166,10 @@ def diayn_pearl_half_cheeth(
     max_path_length=param_max_path_length,
     reward_scale=param_reward_scale,
     use_gpu=param_use_gpu):
+
+    if task_proposer is None:
+        raise ValueError("Task proposer is empty")
+
     set_seed(seed)
     encoder_hidden_sizes = (encoder_hidden_size, encoder_hidden_size,
                             encoder_hidden_size)
@@ -347,7 +351,7 @@ def pearl_half_cheetah(ctxt=None,
 
 s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
 task_proposer = diayn_half_cheetah_batch(seed=s)
-diayn_pearl_returns = diayn_pearl_half_cheeth(task_proposer, seed=s)
+diayn_pearl_returns = diayn_pearl_half_cheeth(task_proposer=task_proposer, seed=s)
 pearl_returns = pearl_half_cheetah(seed=s)
 
 assert (len(diayn_pearl_returns) == len(pearl_returns))
