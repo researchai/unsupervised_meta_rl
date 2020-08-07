@@ -351,7 +351,7 @@ def pearl_half_cheetah(ctxt=None,
     return average_returns
 
 
-diayn_pearl_returns = diayn_pearl_half_cheeth(task_proposer=task_proposer, seed=s)
+diayn_pearl_returns = diayn_pearl_half_cheeth(seed=s)
 pearl_returns = pearl_half_cheetah(seed=s)
 
 assert (len(diayn_pearl_returns) == len(pearl_returns))
