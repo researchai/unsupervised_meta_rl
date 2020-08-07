@@ -200,9 +200,9 @@ class GarageEnv(gym.Wrapper):
         self.__init__(state['_env'], state['_env_name'])
 
 
-class DiaynEnvWrapper(gym.Wrapper):
+class DiaynEnvWrapper(GarageEnv):
     def __init__(self, env, d, num_s, s):
-        super.__init__(env)
+        super().__init__(env)
         self._discriminator = d
         self._num_skills = num_s
         self._skill = s
