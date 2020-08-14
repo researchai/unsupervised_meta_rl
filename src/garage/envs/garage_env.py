@@ -201,8 +201,8 @@ class GarageEnv(gym.Wrapper):
 
 
 class DiaynEnvWrapper(GarageEnv):
-    def __init__(self, env, d, num_s, s):
-        super().__init__(env)
+    def __init__(self, d, num_s, s, env=None, env_name='', is_image=False):
+        super().__init__(env, env_name)
         self._discriminator = d
         self._num_skills = num_s
         self._skill = s
@@ -223,3 +223,13 @@ class DiaynEnvWrapper(GarageEnv):
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
 
         return reward
+
+    def __setstate__(self, state):
+        """See `Object.__setstate__.
+
+        Args:
+            state (dict): Unpickled state of this object.
+
+        """
+        self.__init__(state['_discriminator'], state['_num_skills'],
+                      state['_skill'], state['_env'], state['_env_name'])
