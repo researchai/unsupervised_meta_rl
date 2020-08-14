@@ -125,7 +125,7 @@ param_latent_size = 5
 param_num_tasks_sample = 5
 param_meta_batch_size = 16
 param_reward_scale = 5.
-param_use_gpu = False
+param_use_gpu = True
 
 
 ###########################################################################
