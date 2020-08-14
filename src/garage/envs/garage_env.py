@@ -224,12 +224,7 @@ class DiaynEnvWrapper(GarageEnv):
         q_z = np.array([q[i, skills[i]] for i in range(skills.shape[0])])
         reward = np.log(q_z) - np.log(np.full(q_z.shape, self._prob_skill))
 
-        print(reward.shape)
-        
-        if len(reward.shape) is 2 and reward.shape[1] is 1:
-            reward = reward.reshape(reward.shape[0])
-
-        return reward
+        return reward[0]
 
     def __setstate__(self, state):
         self.__init__(state['_discriminator'], state['_num_skills'],
