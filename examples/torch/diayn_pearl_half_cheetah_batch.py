@@ -42,7 +42,7 @@ skills_num = 10
 def diayn_half_cheetah_batch(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
-    env = GarageEnv(normalize(HalfCheetahVelEnv()))
+    env = GarageEnv(normalize(gym.make('HalfCheetah-v2')))
 
     policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
@@ -180,7 +180,7 @@ def diayn_pearl_half_cheeth(
     # create multi-task environment and sample tasks
 
     ML_train_envs = [DiaynEnvWrapper(task_proposer, skills_num, task_name,
-                                     normalize(HalfCheetahVelEnv()))
+                                     normalize(gym.make('HalfCheetah-v2')))
                      for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(num_train_tasks)
@@ -192,7 +192,7 @@ def diayn_pearl_half_cheeth(
     # ]
 
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
-        HalfCheetahVelEnv())))
+        gym.make('HalfCheetah-v2'))))
 
     runner = LocalRunner(ctxt)
 
@@ -292,10 +292,10 @@ def pearl_half_cheetah(ctxt=None,
                             encoder_hidden_size)
     # create multi-task environment and sample tasks
     env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
+        normalize(gym.make('HalfCheetah-v2'))))
     env = env_sampler.sample(num_train_tasks)
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
+        normalize(gym.make('HalfCheetah-v2'))))
 
     runner = LocalRunner(ctxt)
 
