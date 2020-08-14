@@ -77,7 +77,7 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
                   qf1=qf1,
                   qf2=qf2,
                   gradient_steps_per_itr=1000,
-                  max_path_length=500,
+                  max_path_length=150,
                   replay_buffer=replay_buffer,
                   min_buffer_size=1e4,
                   recorded=True,  # enable the video recording func
@@ -118,7 +118,7 @@ param_num_extra_rl_steps_posterior = 600
 param_batch_size = 256
 param_embedding_batch_size = 100
 param_embedding_mini_batch_size = 100
-param_max_path_length = 200
+param_max_path_length = 150
 
 param_latent_size = 5
 param_num_tasks_sample = 5
