@@ -108,7 +108,7 @@ task_proposer = diayn_half_cheetah_batch(seed=s)
 
 param_num_epoches = 500
 param_train_tasks_num = skills_num  # 100
-param_test_tasks_num = skills_num / 2  # 30
+param_test_tasks_num = 5 # skills_num / 2  # 30
 param_encoder_hidden_size = 200
 param_net_size = 300
 param_num_steps_per_epoch = 2000
