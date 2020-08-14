@@ -179,8 +179,8 @@ def diayn_pearl_half_cheeth(
                             encoder_hidden_size)
     # create multi-task environment and sample tasks
 
-    ML_train_envs = [DiaynEnvWrapper(normalize(HalfCheetahVelEnv()),
-                                     task_proposer, skills_num, task_name)
+    ML_train_envs = [DiaynEnvWrapper(task_proposer, skills_num, task_name,
+                                     normalize(HalfCheetahVelEnv()))
                      for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(num_train_tasks)
