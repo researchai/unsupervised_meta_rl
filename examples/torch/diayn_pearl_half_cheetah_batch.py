@@ -42,7 +42,7 @@ skills_num = 10
 def diayn_half_cheetah_batch(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
-    env = GarageEnv(normalize(gym.make('HalfCheetah-v2')))
+    env = GarageEnv(normalize(HalfCheetahVelEnv()))
 
     policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
@@ -172,17 +172,17 @@ def diayn_pearl_half_cheeth(
     if task_proposer is None:
         raise ValueError("Task proposer is empty")
 
+    assert num_train_tasks is skills_num
+
     set_seed(seed)
     encoder_hidden_sizes = (encoder_hidden_size, encoder_hidden_size,
                             encoder_hidden_size)
     # create multi-task environment and sample tasks
 
-    env = gym.make('HalfCheetah-v2')
-    ML_train_envs = [
-        DiaynEnvWrapper(normalize(env), task_proposer, skills_num, task_name)
-        for task_name in range(skills_num)]
+    ML_train_envs = [DiaynEnvWrapper(normalize(HalfCheetahVelEnv()),
+                                     task_proposer, skills_num, task_name)
+                     for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
-    env_sampler.grow_pool(num_train_tasks)
     env = env_sampler.sample(num_train_tasks)
 
     # ML_test_envs = [
@@ -191,7 +191,8 @@ def diayn_pearl_half_cheeth(
     #     for task_name in random.sample(range(skills_num), test_tasks_num)
     # ]
 
-    test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(env)))
+    test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
+        HalfCheetahVelEnv())))
 
     runner = LocalRunner(ctxt)
 
@@ -291,10 +292,10 @@ def pearl_half_cheetah(ctxt=None,
                             encoder_hidden_size)
     # create multi-task environment and sample tasks
     env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(gym.make('HalfCheetah-v2'))))
+        normalize(HalfCheetahVelEnv())))
     env = env_sampler.sample(num_train_tasks)
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(gym.make('HalfCheetah-v2'))))
+        normalize(HalfCheetahVelEnv())))
 
     runner = LocalRunner(ctxt)
 
