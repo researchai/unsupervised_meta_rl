@@ -179,10 +179,8 @@ def diayn_pearl_half_cheeth(
 
     env = gym.make('HalfCheetah-v2')
     ML_train_envs = [
-        GarageEnv(normalize(
-            DiaynEnvWrapper(env, task_proposer, skills_num, task_name)))
-        for task_name in range(skills_num)
-    ]
+        DiaynEnvWrapper(normalize(env), task_proposer, skills_num, task_name)
+        for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
     env_sampler.grow_pool(num_train_tasks)
     env = env_sampler.sample(num_train_tasks)
@@ -193,8 +191,7 @@ def diayn_pearl_half_cheeth(
     #     for task_name in random.sample(range(skills_num), test_tasks_num)
     # ]
 
-    test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(HalfCheetahVelEnv())))
+    test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(env)))
 
     runner = LocalRunner(ctxt)
 
