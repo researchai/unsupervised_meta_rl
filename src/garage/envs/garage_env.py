@@ -206,6 +206,8 @@ class DiaynEnvWrapper(GarageEnv):
         self._discriminator = d
         self._num_skills = num_s
         self._skill = s
+        self._prob_skills = np.full(self._num_skills, 1.0 / self._num_skills)
+        self._prob_skill = 1.0 / self._num_skills
 
     def step(self, action):
         observation, _, done, info = self.env.step(action)
@@ -225,11 +227,5 @@ class DiaynEnvWrapper(GarageEnv):
         return reward
 
     def __setstate__(self, state):
-        """See `Object.__setstate__.
-
-        Args:
-            state (dict): Unpickled state of this object.
-
-        """
         self.__init__(state['_discriminator'], state['_num_skills'],
                       state['_skill'], state['_env'], state['_env_name'])
