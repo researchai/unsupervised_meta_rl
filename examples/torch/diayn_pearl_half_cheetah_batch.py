@@ -1,7 +1,7 @@
 """An example to test diayn as task proposal to pearl written in PyTorch."""
 
 import altair as alt
-# import metaworld.benchmarks as mwb
+import metaworld.benchmarks as mwb
 import click
 import gym
 import numpy as np
@@ -37,12 +37,11 @@ from garage.torch.q_functions import ContinuousMLPSkillQFunction
 #  TODO: implements saving filename by algo+itr
 skills_num = 10
 
-
 @wrap_experiment(snapshot_mode='none')
 def diayn_half_cheetah_batch(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
-    env = GarageEnv(normalize(gym.make('HalfCheetah-v2')))
+    env = GarageEnv(normalize(mwb.ML1.get_train_tasks('push-v1')))
 
     policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
@@ -180,7 +179,7 @@ def diayn_pearl_half_cheeth(
     # create multi-task environment and sample tasks
 
     ML_train_envs = [DiaynEnvWrapper(task_proposer, skills_num, task_name,
-                                     normalize(gym.make('HalfCheetah-v2')))
+                                     normalize(mwb.ML1.get_train_tasks('push-v1')))
                      for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(num_train_tasks)
@@ -192,7 +191,7 @@ def diayn_pearl_half_cheeth(
     # ]
 
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
-        gym.make('HalfCheetah-v2'))))
+        mwb.ML1.get_train_tasks('push-v1'))))
 
     runner = LocalRunner(ctxt)
 
@@ -292,10 +291,10 @@ def pearl_half_cheetah(ctxt=None,
                             encoder_hidden_size)
     # create multi-task environment and sample tasks
     env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(gym.make('HalfCheetah-v2'))))
+        normalize(mwb.ML1.get_train_tasks('push-v1'))))
     env = env_sampler.sample(num_train_tasks)
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(gym.make('HalfCheetah-v2'))))
+        normalize(mwb.ML1.get_train_tasks('push-v1'))))
 
     runner = LocalRunner(ctxt)
 
