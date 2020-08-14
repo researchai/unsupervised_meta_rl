@@ -1,7 +1,7 @@
 """An example to test diayn as task proposal to pearl written in PyTorch."""
 
 import altair as alt
-import metaworld.benchmarks as mwb
+import os
 import click
 import gym
 import numpy as np
@@ -41,7 +41,7 @@ skills_num = 10
 def diayn_half_cheetah_batch(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
-    env = GarageEnv(normalize(mwb.ML1.get_train_tasks('push-v1')))
+    env = GarageEnv(normalize(HalfCheetahVelEnv()))
 
     policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
@@ -77,7 +77,7 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
                   qf1=qf1,
                   qf2=qf2,
                   gradient_steps_per_itr=1000,
-                  max_path_length=150,
+                  max_path_length=300,
                   replay_buffer=replay_buffer,
                   min_buffer_size=1e4,
                   recorded=True,  # enable the video recording func
@@ -95,8 +95,8 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
     worker_args = {"skills_num": skills_num}
     runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
                  worker_class=SkillWorker, worker_args=worker_args)
-    runner.train(n_epochs=1, batch_size=1000)  # 1000
-    runner.save(1000)  # saves the last episode
+    runner.train(n_epochs=1000, batch_size=1000)  # 1000
+    runner.save(999)  # saves the last episode
 
     return discriminator
 
@@ -118,7 +118,7 @@ param_num_extra_rl_steps_posterior = 600
 param_batch_size = 256
 param_embedding_batch_size = 100
 param_embedding_mini_batch_size = 100
-param_max_path_length = 150
+param_max_path_length = 300
 
 param_latent_size = 5
 param_num_tasks_sample = 5
@@ -179,7 +179,7 @@ def diayn_pearl_half_cheeth(
     # create multi-task environment and sample tasks
 
     ML_train_envs = [DiaynEnvWrapper(task_proposer, skills_num, task_name,
-                                     normalize(mwb.ML1.get_train_tasks('push-v1')))
+                                     normalize(HalfCheetahVelEnv()))
                      for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(num_train_tasks)
@@ -191,7 +191,7 @@ def diayn_pearl_half_cheeth(
     # ]
 
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
-        mwb.ML1.get_train_tasks('push-v1'))))
+        HalfCheetahVelEnv())))
 
     runner = LocalRunner(ctxt)
 
@@ -244,6 +244,7 @@ def diayn_pearl_half_cheeth(
                  worker_class=PEARLWorker)
 
     average_returns = runner.train(n_epochs=num_epochs, batch_size=batch_size)
+    runner.save(num_epochs-1)
 
     return average_returns
 
@@ -291,10 +292,10 @@ def pearl_half_cheetah(ctxt=None,
                             encoder_hidden_size)
     # create multi-task environment and sample tasks
     env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(mwb.ML1.get_train_tasks('push-v1'))))
+        normalize(HalfCheetahVelEnv())))
     env = env_sampler.sample(num_train_tasks)
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(
-        normalize(mwb.ML1.get_train_tasks('push-v1'))))
+        normalize(HalfCheetahVelEnv())))
 
     runner = LocalRunner(ctxt)
 
@@ -347,12 +348,23 @@ def pearl_half_cheetah(ctxt=None,
                  worker_class=PEARLWorker)
 
     average_returns = runner.train(n_epochs=num_epochs, batch_size=batch_size)
+    runner.save(num_epochs - 1)
 
     return average_returns
 
 
+def save_list_to_file(x, filename):
+    with open(filename, 'w') as f:
+        for item in x:
+            f.write("%s\n" % item)
+
+
+if not os.path.exists('tmp'):
+    os.makedirs('tmp')
 diayn_pearl_returns = diayn_pearl_half_cheeth()
+save_list_to_file(diayn_pearl_returns, "tmp/diayn_pearl_returns.txt")
 pearl_returns = pearl_half_cheetah()
+save_list_to_file(pearl_returns, "tmp/pearl_returns.txt")
 
 assert (len(diayn_pearl_returns) == len(pearl_returns))
 
