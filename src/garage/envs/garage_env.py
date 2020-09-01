@@ -1,6 +1,8 @@
 """Wrapper class that converts gym.Env into GarageEnv."""
 
 import copy
+import time
+
 import numpy as np
 
 import akro
@@ -229,3 +231,76 @@ class DiaynEnvWrapper(GarageEnv):
     def __setstate__(self, state):
         self.__init__(state['_discriminator'], state['_num_skills'],
                       state['_skill'], state['_env'], state['_env_name'])
+
+    def get_training_traj(self, agent):
+        env_copy = copy.deepcopy(self)
+        pos_traj, _, _, _, _, _ = self._gather_pos_rollout(env_copy, agent)
+        return pos_traj
+
+    def _gather_pos_rollout(self,
+                            env,
+                            agent,  # self.policy
+                            max_path_length=np.inf,
+                            animated=False,
+                            recorded=False,
+                            save_video_filename=None,
+                            speedup=1,
+                            deterministic=False):
+
+        skills = []
+        states = []
+        actions = []
+        self_rewards = []
+        env_rewards = []
+        agent_infos = []
+        env_infos = []
+        pos = []
+        dones = []
+
+        s = env.reset()
+        z = np.eye(self._num_skills)[self._skill]
+        agent.reset()
+        path_length = 0
+
+        video_buffer = []
+        if recorded:
+            video_buffer.append(env.render(mode="rgb_array"))
+
+        if animated:
+            env.render(mode="human")
+
+        while path_length < (max_path_length or np.inf):
+            s = env.observation_space.flatten(s)
+            a, agent_info = agent.get_action(s, z)
+            if deterministic and 'mean' in agent_infos:
+                a = agent_info['mean']
+            next_s, env_r, d, env_info = env.step(a)
+            self_r = self._obtain_pseudo_reward(s, self._skill)
+            states.append(s)
+            self_rewards.append(self_r)
+            env_rewards.append(env_r)
+            actions.append(a)
+            skills.append(self._skill)
+            agent_infos.append(agent_info)
+            env_infos.append(env_info)
+            dones.append(d)
+            pos.append([env.sim.data.qpos[0], env.sim.data.qpos[1]])
+            path_length += 1
+            if d:
+                break
+            s = next_s
+            if animated:
+                env.render()
+                timestep = 0.05
+                time.sleep(timestep / speedup)
+            if recorded:
+                video_buffer.append(env.render(mode="rgb_array"))
+
+        if recorded:
+            fps = (1 / self._time_per_render)
+            self._save_video(video_buffer, save_video_filename, fps)
+
+        return pos, skills, actions, self_rewards, env_rewards, states
+
+
+

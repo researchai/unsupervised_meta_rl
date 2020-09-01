@@ -34,7 +34,6 @@ from garage.torch.policies import TanhGaussianMLPSkillPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
-#  TODO: implements saving filename by algo+itr
 skills_num = 10
 
 @wrap_experiment(snapshot_mode='none')
@@ -98,11 +97,11 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
     runner.train(n_epochs=1000, batch_size=1000)  # 1000
     runner.save(999)  # saves the last episode
 
-    return discriminator
+    return discriminator, diayn
 
 
 s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
-task_proposer = diayn_half_cheetah_batch(seed=s)
+task_proposer, diayn_trained_agent = diayn_half_cheetah_batch(seed=s)
 
 ########################## hyper params for PEARL ##########################
 
@@ -183,6 +182,9 @@ def diayn_pearl_half_cheeth(
                      for task_name in range(skills_num)]
     env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(num_train_tasks)
+
+    # train_trajs_dist = [train_env.get_training_traj(diayn_trained_agent)
+    #               for train_env in ML_train_envs]
 
     # ML_test_envs = [
     #     GarageEnv(normalize(
