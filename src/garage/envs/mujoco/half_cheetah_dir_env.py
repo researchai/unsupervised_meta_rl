@@ -97,3 +97,6 @@ class HalfCheetahDirEnv(HalfCheetahEnvMetaBase):
 
         """
         self._task = task
+
+    def get_task(self):
+        return self._task
