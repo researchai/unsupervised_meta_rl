@@ -12,7 +12,8 @@ class LocalSkillSampler(LocalSampler):
 
     # def _update_workers(self, agent_update, env_update):
 
-    def obtain_samples(self, itr, num_samples, agent_update, env_update=None):
+    def obtain_samples(self, itr, num_samples, agent_update, env_update=None,
+                        skill=None):
         self._update_workers(agent_update, env_update)
         batches = []
         completed_samples = 0
@@ -22,7 +23,7 @@ class LocalSkillSampler(LocalSampler):
                     raise ValueError('Worker used by Local Skill Sampler class'
                                      ' must be a Skill Worker object, but got '
                                      '{}'.format(worker.dtype))
-                batch = worker.rollout()
+                batch = worker.rollout(skill)
                 completed_samples += len(batch.actions)
                 batches.append(batch)
                 if completed_samples >= num_samples:

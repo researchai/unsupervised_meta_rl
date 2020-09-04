@@ -175,7 +175,7 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         self.infer_posterior(context)
-        self.sample_from_belief()
+        self.sample_from_belief()  # not necessary
         task_z = self.z
 
         # task, batch

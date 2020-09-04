@@ -70,3 +70,22 @@ more on research objectives:
 goal this week:
 writes up example of training with diayn -> sac and pearl
 debugs over the code on diayn
+
+options:
+recurrent encoders vs. gaussian
+    + differences:
+        - in policies
+        - in sampling
+
+train inference net and policies as pipeline or not
+    + differences:
+        - one main train loop or two loops
+
+how to freeze the training for the policy
+
+metarl?
+
+skill-worker -
+
+need the proportion of training skill reasoning to decay
+

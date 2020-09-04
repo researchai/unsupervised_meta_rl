@@ -34,10 +34,13 @@ class SkillWorker(DefaultWorker):
 
     # def update_env(self, env_update):
 
-    def start_rollout(self):
+    def start_rollout(self, skill=None):
         self._path_length = 0
         self._prev_s = self.env.reset()
-        self._cur_z = self._sample_skill()
+        if skill is None:
+            self._cur_z = self._sample_skill()
+        else:
+            self._cur_z = skill
         self.agent.reset()
 
     def step_rollout(self):
@@ -101,7 +104,14 @@ class SkillWorker(DefaultWorker):
                                     agent_infos=dict(agent_infos),
                                     lengths=np.asarray(lengths, dtype='i'))
 
-    # def rollout(self)
+    def rollout(self, skill=None):
+        self.start_rollout(skill)
+        # print("rollout started")
+        while not self.step_rollout():
+            # print("rollout step={}".format(step))
+            # step = step+1
+            pass
+        return self.collect_rollout()
 
     # def shutdown(self)
 
