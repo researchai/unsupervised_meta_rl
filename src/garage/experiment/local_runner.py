@@ -320,7 +320,7 @@ class LocalRunner:
 
         """
         if self._sampler is None:
-            raise ValueError('Runner was not initialized with `sampler_cls`. ' 
+            raise ValueError('Runner was not initialized with `sampler_cls`. '
                              'Either provide `sampler_cls` to runner.setup, '
                              ' or set `algo.sampler_cls`.')
         if batch_size is None and self._train_args.batch_size is None:
@@ -603,6 +603,10 @@ class LocalRunner:
 
         """
         return self._stats.total_env_steps
+
+    @property
+    def get_algo(self):
+        return self._algo
 
 
 class NotSetupError(Exception):

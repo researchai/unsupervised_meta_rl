@@ -4,6 +4,7 @@ Code is adapted from https://github.com/katerakelly/oyster.
 """
 
 import copy
+import time
 
 import akro
 from dowel import logger
@@ -728,6 +729,7 @@ class PEARLWorker(DefaultWorker):
             a, agent_info = self.agent.get_action(self._prev_obs)
             if self._deterministic:
                 a = agent_info['mean']
+            time.sleep(.002)  # fix "mujoco_py.builder.MujocoException: Unknown warning type Time = 0.0000.Check for NaN in simulation."
             next_o, r, d, env_info = self.env.step(a)
             self._observations.append(self._prev_obs)
             self._rewards.append(r)
