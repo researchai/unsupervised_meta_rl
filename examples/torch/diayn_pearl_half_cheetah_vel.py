@@ -95,7 +95,7 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
     # runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
     #             worker_class=SkillWorker, worker_args=worker_args)
     # runner.train(n_epochs=1000, batch_size=1000)  # 1000
-    runner.restore(from_dir=os.path.join(os.getcwd(), 'data/local/experiment'))
+    runner.restore(from_dir=os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_batch_50'))
     diayn = runner.get_algo()
     #runner.save(999)  # saves the last episode
 
