@@ -36,8 +36,8 @@ from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 skills_num = 10
 
-@wrap_experiment(snapshot_mode='none')
-def diayn_half_cheetah_batch(ctxt=None, seed=1):
+@wrap_experiment(snapshot_mode='gap_and_last')
+def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
     env = GarageEnv(normalize(HalfCheetahVelEnv()))
@@ -92,20 +92,21 @@ def diayn_half_cheetah_batch(ctxt=None, seed=1):
         tu.set_gpu_mode(False)
     diayn.to()
     worker_args = {"skills_num": skills_num}
-    # runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
-    #             worker_class=SkillWorker, worker_args=worker_args)
-    # runner.train(n_epochs=1000, batch_size=1000)  # 1000
-    runner.restore(from_dir=os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_batch_50'))
-    diayn = runner.get_algo()
-    #runner.save(999)  # saves the last episode
+    runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
+                 worker_class=SkillWorker, worker_args=worker_args)
+    runner.train(n_epochs=1000, batch_size=1000)  # 1000
+    # runner.restore(from_dir=os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_batch_50'))
+    # diayn = runner.get_algo()
+    runner.save(999)  # saves the last episode
 
     return discriminator, diayn
 
 
 
 s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
-task_proposer, diayn_trained_agent = diayn_half_cheetah_batch(seed=s)
+task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
 
+"""
 ########################## hyper params for PEARL ##########################
 
 param_num_epoches = 500
@@ -385,3 +386,4 @@ chart = alt.Chart(data).mark_line().encode(
     y='Average Rewards:Q',
     color='Subjects:N')
 save(chart, save_dir)
+"""
