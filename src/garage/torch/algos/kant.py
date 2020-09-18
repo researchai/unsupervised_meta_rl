@@ -116,7 +116,7 @@ class MetaKant(MetaRLAlgorithm):
 
         worker_args = dict(num_skills=num_skills,
                            skill_actor_class=type(skill_actor),
-                           controller_class=type(controller_policy),
+                           controller_class=controller_class,
                            deterministic=True, accum_context=True)
         self._evaluator = MetaEvaluator(test_task_sampler=test_env_sampler,
                                         max_path_length=max_path_length,
@@ -627,12 +627,12 @@ class KantWorker(DefaultWorker):
         self._prev_obs = None
 
     def start_rollout(self, skill=None):
-        print("agent")
-        print(type(self.agent))
-        print("controller_class")
-        print(self._controller_class)
-        print("skill_actor")
-        print(self._skill_actor_class)
+        # print("agent")
+        # print(type(self.agent))
+        # print("controller_class")
+        # print(self._controller_class)
+        # print("skill_actor")
+        # print(self._skill_actor_class)
         if isinstance(self.agent, self._skill_actor_class):
             if skill is None:
                 prob_skill = np.full(self._num_skills, 1.0 / self._num_skills)

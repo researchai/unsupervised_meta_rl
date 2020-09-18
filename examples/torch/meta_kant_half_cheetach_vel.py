@@ -16,6 +16,8 @@ from garage.sampler import LocalSampler
 from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos.kant import MetaKant, KantWorker
 from garage.torch.policies import TanhGaussianMLPPolicy
+from garage.torch.policies.context_conditioned_controller_policy import \
+    OpenContextConditionedControllerPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
 
 seed = np.random.randint(0, 1000)
@@ -167,7 +169,7 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     worker_args = dict(num_skills=num_skills,
                        skill_actor_class=type(skill_actor),
-                       controller_class=type(controller_policy),
+                       controller_class=OpenContextConditionedControllerPolicy,
                        deterministic=True, accum_context=True)
 
     runner.setup(algo=metakant,
