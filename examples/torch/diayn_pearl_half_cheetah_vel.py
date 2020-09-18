@@ -37,7 +37,7 @@ from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 skills_num = 10
 
-@wrap_experiment(snapshot_mode='last')
+@wrap_experiment(snapshot_mode='gap_and_last', snapshot_gap=100)
 def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
@@ -104,17 +104,17 @@ def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
 
 
 s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
-# task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
+task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
 
 
-load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl')
-itr = 844
-load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
-file = open(load_from_file, 'rb')
-saved = joblib.load(file)
-file.close()
-diayn = saved['algo']
-task_proposer = diayn.networks()[1]  # _discriminator
+# load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl')
+# itr = 844
+# load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
+# file = open(load_from_file, 'rb')
+# saved = joblib.load(file)
+# file.close()
+# diayn = saved['algo']
+# task_proposer = diayn.networks()[1]  # _discriminator
 
 ########################## hyper params for PEARL ##########################
 
