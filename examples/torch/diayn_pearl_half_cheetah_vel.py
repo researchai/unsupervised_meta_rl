@@ -108,7 +108,7 @@ s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
 
 
 load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl')
-itr = 884
+itr = 844
 load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
 file = open(load_from_file, 'rb')
 saved = joblib.load(file)
