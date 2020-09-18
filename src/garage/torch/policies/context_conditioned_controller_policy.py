@@ -75,6 +75,8 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
 
         skill_z = torch.eye(self._num_skills)[skill_choice]
         print("in get_action")
+        print(self._num_skills)
+        print(skill_choice)
         print(skill_z.size())
         action = self._sub_actor.get_action(obs, skill_z)
         action = np.squeeze(action, axis=0)
