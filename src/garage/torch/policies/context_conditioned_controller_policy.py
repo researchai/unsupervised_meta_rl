@@ -71,7 +71,7 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         z = self.z
         obs = torch.as_tensor(obs[None], device=tu.global_device()).float()
         obs_in = torch.cat([obs, z], dim=1)
-        skill_choice, info = self._policy.get_action(obs_in)
+        skill_choice, info = self._controller_policy.get_action(obs_in)
 
         skill_z = torch.eye(self._num_skills)[skill_choice]
         action = self._sub_actor.get_action(obs, skill_z)
