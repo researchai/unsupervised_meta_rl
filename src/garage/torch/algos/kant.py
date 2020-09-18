@@ -373,6 +373,8 @@ class MetaKant(MetaRLAlgorithm):
 
         while total_paths < num_paths:
             num_samples = num_paths * self.max_path_length
+            print(type(self._skill_actor))
+            print(type(self._env))
             paths = runner.obtain_samples(itr, num_samples,
                                           self._skill_actor,
                                           self._env)
