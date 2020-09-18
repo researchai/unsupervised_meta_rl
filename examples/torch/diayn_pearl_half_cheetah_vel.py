@@ -36,8 +36,8 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 skills_num = 10
-"""
-@wrap_experiment(snapshot_mode='gap_and_last')
+
+@wrap_experiment(snapshot_mode='last')
 def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
@@ -103,11 +103,9 @@ def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
     return discriminator, diayn
 
 
-
 s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
-task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
+# task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
 
-"""
 
 load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl')
 itr = 884
@@ -265,7 +263,7 @@ def diayn_pearl_half_cheeth(
 
     return average_returns
 
-"""
+
 @click.command()
 @click.option('--num_epochs', default=param_num_epoches)
 @click.option('--num_train_tasks', default=param_train_tasks_num)
@@ -369,7 +367,7 @@ def pearl_half_cheetah(ctxt=None,
 
     return average_returns
 
-"""
+
 def save_list_to_file(x, filename):
     with open(filename, 'w') as f:
         for item in x:
