@@ -80,8 +80,6 @@ class WorkerFactory:
 
         """
         if isinstance(objs, list):
-            print(self.n_workers)
-            print(len(objs))
             if len(objs) != self.n_workers:
                 raise ValueError(
                     'Length of list doesn\'t match number of workers')

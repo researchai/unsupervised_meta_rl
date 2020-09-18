@@ -23,6 +23,7 @@ import garage.torch.utils as tu
 class MetaKant(MetaRLAlgorithm):
     def __init__(self,
                  env,
+                 skill_env,
                  controller_policy,
                  skill_actor,
                  qf,
@@ -70,6 +71,7 @@ class MetaKant(MetaRLAlgorithm):
                  ):
 
         self._env = env
+        self._skill_env = skill_env
         self._qf1 = qf
         self._qf2 = copy.deepcopy(qf)
         self._vf = vf
@@ -373,11 +375,9 @@ class MetaKant(MetaRLAlgorithm):
 
         while total_paths < num_paths:
             num_samples = num_paths * self.max_path_length
-            print(type(self._skill_actor))
-            print(type(self._env))
             paths = runner.obtain_samples(itr, num_samples,
                                           self._skill_actor,
-                                          self._env)
+                                          self._skill_env)
             total_paths += len(paths)
 
             for path in paths:

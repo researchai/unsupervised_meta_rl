@@ -78,9 +78,6 @@ class LocalSampler(Sampler):
                 spread across the workers.
 
         """
-        print("in local sampler")
-        print(type(agent_update))
-        print(type(env_update))
         agent_updates = self._factory.prepare_worker_messages(agent_update)
         env_updates = self._factory.prepare_worker_messages(
             env_update, preprocess=copy.deepcopy)

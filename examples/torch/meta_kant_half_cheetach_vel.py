@@ -26,6 +26,7 @@ load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
 file = open(load_from_file, 'rb')
 saved = joblib.load(file)
 file.close()
+skill_env = saved['env']
 diayn = saved['algo']
 skill_actor = diayn.networks[0]  # _policy
 task_proposer = diayn.networks[1]  # _discriminator
@@ -131,6 +132,7 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     metakant = MetaKant(
         env=env,
+        skill_env=skill_env,
         controller_policy=controller_policy,
         skill_actor=skill_actor,
         qf=qf,
