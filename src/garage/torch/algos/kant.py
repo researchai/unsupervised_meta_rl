@@ -627,6 +627,9 @@ class KantWorker(DefaultWorker):
         self._prev_obs = None
 
     def start_rollout(self, skill=None):
+        print(type(self.agent))
+        print(self._controller_class)
+        print(self._skill_actor_class)
         if isinstance(self.agent, self._skill_actor_class):
             if skill is None:
                 prob_skill = np.full(self._num_skills, 1.0 / self._num_skills)
