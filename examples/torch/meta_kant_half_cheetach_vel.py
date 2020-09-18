@@ -165,7 +165,6 @@ def meta_kant_cheetah_vel(ctxt=None,
     tu.set_gpu_mode(use_gpu, gpu_id=0)
     if use_gpu:
         metakant.to()
-        skill_actor.to()
 
     worker_args = dict(num_skills=num_skills,
                        skill_actor_class=type(skill_actor),

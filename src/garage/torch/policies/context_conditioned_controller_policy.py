@@ -87,7 +87,7 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
 
     @property
     def networks(self):
-        return [self._context_encoder, self._controller_policy]
+        return [self._context_encoder, self._controller_policy, self._sub_actor]
 
     # @property
     # def context(self):
