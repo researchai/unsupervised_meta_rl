@@ -113,6 +113,8 @@ class TanhGaussianMLPPolicy(Policy, GaussianMLPTwoHeadedModule):
                     tu.global_device())
             observation = observation.unsqueeze(0)
             dist = self.forward(observation)
+            print("in tanh_gaussian's get_action")
+            print(dist.size())
             ret_mean = dist.mean.squeeze(0).cpu().numpy()
             ret_log_std = (dist.variance.sqrt()).log().squeeze(0).cpu().numpy()
             return (dist.rsample().squeeze(0).cpu().numpy(),
@@ -140,8 +142,6 @@ class TanhGaussianMLPPolicy(Policy, GaussianMLPTwoHeadedModule):
                 observations = torch.from_numpy(observations).float().to(
                     tu.global_device())
             dist = self.forward(observations)
-            print("in tanh_gaussian's get_action")
-            print(dist.size())
             ret_mean = dist.mean.cpu().numpy()
             ret_log_std = (dist.variance.sqrt()).log().cpu().numpy()
             return (dist.rsample().cpu().numpy(),
