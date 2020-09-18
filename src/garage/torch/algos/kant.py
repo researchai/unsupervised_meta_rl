@@ -114,7 +114,7 @@ class MetaKant(MetaRLAlgorithm):
 
         worker_args = dict(num_skills=num_skills,
                            skill_actor_class=type(skill_actor),
-                           controller_class=type(controller_class),
+                           controller_class=type(controller_policy),
                            deterministic=True, accum_context=True)
         self._evaluator = MetaEvaluator(test_task_sampler=test_env_sampler,
                                         max_path_length=max_path_length,

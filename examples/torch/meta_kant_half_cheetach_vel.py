@@ -115,6 +115,11 @@ def meta_kant_cheetah_vel(ctxt=None,
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
         HalfCheetahVelEnv())))
 
+    worker_args = dict(num_skills=num_skills,
+                       skill_actor_class=type(skill_actor),
+                       controller_class=type(controller_policy),
+                       deterministic=True, accum_context=True)
+
     runner = LocalRunner(ctxt)
 
     augmented_env = MetaKant.augment_env_spec(env[0](), latent_size)
@@ -168,6 +173,7 @@ def meta_kant_cheetah_vel(ctxt=None,
                  sampler_args=dict(max_path_length=max_path_length),
                  n_workers=1,
                  worker_class=KantWorker,
+                 worker_args=worker_args
                  )
 
     average_returns = runner.train(n_epochs=num_epochs, batch_size=batch_size)
