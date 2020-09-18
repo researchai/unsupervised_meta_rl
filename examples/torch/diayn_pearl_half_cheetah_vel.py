@@ -4,6 +4,7 @@ import altair as alt
 import os
 import click
 import gym
+import joblib
 import numpy as np
 import pandas as pd
 import torch
@@ -35,7 +36,7 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 skills_num = 10
-
+"""
 @wrap_experiment(snapshot_mode='gap_and_last')
 def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
     deterministic.set_seed(seed)
@@ -107,6 +108,16 @@ s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
 task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
 
 """
+
+load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl')
+itr = 884
+load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
+file = open(load_from_file, 'rb')
+saved = joblib.load(file)
+file.close()
+diayn = saved['algo']
+task_proposer = diayn.networks()[1]  # _discriminator
+
 ########################## hyper params for PEARL ##########################
 
 param_num_epoches = 500
@@ -254,7 +265,7 @@ def diayn_pearl_half_cheeth(
 
     return average_returns
 
-
+"""
 @click.command()
 @click.option('--num_epochs', default=param_num_epoches)
 @click.option('--num_train_tasks', default=param_train_tasks_num)
@@ -358,7 +369,7 @@ def pearl_half_cheetah(ctxt=None,
 
     return average_returns
 
-
+"""
 def save_list_to_file(x, filename):
     with open(filename, 'w') as f:
         for item in x:
@@ -369,6 +380,7 @@ if not os.path.exists('tmp'):
     os.makedirs('tmp')
 diayn_pearl_returns = diayn_pearl_half_cheeth()
 save_list_to_file(diayn_pearl_returns, "tmp/diayn_pearl_returns.txt")
+"""
 pearl_returns = pearl_half_cheetah()
 save_list_to_file(pearl_returns, "tmp/pearl_returns.txt")
 
