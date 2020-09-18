@@ -85,8 +85,9 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
     # def compute_kl_div(self):
     # compute KL(q(z|c)|p(z))
 
-    # @property
-    # def networks(self):
+    @property
+    def networks(self):
+        return [self._context_encoder, self._controller_policy]
 
     # @property
     # def context(self):
