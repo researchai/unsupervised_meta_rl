@@ -27,8 +27,8 @@ file = open(load_from_file, 'rb')
 saved = joblib.load(file)
 file.close()
 diayn = saved['algo']
-skill_actor = diayn.networks()[0]  # _policy
-task_proposer = diayn.networks()[1]  # _discriminator
+skill_actor = diayn.networks[0]  # _policy
+task_proposer = diayn.networks[1]  # _discriminator
 
 
 param_num_epoches = 500

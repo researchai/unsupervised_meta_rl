@@ -114,7 +114,7 @@ task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed
 # saved = joblib.load(file)
 # file.close()
 # diayn = saved['algo']
-# task_proposer = diayn.networks()[1]  # _discriminator
+# task_proposer = diayn.networks[1]  # _discriminator
 
 ########################## hyper params for PEARL ##########################
 
