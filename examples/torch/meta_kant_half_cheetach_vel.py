@@ -133,8 +133,8 @@ def meta_kant_cheetah_vel(ctxt=None,
     controller_policy_env = MetaKant.get_env_spec(env[0](), latent_size,
                                                   module="controller_policy",
                                                   num_skills=num_skills)
-    controller_policy = GaussianMLPPolicy(env_spec=controller_policy_env,
-                                          hidden_sizes=[net_size, net_size, net_size])
+    controller_policy = TanhGaussianMLPPolicy(env_spec=controller_policy_env,
+                                              hidden_sizes=[net_size, net_size, net_size])
 
 
     metakant = MetaKant(
