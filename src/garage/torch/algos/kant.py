@@ -595,41 +595,6 @@ class MetaKant(MetaRLAlgorithm):
 
         return self._controller
 
-    @classmethod
-    def augment_env_spec(cls, env_spec, latent_dim):
-        obs_dim = int(np.prod(env_spec.observation_space.shape))
-        action_dim = int(np.prod(env_spec.action_space.shape))
-        aug_obs = akro.Box(low=-1,
-                           high=1,
-                           shape=(obs_dim + latent_dim, ),
-                           dtype=np.float32)
-        aug_act = akro.Box(low=-1,
-                           high=1,
-                           shape=(action_dim, ),
-                           dtype=np.float32)
-        return EnvSpec(aug_obs, aug_act)
-
-    @classmethod
-    def get_env_spec(cls, env_spec, latent_dim, module):
-        obs_dim = int(np.prod(env_spec.observation_space.shape))
-        action_dim = int(np.prod(env_spec.action_space.shape))
-        if module == 'encoder':
-            in_dim = obs_dim + action_dim + 1
-            out_dim = latent_dim * 2
-        elif module == 'vf':
-            in_dim = obs_dim
-            out_dim = latent_dim
-        in_space = akro.Box(low=-1, high=1, shape=(in_dim, ), dtype=np.float32)
-        out_space = akro.Box(low=-1,
-                             high=1,
-                             shape=(out_dim, ),
-                             dtype=np.float32)
-        if module == 'encoder':
-            spec = InOutSpec(in_space, out_space)
-        elif module == 'vf':
-            spec = EnvSpec(in_space, out_space)
-
-        return spec
 
 class KantWorker(DefaultWorker):
     def __init__(self,

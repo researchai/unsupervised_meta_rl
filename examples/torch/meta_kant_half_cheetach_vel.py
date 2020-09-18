@@ -117,7 +117,7 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     runner = LocalRunner(ctxt)
 
-    augmented_env = MetaKant.argument_env_spec(env[0](), latent_size)
+    augmented_env = MetaKant.augment_env_spec(env[0](), latent_size)
 
     qf = ContinuousMLPQFunction(env_spec=augmented_env,
                                 hidden_sizes=[net_size, net_size, net_size])
