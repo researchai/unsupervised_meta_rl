@@ -26,7 +26,7 @@ from garage.sampler import SkillWorker
 from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos import DIAYN
 from garage.torch.algos import PEARL
-from garage.torch.algos.discriminator import CategoricalMLP
+from garage.torch.algos.discriminator import MLPDiscriminator
 from garage.torch.algos.pearl import PEARLWorker
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies import ContextConditionedPolicy
@@ -63,10 +63,10 @@ def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
                                       hidden_sizes=[256, 256],
                                       hidden_nonlinearity=F.relu)
 
-    discriminator = CategoricalMLP(env_spec=env.spec,
-                                   skills_num=skills_num,
-                                   hidden_sizes=[64, 64],
-                                   hidden_nonlinearity=F.relu)
+    discriminator = MLPDiscriminator(env_spec=env.spec,
+                                     skills_num=skills_num,
+                                     hidden_sizes=[64, 64],
+                                     hidden_nonlinearity=F.relu)
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 

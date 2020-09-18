@@ -1,3 +1,3 @@
-from garage.torch.algos.discriminator.mlp_discriminator import CategoricalMLP
+from garage.torch.algos.discriminator.mlp_discriminator import MLPDiscriminator
 
-__all__ = ['CategoricalMLP']
+__all__ = ['MLPDiscriminator']

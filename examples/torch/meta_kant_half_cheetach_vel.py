@@ -14,7 +14,7 @@ from garage.experiment.deterministic import set_seed
 from garage.experiment.task_sampler import EnvPoolSampler, SetTaskSampler
 from garage.sampler import LocalSampler
 from garage.sampler.local_skill_sampler import LocalSkillSampler
-from garage.torch.algos.discriminator import CategoricalMLP
+from garage.torch.algos.discriminator import MLPDiscriminator
 from garage.torch.algos.kant import MetaKant, KantWorker
 from garage.torch.policies import TanhGaussianMLPPolicy
 from garage.torch.policies.context_conditioned_controller_policy import \
@@ -132,10 +132,10 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     controller_policy_env = MetaKant.get_env_spec(env[0](), latent_size,
                                                   module="controller_policy")
-    controller_policy = CategoricalMLP(env_spec=controller_policy_env,
-                                       skills_num=skills_num,
-                                       hidden_sizes=[256, 256],
-                                       hidden_nonlinearity=F.relu)
+    controller_policy = MLPDiscriminator(env_spec=controller_policy_env,
+                                         skills_num=skills_num,
+                                         hidden_sizes=[256, 256],
+                                         hidden_nonlinearity=F.relu)
 
     metakant = MetaKant(
         env=env,
