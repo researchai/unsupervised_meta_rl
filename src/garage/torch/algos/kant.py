@@ -557,7 +557,7 @@ class MetaKant(MetaRLAlgorithm):
         return EnvSpec(aug_obs, aug_act)
 
     @classmethod
-    def get_env_spec(cls, env_spec, latent_dim, module):
+    def get_env_spec(cls, env_spec, latent_dim, module, num_skills=None):
         obs_dim = int(np.prod(env_spec.observation_space.shape))
         action_dim = int(np.prod(env_spec.action_space.shape))
         if module == 'encoder':
@@ -568,7 +568,7 @@ class MetaKant(MetaRLAlgorithm):
             out_dim = latent_dim
         elif module == 'controller_policy':
             in_dim = obs_dim + latent_dim
-            out_dim = 1
+            out_dim = num_skills
         in_space = akro.Box(low=-1, high=1, shape=(in_dim,), dtype=np.float32)
         out_space = akro.Box(low=-1,
                              high=1,

@@ -1,9 +1,8 @@
-import torch
 import numpy as np
-from gym.envs import kwargs
+import torch
 
-from garage.torch.modules import MLPModule
 import garage.torch.utils as tu
+from garage.torch.modules import MLPModule
 
 
 class MLPDiscriminator(MLPModule):
