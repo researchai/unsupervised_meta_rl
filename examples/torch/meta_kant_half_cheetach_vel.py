@@ -13,6 +13,7 @@ from garage.experiment import LocalRunner
 from garage.experiment.deterministic import set_seed
 from garage.experiment.task_sampler import EnvPoolSampler, SetTaskSampler
 from garage.sampler import LocalSampler
+from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos.kant import MetaKant, KantWorker
 from garage.torch.policies import TanhGaussianMLPPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
@@ -171,7 +172,7 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     runner.setup(algo=metakant,
                  env=env[0](),
-                 sampler_cls=LocalSampler,
+                 sampler_cls=LocalSkillSampler,
                  sampler_args=dict(max_path_length=max_path_length),
                  n_workers=1,
                  worker_class=KantWorker,
