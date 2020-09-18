@@ -34,7 +34,6 @@ diayn = saved['algo']
 skill_actor = diayn.networks[0]  # _policy
 task_proposer = diayn.networks[1]  # _discriminator
 
-
 param_num_epoches = 500
 param_train_tasks_num = skills_num  # 100
 param_test_tasks_num = 5 # skills_num / 2  # 30
@@ -166,6 +165,7 @@ def meta_kant_cheetah_vel(ctxt=None,
     tu.set_gpu_mode(use_gpu, gpu_id=0)
     if use_gpu:
         metakant.to()
+        skill_actor.to()
 
     worker_args = dict(num_skills=num_skills,
                        skill_actor_class=type(skill_actor),
