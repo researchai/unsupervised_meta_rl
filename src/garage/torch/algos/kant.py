@@ -679,7 +679,7 @@ class KantWorker(DefaultWorker):
                 self._prev_obs = next_obs
                 return False
         self._lengths.append(self._path_length)
-        self._last_observations.append(self._prev_obs)
+        self._last_states.append(self._prev_obs)
         return True
 
     def collect_rollout(self):
