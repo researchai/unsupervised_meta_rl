@@ -539,6 +539,7 @@ class MetaKant(MetaRLAlgorithm):
     def to(self, device=None):
         device = device or tu.global_device()
         for net in self.networks:
+            print(net)
             net.to(device)
 
     @classmethod
