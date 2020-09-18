@@ -566,6 +566,9 @@ class MetaKant(MetaRLAlgorithm):
         elif module == 'vf':
             in_dim = obs_dim
             out_dim = latent_dim
+        elif module == 'controller_policy':
+            in_dim = obs_dim + latent_dim
+            out_dim = 1
         in_space = akro.Box(low=-1, high=1, shape=(in_dim,), dtype=np.float32)
         out_space = akro.Box(low=-1,
                              high=1,
@@ -574,6 +577,8 @@ class MetaKant(MetaRLAlgorithm):
         if module == 'encoder':
             spec = InOutSpec(in_space, out_space)
         elif module == 'vf':
+            spec = EnvSpec(in_space, out_space)
+        elif module == 'controller_policy':
             spec = EnvSpec(in_space, out_space)
 
         return spec
