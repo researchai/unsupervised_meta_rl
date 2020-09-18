@@ -384,7 +384,7 @@ class MetaKant(MetaRLAlgorithm):
                 p = {
                     'observations': path['observations'],
                     'actions': path['actions'],
-                    'rewards': path['rewards'].reshape(-1, 1),
+                    'rewards': path['env_rewards'].reshape(-1, 1),
                     'skills': path['skills'].reshape(-1, 1),
                     'next_observations': path['next_observations'],
                     'dones': path['dones'].reshape(-1, 1)
