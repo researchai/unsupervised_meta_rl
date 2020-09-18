@@ -1,6 +1,7 @@
 from garage import SkillTrajectoryBatch
 from garage.sampler import SkillWorker
 from garage.sampler.local_sampler import LocalSampler
+from garage.torch.algos.kant import KantWorker
 
 
 class LocalSkillSampler(LocalSampler):
@@ -19,10 +20,10 @@ class LocalSkillSampler(LocalSampler):
         completed_samples = 0
         while True:
             for worker in self._workers:
-                if not isinstance(worker, SkillWorker):
+                if not isinstance(worker, SkillWorker) and not isinstance(worker, KantWorker):
                     raise ValueError('Worker used by Local Skill Sampler class'
-                                     ' must be a Skill Worker object, but got '
-                                     '{}'.format(worker.dtype))
+                                     ' must be a Skill/Kant Worker object, but got '
+                                     '{}'.format(type(worker)))
                 batch = worker.rollout(skill)
                 completed_samples += len(batch.actions)
                 batches.append(batch)
