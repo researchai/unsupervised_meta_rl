@@ -115,11 +115,6 @@ def meta_kant_cheetah_vel(ctxt=None,
     test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
         HalfCheetahVelEnv())))
 
-    worker_args = dict(num_skills=num_skills,
-                       skill_actor_class=type(skill_actor),
-                       controller_class=type(controller_policy),
-                       deterministic=True, accum_context=True)
-
     runner = LocalRunner(ctxt)
 
     augmented_env = MetaKant.augment_env_spec(env[0](), latent_size)
@@ -166,6 +161,11 @@ def meta_kant_cheetah_vel(ctxt=None,
     tu.set_gpu_mode(use_gpu, gpu_id=0)
     if use_gpu:
         metakant.to()
+
+    worker_args = dict(num_skills=num_skills,
+                       skill_actor_class=type(skill_actor),
+                       controller_class=type(controller_policy),
+                       deterministic=True, accum_context=True)
 
     runner.setup(algo=metakant,
                  env=env[0](),
