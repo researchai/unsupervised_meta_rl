@@ -627,8 +627,11 @@ class KantWorker(DefaultWorker):
         self._prev_obs = None
 
     def start_rollout(self, skill=None):
+        print("agent")
         print(type(self.agent))
+        print("controller_class")
         print(self._controller_class)
+        print("skill_actor")
         print(self._skill_actor_class)
         if isinstance(self.agent, self._skill_actor_class):
             if skill is None:
