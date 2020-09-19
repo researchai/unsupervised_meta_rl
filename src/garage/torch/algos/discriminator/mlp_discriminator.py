@@ -36,4 +36,4 @@ class MLPDiscriminator(MLPModule):
             #    state = torch.from_numpy(state).float().to(
             #        tu.global_device())
             x = self.forward(torch.Tensor(state).unsqueeze(0))
-            return np.random.choice(x.squeeze(0).numpy(), p=x.squeeze(0).numpy())
+            return np.random.choice(self._skills_num, p=x.squeeze(0).numpy())

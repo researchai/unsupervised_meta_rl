@@ -45,5 +45,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             dist = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
             ret_mean = np.mean(dist.numpy())
             ret_log_std = np.log((np.std(dist.numpy())))
-            return (np.random.choice(dist.numpy(), p=dist.numpy()),
+            print("in get_action from categorical mlp")
+            print(dist.size())
+            return (np.random.choice(self._action_dim, p=dist.numpy()),
                     dict(mean=ret_mean, log_std=ret_log_std))
