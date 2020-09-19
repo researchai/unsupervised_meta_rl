@@ -245,7 +245,7 @@ class MetaKant(MetaRLAlgorithm):
             self._tasks_adapt_optimize_policy(indices)
 
     def _skills_reason_optimize_policy(self):
-        self._policy.reset_belief()
+        self._controller.reset_belief()
 
         # data shape is (task, batch, feat)
         obs, actions, rewards, next_obs, skills, terms, context = self.\
