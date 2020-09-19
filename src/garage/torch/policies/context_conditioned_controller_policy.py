@@ -53,7 +53,7 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         obs = obs.view(t * b, -1)
         task_z = [z.repeat(b, 1) for z in task_z]
         task_z = torch.cat(task_z, dim=0)
-
+        # TODO: fix the below
         obs_z = torch.cat([obs, task_z.detach()], dim=1)
         dist = self._controller_policy(obs_z)
         pre_tanh, skill_choices = dist.rsample_with_pre_tanh_value()
@@ -63,7 +63,7 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         log_std = (dist.variance ** .5).log().to('cpu').detach().numpy()
 
         skill_z = torch.eye(self._num_skills)[skill_choices]  # np or torch
-        actions = self._sub_actor.get_action(obs, skill_z)
+        actions, _ = self._sub_actor.get_action(obs, skill_z)
 
         return (actions, mean, log_std, log_pi, pre_tanh), skill_choices, task_z
 
@@ -80,8 +80,8 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         print("skill choice:")
         print(skill_choice)  # need to be int
         # print(skill_z.size())
-        action = self._sub_actor.get_action(obs, skill_z)
-        print(action.size())
+        action, _ = self._sub_actor.get_action(obs, skill_z)
+        print(action)
         # action = np.squeeze(action, axis=0)
         # info['mean'] = np.squeeze(info['mean'], axis=0)
 
