@@ -3,6 +3,7 @@ import os
 import click
 import joblib
 import numpy as np
+from torch.nn import functional
 
 import garage.torch.utils as tu
 from garage import wrap_experiment
@@ -16,6 +17,7 @@ from garage.sampler import LocalSampler
 from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.algos.discriminator import MLPDiscriminator
 from garage.torch.algos.kant import MetaKant, KantWorker
+from garage.torch.modules.categorical_mlp import CategoricalMLPPolicy
 from garage.torch.policies import TanhGaussianMLPPolicy, GaussianMLPPolicy
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy
@@ -133,8 +135,9 @@ def meta_kant_cheetah_vel(ctxt=None,
     controller_policy_env = MetaKant.get_env_spec(env[0](), latent_size,
                                                   module="controller_policy",
                                                   num_skills=num_skills)
-    controller_policy = TanhGaussianMLPPolicy(env_spec=controller_policy_env,
-                                              hidden_sizes=[net_size, net_size, net_size])
+    controller_policy = CategoricalMLPPolicy(env_spec=controller_policy_env,
+                                             hidden_sizes=[net_size, net_size],
+                                             hidden_nonlinearity=functional.relu)
 
 
     metakant = MetaKant(

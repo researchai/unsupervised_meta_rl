@@ -114,7 +114,6 @@ class TanhGaussianMLPPolicy(Policy, GaussianMLPTwoHeadedModule):
             observation = observation.unsqueeze(0)
             dist = self.forward(observation)
             print("in tanh_gaussian's get_action")
-            print(dist.size())
             ret_mean = dist.mean.squeeze(0).cpu().numpy()
             ret_log_std = (dist.variance.sqrt()).log().squeeze(0).cpu().numpy()
             return (dist.rsample().squeeze(0).cpu().numpy(),

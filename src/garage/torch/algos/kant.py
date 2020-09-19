@@ -579,7 +579,7 @@ class MetaKant(MetaRLAlgorithm):
         elif module == 'vf':
             spec = EnvSpec(in_space, out_space)
         elif module == 'controller_policy':
-            spec = EnvSpec(in_space, out_space)
+            spec = InOutSpec(in_space, out_space)
 
         return spec
 
