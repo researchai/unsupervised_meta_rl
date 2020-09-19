@@ -16,7 +16,7 @@ from garage.replay_buffer import PathBuffer
 from garage.sampler import DefaultWorker
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies.context_conditioned_controller_policy import \
-    OpenContextConditionedControllerPolicy
+    OpenContextConditionedControllerPolicy, GaussianContextEncoder
 import garage.torch.utils as tu
 
 
@@ -35,7 +35,7 @@ class MetaKant(MetaRLAlgorithm):
                  encoder_hidden_sizes,
                  test_env_sampler,
                  controller_class=OpenContextConditionedControllerPolicy,
-                 encoder_class=MLPEncoder,
+                 encoder_class=GaussianContextEncoder,
                  is_encoder_recurrent=False,
                  controller_lr=3E-4,
                  qf_lr=3E-4,
