@@ -28,6 +28,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             if not isinstance(states, torch.Tensor):
                 states = torch.from_numpy(states).float().to(
                     tu.global_device())
+            states = states.to(tu.global_device())
             x = self.forward(states)
             return np.array([np.random.choice(self._action_dim, p=x.numpy()[idx])
                              for idx in range(x.numpy().shape[0])])
@@ -37,5 +38,6 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             if not isinstance(state, torch.Tensor):
                 state = torch.from_numpy(state).float().to(
                     tu.global_device())
+            state = state.to(tu.global_device())
             x = self.forward(state.unsqueeze(0))
             return np.random.choice(x.squeeze(0).numpy(), p=x.squeeze(0).numpy())
