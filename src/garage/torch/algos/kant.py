@@ -563,7 +563,7 @@ class MetaKant(MetaRLAlgorithm):
             out_dim = latent_dim
         elif module == 'controller_policy':
             in_dim = obs_dim + latent_dim
-            out_dim = 25 # num_skills
+            out_dim = num_skills
         elif module == 'qf':
             in_dim = obs_dim + latent_dim
             out_dim = num_skills
