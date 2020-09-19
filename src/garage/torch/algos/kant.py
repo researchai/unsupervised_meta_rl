@@ -483,7 +483,7 @@ class MetaKant(MetaRLAlgorithm):
         a = path['actions']
         r = path['env_rewards']
         z = path['skills']
-        context = np.hstack(np.hstack((np.hstack((o, a)), r)), z)
+        context = np.hstack((np.hstack((np.hstack((o, a)), r)), z))
         if self._use_next_obs_in_context:
             context = np.hstack((context, path['next_states']))
 
