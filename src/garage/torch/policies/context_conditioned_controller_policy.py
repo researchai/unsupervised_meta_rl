@@ -116,7 +116,8 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
 
     @property
     def networks(self):
-        return [self._context_encoder, self._controller_policy, self._sub_actor]
+        return [self._context_encoder.network, self._controller_policy,
+                self._sub_actor]
 
     # @property
     # def context(self):
@@ -161,6 +162,10 @@ class GaussianContextEncoder(ContextEncoder):
 
     def reset(self):
         self._context_encoder.reset()
+
+    @property
+    def network(self):
+        return self._context_encoder
 
 # should be updated with controller policies for once a while
 class LSTMContextEncoder(ContextEncoder):
