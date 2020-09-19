@@ -725,7 +725,8 @@ class KantWorker(DefaultWorker):
                                     last_states=np.asarray(last_states),
                                     actions=np.asarray(actions),
                                     env_rewards=np.asarray(rewards),  # env_rewards
-                                    terminals=np.asarray(terminals).reshape(-1, 1),
+                                    terminals=np.squeeze(np.asarray(terminals),
+                                            axis=1),
                                     env_infos=dict(env_infos),
                                     agent_infos=dict(agent_infos),
                                     lengths=np.asarray(lengths, dtype='i'))
