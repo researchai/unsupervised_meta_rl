@@ -194,7 +194,7 @@ class MetaKant(MetaRLAlgorithm):
 
             for idx in range(self._num_skills_sample):
                 self._skill_idx = idx
-                self._skills_replay_buffers[idx].clear()
+                # self._skills_replay_buffer.clear()
                 self._obtain_skill_samples(runner, epoch,
                                            self._num_skills_reason_steps)
 
@@ -523,7 +523,7 @@ class MetaKant(MetaRLAlgorithm):
     def __setstate__(self, state):
         self.__dict__.update(state)
 
-        self._skills_replay_buffers = PathBuffer(self._replay_buffer_size)
+        self._skills_replay_buffer = PathBuffer(self._replay_buffer_size)
 
         self._replay_buffers = {
             i: PathBuffer(self._replay_buffer_size)
