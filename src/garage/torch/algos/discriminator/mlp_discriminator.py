@@ -33,7 +33,7 @@ class MLPDiscriminator(MLPModule):
     def infer_skill(self, state):
         with torch.no_grad():
             # if not isinstance(state, torch.Tensor):
-            #    states = torch.from_numpy(state).float().to(
+            #    state = torch.from_numpy(state).float().to(
             #        tu.global_device())
             x = self.forward(torch.Tensor(state).unsqueeze(0))
             return np.random.choice(x.squeeze(0).numpy(), p=x.squeeze(0).numpy())

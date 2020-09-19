@@ -25,17 +25,17 @@ class CategoricalMLPPolicy(Policy, MLPModule):
 
     def get_actions(self, states):
         with torch.no_grad():
-            # if not isinstance(states, torch.Tensor):
-            #    states = torch.from_numpy(states).float().to(
-            #        tu.global_device())
-            x = self.forward(torch.Tensor(states))
+            if not isinstance(states, torch.Tensor):
+                states = torch.from_numpy(states).float().to(
+                    tu.global_device())
+            x = self.forward(states)
             return np.array([np.random.choice(self._action_dim, p=x.numpy()[idx])
                              for idx in range(x.numpy().shape[0])])
 
     def get_action(self, state):
         with torch.no_grad():
-            # if not isinstance(state, torch.Tensor):
-            #    states = torch.from_numpy(state).float().to(
-            #        tu.global_device())
-            x = self.forward(torch.Tensor(state).unsqueeze(0))
+            if not isinstance(state, torch.Tensor):
+                state = torch.from_numpy(state).float().to(
+                    tu.global_device())
+            x = self.forward(state.unsqueeze(0))
             return np.random.choice(x.squeeze(0).numpy(), p=x.squeeze(0).numpy())
