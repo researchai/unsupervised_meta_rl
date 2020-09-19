@@ -29,7 +29,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
                 states = torch.from_numpy(states).float().to(
                     tu.global_device())
             states = states.to(tu.global_device())
-            x = self.forward(states)
+            x = self.forward(states).to('cpu').detach()
             return np.array([np.random.choice(self._action_dim, p=x.numpy()[idx])
                              for idx in range(x.numpy().shape[0])])
 
@@ -39,5 +39,5 @@ class CategoricalMLPPolicy(Policy, MLPModule):
                 state = torch.from_numpy(state).float().to(
                     tu.global_device())
             state = state.to(tu.global_device())
-            x = self.forward(state.unsqueeze(0))
+            x = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
             return np.random.choice(x.squeeze(0).numpy(), p=x.squeeze(0).numpy())
