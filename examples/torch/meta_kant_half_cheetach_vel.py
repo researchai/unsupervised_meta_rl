@@ -178,7 +178,7 @@ def meta_kant_cheetah_vel(ctxt=None,
     worker_args = dict(num_skills=num_skills,
                        skill_actor_class=type(skill_actor),
                        controller_class=OpenContextConditionedControllerPolicy,
-                       deterministic=True, accum_context=True)
+                       deterministic=False, accum_context=True)
 
     runner.setup(algo=metakant,
                  env=env[0](),

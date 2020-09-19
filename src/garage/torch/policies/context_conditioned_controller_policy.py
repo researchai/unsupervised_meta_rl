@@ -82,6 +82,7 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         # print(skill_z.size())
         action, _ = self._sub_actor.get_action(obs, skill_z)
         print(action)
+        print(info)
         # action = np.squeeze(action, axis=0)
         # info['mean'] = np.squeeze(info['mean'], axis=0)
 
