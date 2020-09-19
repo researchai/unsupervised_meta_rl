@@ -74,14 +74,17 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         skill_choice, info = self._controller_policy.get_action(obs_in)
 
         skill_z = torch.eye(self._num_skills)[skill_choice]
-        print("in get_action")
-        print(obs.size())
-        print(self._num_skills)
+        print("in get_action from context conditioned controller")
+        # print(obs.size())
+        # print(self._num_skills)
+        print("skill choice:")
         print(skill_choice)  # need to be int
-        print(skill_z.size())
+        # print(skill_z.size())
         action = self._sub_actor.get_action(obs, skill_z)
+        print(action.size)
         # action = np.squeeze(action, axis=0)
         # info['mean'] = np.squeeze(info['mean'], axis=0)
+
         return action, skill_choice, info
 
     # embed obs with cat
