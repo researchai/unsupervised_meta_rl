@@ -12,7 +12,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
         self._action_dim = env_spec.output_space.flat_dim
 
         Policy.__init__(self, env_spec, name)
-        MLPModule.__init__(input_dim=self._obs_dim,
+        MLPModule.__init__(self, input_dim=self._obs_dim,
                            output_dim=self._action_dim,
                            **kwargs)
 
