@@ -550,20 +550,6 @@ class MetaKant(MetaRLAlgorithm):
             net.to(device)
 
     @classmethod
-    def augment_env_spec(cls, env_spec, latent_dim):
-        obs_dim = int(np.prod(env_spec.observation_space.shape))
-        action_dim = int(np.prod(env_spec.action_space.shape))
-        aug_obs = akro.Box(low=-1,
-                           high=1,
-                           shape=(obs_dim + latent_dim,),
-                           dtype=np.float32)
-        aug_act = akro.Box(low=-1,
-                           high=1,
-                           shape=(action_dim,),
-                           dtype=np.float32)
-        return EnvSpec(aug_obs, aug_act)
-
-    @classmethod
     def get_env_spec(cls, env_spec, latent_dim, num_skills, module):
         obs_dim = int(np.prod(env_spec.observation_space.shape))
         action_dim = int(np.prod(env_spec.action_space.shape))
@@ -571,14 +557,14 @@ class MetaKant(MetaRLAlgorithm):
             in_dim = obs_dim + action_dim + num_skills + 1
             out_dim = latent_dim * 2
         elif module == 'vf':
-            in_dim = obs_dim + num_skills
+            in_dim = obs_dim
             out_dim = latent_dim
         elif module == 'controller_policy':
-            in_dim = obs_dim + num_skills + latent_dim
+            in_dim = obs_dim + latent_dim
             out_dim = num_skills
         elif module == 'qf':
-            in_dim = obs_dim + num_skills + latent_dim
-            out_dim = action_dim
+            in_dim = obs_dim + latent_dim
+            out_dim = num_skills
 
         in_space = akro.Box(low=-1, high=1, shape=(in_dim,), dtype=np.float32)
         out_space = akro.Box(low=-1,
@@ -591,7 +577,7 @@ class MetaKant(MetaRLAlgorithm):
         elif module == 'vf':
             spec = EnvSpec(in_space, out_space)
         elif module == 'controller_policy':
-            spec = InOutSpec(in_space, out_space)
+            spec = EnvSpec(in_space, out_space)
         elif module == 'qf':
             spec = EnvSpec(in_space, out_space)
         return spec
