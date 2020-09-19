@@ -250,9 +250,9 @@ class TanhGaussianMLPSkillPolicy(Policy, GaussianMLPTwoHeadedModule):
                 skills = skills.unsqueeze(0)
         states = states.to(tu.global_device())
         skills = skills.to(tu.global_device())
-        print("in tanh_gaussian_mlp_policy")
-        print(states.size())
-        print(skills.size())
+        # print("in tanh_gaussian_mlp_policy")
+        # print(states.size())
+        # print(skills.size())
         return super().forward(torch.cat((states, skills), 1))
 
     def get_action(self, state, skill):
