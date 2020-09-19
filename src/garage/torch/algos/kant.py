@@ -552,6 +552,8 @@ class MetaKant(MetaRLAlgorithm):
     @classmethod
     def get_env_spec(cls, env_spec, latent_dim, num_skills, module):
         obs_dim = int(np.prod(env_spec.observation_space.shape))
+        print("obs_dim is")
+        print(obs_dim)
         action_dim = int(np.prod(env_spec.action_space.shape))
         if module == 'encoder':
             in_dim = obs_dim + action_dim + num_skills + 1
@@ -561,7 +563,7 @@ class MetaKant(MetaRLAlgorithm):
             out_dim = latent_dim
         elif module == 'controller_policy':
             in_dim = obs_dim + latent_dim
-            out_dim = action_dim # num_skills
+            out_dim = num_skills
         elif module == 'qf':
             in_dim = obs_dim + latent_dim
             out_dim = num_skills
