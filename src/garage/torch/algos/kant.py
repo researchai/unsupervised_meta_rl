@@ -661,7 +661,7 @@ class KantWorker(DefaultWorker):
                 a, agent_info = self.agent.get_action(self._prev_obs, z_onehot)
             elif isinstance(self.agent, self._controller_class):
                 a, self._cur_z, agent_info = self.agent.get_action(self._prev_obs)
-                self._cur_z = self._cur_z[0]  # get rid of []
+                self._cur_z = int(self._cur_z[0])  # get rid of [] [1]
                 if self._deterministic:  # not supported
                     a = agent_info['mean']
             else:
