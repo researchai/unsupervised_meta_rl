@@ -20,8 +20,8 @@ class CategoricalMLPPolicy(Policy, MLPModule):
         if not isinstance(states, torch.Tensor):
             states = torch.from_numpy(states).float().to(
                 tu.global_device())
-        x = super().forward(states)
-        return torch.softmax(x, dim=-1)
+        dist = super().forward(states)
+        return torch.softmax(dist, dim=-1)
 
     def get_actions(self, states):
         with torch.no_grad():
@@ -29,9 +29,12 @@ class CategoricalMLPPolicy(Policy, MLPModule):
                 states = torch.from_numpy(states).float().to(
                     tu.global_device())
             states = states.to(tu.global_device())
-            x = self.forward(states).to('cpu').detach()
-            return np.array([np.random.choice(self._action_dim, p=x.numpy()[idx])
-                             for idx in range(x.numpy().shape[0])])
+            dist = self.forward(states).to('cpu').detach()
+            ret_mean = np.mean(dist.numpy())
+            ret_log_std = np.log((np.std(dist.numpy())))
+            return (np.array([np.random.choice(self._action_dim, p=dist.numpy()[idx])
+                             for idx in range(dist.numpy().shape[0])]),
+                    dict(mean=ret_mean, log_std=ret_log_std))
 
     def get_action(self, state):
         with torch.no_grad():
@@ -39,5 +42,8 @@ class CategoricalMLPPolicy(Policy, MLPModule):
                 state = torch.from_numpy(state).float().to(
                     tu.global_device())
             state = state.to(tu.global_device())
-            x = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
-            return np.random.choice(x.squeeze(0).numpy(), p=x.squeeze(0).numpy())
+            dist = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
+            ret_mean = np.mean(dist.numpy())
+            ret_log_std = np.log((np.std(dist.numpy())))
+            return (np.random.choice(dist.numpy(), p=dist.numpy()),
+                    dict(mean=ret_mean, log_std=ret_log_std))

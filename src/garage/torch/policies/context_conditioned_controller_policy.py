@@ -80,8 +80,8 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         print(skill_choice)  # need to be int
         print(skill_z.size())
         action = self._sub_actor.get_action(obs, skill_z)
-        action = np.squeeze(action, axis=0)
-        info['mean'] = np.squeeze(info['mean'], axis=0)
+        # action = np.squeeze(action, axis=0)
+        # info['mean'] = np.squeeze(info['mean'], axis=0)
         return action, skill_choice, info
 
     # embed obs with cat
