@@ -704,7 +704,7 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         # terminals
         if skills.shape != (inferred_batch_size,):
             raise ValueError(
-                'terminals tensor must have shape {}, but got shape {} '
+                'skills tensor must have shape {}, but got shape {} '
                 'instead.'.format(inferred_batch_size, skills.shape))
 
         if skills.dtype != np.int:

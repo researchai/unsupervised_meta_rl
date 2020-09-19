@@ -718,16 +718,15 @@ class KantWorker(DefaultWorker):
         lengths = self._lengths
         self._lengths = []
 
-        print(np.asarray(terminals))
+        # print(np.asarray(terminals))
         return SkillTrajectoryBatch(env_spec=self.env.spec,
                                     num_skills=self._num_skills,
-                                    skills=np.asarray(skills),
+                                    skills=np.squeeze(np.asarray(skills), axis=1),
                                     states=np.asarray(states),
                                     last_states=np.asarray(last_states),
                                     actions=np.asarray(actions),
                                     env_rewards=np.asarray(rewards),  # env_rewards
-                                    terminals=np.squeeze(np.asarray(terminals),
-                                            axis=1),
+                                    terminals=np.asarray(terminals),
                                     env_infos=dict(env_infos),
                                     agent_infos=dict(agent_infos),
                                     lengths=np.asarray(lengths, dtype='i'))
