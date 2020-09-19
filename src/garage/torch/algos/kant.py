@@ -126,7 +126,8 @@ class MetaKant(MetaRLAlgorithm):
                                         n_test_tasks=num_test_tasks)
         self._average_rewards = []
 
-        encoder_spec = self.get_env_spec(env[0](), latent_dim, 'encoder')
+        encoder_spec = self.get_env_spec(env[0](), latent_dim, num_skills,
+                                         'encoder')
         encoder_in_dim = int(np.prod(encoder_spec.input_space.shape))
         encoder_out_dim = int(np.prod(encoder_spec.output_space.shape))
 
