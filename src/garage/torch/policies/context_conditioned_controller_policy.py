@@ -22,12 +22,32 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
     # def reset_belief(self, num_tasks=1):
     # resets self.z_means, self.z_vars, self._context, self._context_encoder
 
-    # def update_context(self, timestep):
-    # append a single timestep [o, a, r, no] to the context
-    '''
-    [[[o1, o2, o3, .., a1, a2, ...], -> timestep = 1
-      [o1, o2, o3, .., a1, a2, ...]]] -> timestep = 2
-    '''
+    def update_context(self, timestep):
+        # append a single timestep [o, a, r, no] to the context
+        '''
+        [[[o1, o2, o3, .., a1, a2, ...], -> timestep = 1
+        [o1, o2, o3, .., a1, a2, ...]]] -> timestep = 2
+        '''
+        o = torch.as_tensor(timestep.state[None, None, ...],
+                            device=tu.global_device()).float()
+        a = torch.as_tensor(timestep.action[None, None, ...],
+                            device=tu.global_device()).float()
+        r = torch.as_tensor(np.array([timestep.env_reward])[None, None, ...],
+                            device=tu.global_device()).float()
+        s = torch.as_tensor(np.array([timestep.skill])[None, None, ...],
+                            device=tu.global_device()).float()
+        no = torch.as_tensor(timestep.next_state[None, None, ...],
+                             device=tu.global_device()).float()
+
+        if self._use_next_obs:
+            data = torch.cat([o, a, r, s, no], dim=2)
+        else:
+            data = torch.cat([o, a, r, s], dim=2)
+
+        if self._context is None:
+            self._context = data
+        else:
+            self._context = torch.cat([self._context, data], dim=1)
 
     def infer_posterior(self, context): # need to write a more flexible way - to get z_means, z_vars
         '''

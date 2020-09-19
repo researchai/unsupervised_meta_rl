@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from garage import TimeStep, SkillTrajectoryBatch, InOutSpec
+from garage import TimeStep, SkillTrajectoryBatch, InOutSpec, SkillTimeStep
 from garage.envs import EnvSpec
 from garage.experiment import MetaEvaluator
 from garage.np.algos import MetaRLAlgorithm
@@ -382,11 +382,11 @@ class MetaKant(MetaRLAlgorithm):
 
             for path in paths:
                 p = {
-                    'observations': path['observations'],
+                    'states': path['states'],
                     'actions': path['actions'],
                     'rewards': path['env_rewards'].reshape(-1, 1),
                     'skills': path['skills'].reshape(-1, 1),
-                    'next_observations': path['next_observations'],
+                    'next_states': path['next_states'],
                     'dones': path['dones'].reshape(-1, 1)
                 }
                 self._skills_replay_buffer.add_path(p)
@@ -414,11 +414,11 @@ class MetaKant(MetaRLAlgorithm):
 
             for path in paths:
                 p = {
-                    'observations': path['observations'],
+                    'states': path['states'],
                     'actions': path['actions'],
-                    'rewards': path['rewards'].reshape(-1, 1),
+                    'rewards': path['env_rewards'].reshape(-1, 1),
                     'skills': path['skills'].reshape(-1, 1),
-                    'next_observations': path['next_observations'],
+                    'next_states': path['next_states'],
                     'dones': path['dones'].reshape(-1, 1)
                 }
                 self._replay_buffers[self._task_idx].add_path(p)
@@ -438,28 +438,28 @@ class MetaKant(MetaRLAlgorithm):
         for idx in indices:
             path = self._context_replay_buffers[idx].sample_path()
             # TODO: trim or extend batch to the same size
-            o = path['observations']
+            o = path['states']
             a = path['actions']
-            r = path['rewards']
+            r = path['env_rewards']
             z = path['skills']
             context = np.hstack((np.hstack((o, a)), r))
             if self._use_next_obs_in_context:
-                context = np.hstack((context, path['next_observations']))
+                context = np.hstack((context, path['next_states']))
 
             if not initialized:
                 final_context = context[np.newaxis]
-                o = path['observations'][np.newaxis]
+                o = path['states'][np.newaxis]
                 a = path['actions'][np.newaxis]
-                r = path['rewards'][np.newaxis]
+                r = path['env_rewards'][np.newaxis]
                 z = path['skills'][np.newaxis]
-                no = path['next_observations'][np.newaxis]
+                no = path['next_states'][np.newaxis]
                 d = path['dones'][np.newaxis]
                 initialized = True
             else:
-                o = np.vstack((o, path['observations'][np.newaxis]))
+                o = np.vstack((o, path['states'][np.newaxis]))
                 a = np.vstack((a, path['actions'][np.newaxis]))
-                r = np.vstack((r, path['rewards'][np.newaxis]))
-                no = np.vstack((no, path['next_observations'][np.newaxis]))
+                r = np.vstack((r, path['env_rewards'][np.newaxis]))
+                no = np.vstack((no, path['next_states'][np.newaxis]))
                 d = np.vstack((d, path['dones'][np.newaxis]))
                 final_context = np.vstack((final_context, context[np.newaxis]))
 
@@ -479,20 +479,20 @@ class MetaKant(MetaRLAlgorithm):
     def _sample_skill_path(self):
         path = self._skills_replay_buffer.sample_path()
         # TODO: trim or extend batch to the same size
-        o = path['observations']
+        o = path['states']
         a = path['actions']
-        r = path['rewards']
+        r = path['env_rewards']
         z = path['skills']
         context = np.hstack((np.hstack((o, a)), r))
         if self._use_next_obs_in_context:
-            context = np.hstack((context, path['next_observations']))
+            context = np.hstack((context, path['next_states']))
 
         context = context[np.newaxis]
-        o = path['observations'][np.newaxis]
+        o = path['states'][np.newaxis]
         a = path['actions'][np.newaxis]
-        r = path['rewards'][np.newaxis]
+        r = path['env_rewards'][np.newaxis]
         z = path['skills'][np.newaxis]
-        no = path['next_observations'][np.newaxis]
+        no = path['next_states'][np.newaxis]
         d = path['dones'][np.newaxis]
 
         o = torch.as_tensor(o, device=tu.global_device()).float()
@@ -597,10 +597,11 @@ class MetaKant(MetaRLAlgorithm):
 
     def adapt_policy(self, exploration_policy, exploration_trajectories):
         total_steps = sum(exploration_trajectories.lengths)
-        o = exploration_trajectories.observations
+        o = exploration_trajectories.states  # TODO: may cause prob
         a = exploration_trajectories.actions
         r = exploration_trajectories.rewards.reshape(total_steps, 1)
-        ctxt = np.hstack((o, a, r)).reshape(1, total_steps, -1)
+        s = exploration_trajectories.skills.reshape(total_steps, 1)
+        ctxt = np.hstack((o, a, r, s)).reshape(1, total_steps, -1)
         context = torch.as_tensor(ctxt, device=tu.global_device()).float()
         self._controller.infer_posterior(context)
 
@@ -678,14 +679,16 @@ class KantWorker(DefaultWorker):
             self._terminals.append(d)
             np.set_printoptions(threshold=sys.maxsize)
             if isinstance(self.agent, self._controller_class) and self._accum_context:
-                s = TimeStep(env_spec=self.env,
-                             observation=self._prev_obs,
-                             next_observation=next_obs,
-                             action=a,
-                             reward=float(r),
-                             terminal=d,
-                             env_info=env_info,
-                             agent_info=agent_info)
+                s = SkillTimeStep(env_spec=self.env,
+                                  state=self._prev_obs,
+                                  next_state=next_obs,
+                                  skill=self._cur_z,
+                                  num_skills=self._num_skills,
+                                  action=a,
+                                  reward=float(r),
+                                  terminal=d,
+                                  env_info=env_info,
+                                  agent_info=agent_info)
                 self.agent.update_context(s)
             if not d:
                 self._prev_obs = next_obs
@@ -718,7 +721,7 @@ class KantWorker(DefaultWorker):
         lengths = self._lengths
         self._lengths = []
 
-        print(np.asarray(skills))
+        # print(np.asarray(skills))
         return SkillTrajectoryBatch(env_spec=self.env.spec,
                                     num_skills=self._num_skills,
                                     skills=np.asarray(skills).reshape((np.asarray(skills).shape[0],)),
