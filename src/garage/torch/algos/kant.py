@@ -36,6 +36,7 @@ class MetaKant(MetaRLAlgorithm):
                  test_env_sampler,
                  controller_class=OpenContextConditionedControllerPolicy,
                  encoder_class=GaussianContextEncoder,
+                 encoder_module_class=MLPEncoder,
                  is_encoder_recurrent=False,
                  controller_lr=3E-4,
                  qf_lr=3E-4,
@@ -128,9 +129,14 @@ class MetaKant(MetaRLAlgorithm):
         encoder_spec = self.get_env_spec(env[0](), latent_dim, 'encoder')
         encoder_in_dim = int(np.prod(encoder_spec.input_space.shape))
         encoder_out_dim = int(np.prod(encoder_spec.output_space.shape))
-        context_encoder = encoder_class(input_dim=encoder_in_dim,
-                                        output_dim=encoder_out_dim,
-                                        hidden_sizes=encoder_hidden_sizes)
+
+        encoder_module = encoder_module_class(input_dim=encoder_in_dim,
+                                              output_dim=encoder_out_dim,
+                                              hidden_sizes=encoder_hidden_sizes)
+
+        context_encoder = encoder_class(encoder_module,
+                                        use_information_bottleneck,
+                                        latent_dim)
 
         self._controller = controller_class(
             latent_dim=latent_dim,

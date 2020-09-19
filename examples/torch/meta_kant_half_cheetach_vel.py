@@ -1,5 +1,9 @@
 import os
-import faulthandler; faulthandler.enable()
+import faulthandler;
+
+from garage.torch.embeddings import MLPEncoder
+
+faulthandler.enable()
 
 import click
 import joblib
@@ -139,7 +143,6 @@ def meta_kant_cheetah_vel(ctxt=None,
     controller_policy = CategoricalMLPPolicy(env_spec=controller_policy_env,
                                              hidden_sizes=[net_size, net_size],
                                              hidden_nonlinearity=functional.relu)
-
 
     metakant = MetaKant(
         env=env,
