@@ -1,4 +1,5 @@
 import os
+import faulthandler; faulthandler.enable()
 
 import click
 import joblib
