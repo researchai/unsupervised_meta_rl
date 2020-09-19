@@ -47,5 +47,6 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             ret_log_std = np.log((np.std(dist.numpy())))
             # print("in get_action from categorical mlp")
             # print(dist.size())
-            return (np.random.choice(self._action_dim, p=dist.squeeze(0).numpy()),
+            return (np.array([np.random.choice(self._action_dim,
+                                               p=dist.squeeze(0).numpy())]),
                     dict(mean=ret_mean, log_std=ret_log_std))
