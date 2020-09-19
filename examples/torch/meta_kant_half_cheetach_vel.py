@@ -128,18 +128,19 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     runner = LocalRunner(ctxt)
 
-    augmented_env = MetaKant.augment_env_spec(env[0](), latent_size)
+    qf_env = MetaKant.get_env_spec(env[0](), latent_size, num_skills, "qf")
 
-    qf = ContinuousMLPQFunction(env_spec=augmented_env,
+    qf = ContinuousMLPQFunction(env_spec=qf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    vf_env = MetaKant.get_env_spec(env[0](), latent_size, 'vf')
+    vf_env = MetaKant.get_env_spec(env[0](), latent_size, num_skills, 'vf')
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
     controller_policy_env = MetaKant.get_env_spec(env[0](), latent_size,
                                                   module="controller_policy",
                                                   num_skills=num_skills)
+
     controller_policy = CategoricalMLPPolicy(env_spec=controller_policy_env,
                                              hidden_sizes=[net_size, net_size],
                                              hidden_nonlinearity=functional.relu)
