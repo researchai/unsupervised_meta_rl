@@ -36,6 +36,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             actions = np.array([np.random.choice(self._action_dim,
                                                  p=dist.numpy()[idx])
                                 for idx in range(dist.numpy().shape[0])])
+            print("categorical")
             print(dist.shape)
             print(actions.shape)
             ret_mean = np.mean(dist.numpy())
@@ -53,6 +54,9 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             dist = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
             action = np.array([np.random.choice(self._action_dim,
                                                 p=dist.squeeze(0).numpy())])
+            print("categorical")
+            print(dist.shape)
+            print(action.shape)
             ret_mean = np.mean(dist.numpy())
             ret_log_std = np.log((np.std(dist.numpy())))
             ret_log_pi = np.log(dist[list(action)])
