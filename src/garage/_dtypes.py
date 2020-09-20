@@ -729,8 +729,6 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
 
         # agent_infos
         for key, val in agent_infos.items():
-            print(key)
-            print(type(val))
             if not isinstance(val, (dict, np.ndarray)):
                 raise ValueError(
                     'Each entry in agent_infos must be a numpy array or '
