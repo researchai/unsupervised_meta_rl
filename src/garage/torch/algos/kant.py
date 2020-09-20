@@ -277,7 +277,11 @@ class MetaKant(MetaRLAlgorithm):
 
         # print(skills)
         # print(skills.size())
-        skills_target = skills
+        skills_target = skills.to(tu.global_device())
+        skills_pred = skills_pred.to(tu.global_device())
+
+        print(skills_pred.device)
+        print(skills_target.device)
 
         policy_loss = F.mse_loss(skills_pred.flatten(), skills_target.flatten())\
                       * self._skills_reason_reward_scale
