@@ -292,7 +292,7 @@ class MetaKant(MetaRLAlgorithm):
 
         #took away the pre-activation reg term
         policy_reg_loss = mean_reg_loss + std_reg_loss
-        policy_loss = policy_loss + policy_reg_loss
+        # policy_loss = policy_loss + policy_reg_loss
 
         self._controller_optimizer.zero_grad()
         policy_loss.backward()
