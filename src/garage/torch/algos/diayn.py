@@ -228,7 +228,6 @@ class DIAYN(SAC):
 
     def _discriminator_objective(self, samples_data):
         states = samples_data['next_state']
-
         discriminator_pred = self._discriminator(states)
         discriminator_target = samples_data['skill_onehot']
         # print(discriminator_pred.shape)

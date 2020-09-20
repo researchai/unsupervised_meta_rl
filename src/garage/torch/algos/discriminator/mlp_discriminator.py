@@ -18,6 +18,7 @@ class MLPDiscriminator(MLPModule):
         if not isinstance(states, torch.Tensor):
             states = torch.from_numpy(states).float().to(
                 tu.global_device())
+        print(states.size())
         x = super().forward(states)
         return torch.softmax(x, dim=-1)
 
