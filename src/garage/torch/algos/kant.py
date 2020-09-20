@@ -466,6 +466,7 @@ class MetaKant(MetaRLAlgorithm):
                 o = np.vstack((o, path['states'][np.newaxis]))
                 a = np.vstack((a, path['actions'][np.newaxis]))
                 r = np.vstack((r, path['env_rewards'][np.newaxis]))
+                z = np.vstack((z, path['skills_onehot'][np.newaxis]))
                 no = np.vstack((no, path['next_states'][np.newaxis]))
                 d = np.vstack((d, path['dones'][np.newaxis]))
                 final_context = np.vstack((final_context, context[np.newaxis]))
