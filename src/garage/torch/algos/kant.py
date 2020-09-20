@@ -277,7 +277,8 @@ class MetaKant(MetaRLAlgorithm):
 
         # print(skills)
         # print(skills.size())
-        skills_target = torch.tensor(skills.to(tu.global_device()), requires_grad=True)
+        skills_target = torch.tensor(skills.to(tu.global_device()),
+                                     requires_grad=True).to(tu.global_device())
         skills_pred = skills_pred.to(tu.global_device())
 
         # print(skills_pred.device)
