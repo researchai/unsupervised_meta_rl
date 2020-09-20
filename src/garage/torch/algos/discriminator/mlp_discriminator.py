@@ -18,6 +18,7 @@ class MLPDiscriminator(MLPModule):
         if not isinstance(states, torch.Tensor):
             states = torch.from_numpy(states).float().to(
                 tu.global_device())
+        print("in forward")
         print(states.size())
         x = super().forward(states)
         return torch.softmax(x, dim=-1)
@@ -27,6 +28,8 @@ class MLPDiscriminator(MLPModule):
             # if not isinstance(states, torch.Tensor):
             #    states = torch.from_numpy(states).float().to(
             #        tu.global_device())
+            print("in infer_skills")
+            print(states.size())
             x = self.forward(torch.Tensor(states))
             return np.array([np.random.choice(self._skills_num, p=x.numpy()[idx])
                              for idx in range(x.numpy().shape[0])])
@@ -36,5 +39,7 @@ class MLPDiscriminator(MLPModule):
             # if not isinstance(state, torch.Tensor):
             #    state = torch.from_numpy(state).float().to(
             #        tu.global_device())
+            print("in infer_skill")
+            print(state.size())
             x = self.forward(torch.Tensor(state).unsqueeze(0))
             return np.random.choice(self._skills_num, p=x.squeeze(0).numpy())
