@@ -41,7 +41,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             print(actions.shape)
             ret_mean = np.mean(dist.numpy())
             ret_log_std = np.log((np.std(dist.numpy())))
-            ret_log_pi = np.log(dist[list(actions)])
+            ret_log_pi = np.log(dist[..., list(actions)])
             return (actions, dict(mean=ret_mean, log_std=ret_log_std,
                                   log_pi=ret_log_pi, dist=dist))
 
@@ -59,7 +59,7 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             print(action.shape)
             ret_mean = np.mean(dist.numpy())
             ret_log_std = np.log((np.std(dist.numpy())))
-            ret_log_pi = np.log(dist[list(action)])
+            ret_log_pi = np.log(dist[..., list(action)])
             # print("in get_action from categorical mlp")
             # print(dist.size())
             return (action, dict(mean=ret_mean, log_std=ret_log_std,
