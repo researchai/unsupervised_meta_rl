@@ -702,6 +702,8 @@ class KantWorker(DefaultWorker):
             self._actions.append(a)
             self._skills.append(self._cur_z)
             for k, v in agent_info.items():
+                if k == "dist":
+                    continue
                 self._agent_infos[k].append(v)
             for k, v in env_info.items():
                 self._env_infos[k].append(v)
