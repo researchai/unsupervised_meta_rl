@@ -11,7 +11,7 @@ class MLPDiscriminator(MLPModule):
         self._skills_num = skills_num
 
         super().__init__(input_dim=self._obs_dim,
-                         output_dim=skills_num,
+                         output_dim=14,# skills_num,
                          **kwargs)
 
     def forward(self, states):
