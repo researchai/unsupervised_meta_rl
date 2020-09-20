@@ -392,7 +392,7 @@ class MetaKant(MetaRLAlgorithm):
                     'states': path['states'],
                     'actions': path['actions'],
                     'env_rewards': path['env_rewards'].reshape(-1, 1),
-                    'skills': path['skills'].reshape(-1, 1),
+                    'skills_onehot': path['skills_onehot'].reshape(-1, 1),
                     'next_states': path['next_states'],
                     'dones': path['dones'].reshape(-1, 1)
                 }
@@ -424,7 +424,7 @@ class MetaKant(MetaRLAlgorithm):
                     'states': path['states'],
                     'actions': path['actions'],
                     'rewards': path['env_rewards'].reshape(-1, 1),
-                    'skills': path['skills'].reshape(-1, 1),
+                    'skills_onehot': path['skills_onehot'].reshape(-1, 1),
                     'next_states': path['next_states'],
                     'dones': path['dones'].reshape(-1, 1)
                 }
@@ -448,7 +448,7 @@ class MetaKant(MetaRLAlgorithm):
             o = path['states']
             a = path['actions']
             r = path['env_rewards']
-            z = path['skills']
+            z = path['skills_onehot']
             context = np.hstack((np.hstack((o, a)), r))
             if self._use_next_obs_in_context:
                 context = np.hstack((context, path['next_states']))
@@ -458,7 +458,7 @@ class MetaKant(MetaRLAlgorithm):
                 o = path['states'][np.newaxis]
                 a = path['actions'][np.newaxis]
                 r = path['env_rewards'][np.newaxis]
-                z = path['skills'][np.newaxis]
+                z = path['skills_onehot'][np.newaxis]
                 no = path['next_states'][np.newaxis]
                 d = path['dones'][np.newaxis]
                 initialized = True
@@ -489,7 +489,7 @@ class MetaKant(MetaRLAlgorithm):
         o = path['states']
         a = path['actions']
         r = path['env_rewards']
-        z = path['skills']
+        z = path['skills_onehot']
         context = np.hstack((np.hstack((np.hstack((o, a)), r)), z))
         if self._use_next_obs_in_context:
             context = np.hstack((context, path['next_states']))
@@ -498,7 +498,7 @@ class MetaKant(MetaRLAlgorithm):
         o = path['states'][np.newaxis]
         a = path['actions'][np.newaxis]
         r = path['env_rewards'][np.newaxis]
-        z = path['skills'][np.newaxis]
+        z = path['skills_onehot'][np.newaxis]
         no = path['next_states'][np.newaxis]
         d = path['dones'][np.newaxis]
 

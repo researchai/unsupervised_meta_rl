@@ -91,9 +91,9 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
         z = self.z
         obs = torch.as_tensor(obs[None], device=tu.global_device()).float()
         obs_in = torch.cat([obs, z], dim=1)
-        print("in get_action from context conditioned controller policy")
-        print(z.size())
-        print(obs_in.size())
+        # print("in get_action from context conditioned controller policy")
+        # print(z.size())
+        # print(obs_in.size())
         skill_choice, info = self._controller_policy.get_action(obs_in)
         skill_z = torch.eye(self._num_skills)[skill_choice]
         # print("in get_action from context conditioned controller")
