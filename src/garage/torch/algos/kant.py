@@ -424,7 +424,7 @@ class MetaKant(MetaRLAlgorithm):
                     'states': path['states'],
                     'actions': path['actions'],
                     'rewards': path['env_rewards'].reshape(-1, 1),
-                    'skills_onehot': path['skills_onehot'].reshape(-1, 1),
+                    'skills_onehot': path['skills_onehot'],
                     'next_states': path['next_states'],
                     'dones': path['dones'].reshape(-1, 1)
                 }
