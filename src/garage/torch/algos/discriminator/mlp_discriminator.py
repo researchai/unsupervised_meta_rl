@@ -20,7 +20,7 @@ class MLPDiscriminator(MLPModule):
                 tu.global_device())
         print("in forward")
         print(states.size())
-        states = torch.from_numpy(np.array([1, 2, 3])).to(tu.global_device())
+        states = torch.from_numpy(np.array([1, 2, 3])).float().to(tu.global_device())
         x = super().forward(states)
         return torch.softmax(x, dim=-1)
 
