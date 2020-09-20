@@ -43,7 +43,7 @@ class PathBuffer:
             if (len(path_array.shape) != 2
                     or path_array.shape[1] != buf_arr.shape[1]):
                 raise ValueError('Array {} has wrong shape.'.format(key))
-        path_len = self._get_path_length(path)
+        path_len = PathBuffer._get_path_length(path)
         first_seg, second_seg = self._next_path_segments(path_len)
         # Remove paths which will overlap with this one.
         while (self._path_segments and self._segments_overlap(
@@ -159,6 +159,7 @@ class PathBuffer:
         length_key = None
         length = None
         for key, value in path.items():
+            print("in _get_path_length from path_buffer")
             print(key)
             print(len(value))
             if length is None:

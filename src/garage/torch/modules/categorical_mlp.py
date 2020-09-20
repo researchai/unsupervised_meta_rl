@@ -10,9 +10,9 @@ class CategoricalMLPPolicy(Policy, MLPModule):
     def __init__(self, env_spec, name="CategoricalMLPPolicy", **kwargs):
         self._obs_dim = env_spec.input_space.flat_dim
         self._action_dim = env_spec.output_space.flat_dim
-        print("CategoricalMLPPolicy dims:")
-        print(self._obs_dim)  # 10
-        print(self._action_dim)  # 25
+        # print("CategoricalMLPPolicy dims:")
+        # print(self._obs_dim)  # 10
+        # print(self._action_dim)  # 25
 
         Policy.__init__(self, env_spec, name)
         MLPModule.__init__(self, input_dim=self._obs_dim,
