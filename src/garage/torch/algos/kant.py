@@ -255,7 +255,7 @@ class MetaKant(MetaRLAlgorithm):
         self._controller.reset_belief()
 
         # data shape is (task, batch, feat)
-        obs, actions, rewards, next_obs, skills, terms, context = self.\
+        obs, actions, rewards, skills, next_obs, terms, context = self.\
             _sample_skill_path()
         policy_outputs, skills_pred, task_z = self._controller(obs, context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
@@ -392,7 +392,7 @@ class MetaKant(MetaRLAlgorithm):
                     'states': path['states'],
                     'actions': path['actions'],
                     'env_rewards': path['env_rewards'].reshape(-1, 1),
-                    'skills_onehot': path['skills_onehot'].reshape(-1, 1),
+                    'skills_onehot': path['skills_onehot'],
                     'next_states': path['next_states'],
                     'dones': path['dones'].reshape(-1, 1)
                 }
@@ -449,7 +449,7 @@ class MetaKant(MetaRLAlgorithm):
             a = path['actions']
             r = path['env_rewards']
             z = path['skills_onehot']
-            context = np.hstack((np.hstack((o, a)), r))
+            context = np.hstack((np.hstack((np.hstack((o, a)), r)), z))
             if self._use_next_obs_in_context:
                 context = np.hstack((context, path['next_states']))
 
