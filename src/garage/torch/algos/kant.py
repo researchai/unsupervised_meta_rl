@@ -275,6 +275,8 @@ class MetaKant(MetaRLAlgorithm):
             kl_loss = self._kl_lambda * kl_div
             kl_loss.backward(retain_graph=True)
 
+        print(skills)
+        print(skills.size())
         skills_target = torch.eye(self._num_skills)[skills]
 
         policy_loss = F.mse_loss(skills_pred.flatten(), skills_target.flatten())\
