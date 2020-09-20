@@ -277,11 +277,11 @@ class MetaKant(MetaRLAlgorithm):
 
         # print(skills)
         # print(skills.size())
-        skills_target = skills.to(tu.global_device())
+        skills_target = torch.tensor(skills.to(tu.global_device()), requires_grad=True)
         skills_pred = skills_pred.to(tu.global_device())
 
-        print(skills_pred.device)
-        print(skills_target.device)
+        # print(skills_pred.device)
+        # print(skills_target.device)
 
         policy_loss = F.mse_loss(skills_pred.flatten(), skills_target.flatten())\
                       * self._skills_reason_reward_scale
@@ -292,7 +292,7 @@ class MetaKant(MetaRLAlgorithm):
 
         #took away the pre-activation reg term
         policy_reg_loss = mean_reg_loss + std_reg_loss
-        # policy_loss = policy_loss + policy_reg_loss
+        policy_loss = policy_loss + policy_reg_loss
 
         self._controller_optimizer.zero_grad()
         policy_loss.backward()
