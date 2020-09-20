@@ -745,9 +745,15 @@ class KantWorker(DefaultWorker):
         agent_infos = self._agent_infos
         self._agent_infos = defaultdict(list)
         for k, v in agent_infos.items():
-            agent_infos[k] = np.asarray(v)
+            try:
+                agent_infos[k] = np.asarray(v)
+            except ValueError:
+                continue  # not scalar type
         for k, v in env_infos.items():
-            env_infos[k] = np.asarray(v)
+            try:
+                env_infos[k] = np.asarray(v)
+            except ValueError:
+                continue  # not scalar type
         lengths = self._lengths
         self._lengths = []
 
