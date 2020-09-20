@@ -107,7 +107,7 @@ s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
 # task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
 
 
-load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl')
+load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl_3')
 itr = 900
 load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
 file = open(load_from_file, 'rb')
