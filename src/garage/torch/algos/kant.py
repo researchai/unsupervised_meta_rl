@@ -257,7 +257,10 @@ class MetaKant(MetaRLAlgorithm):
         # data shape is (task, batch, feat)
         obs, actions, rewards, skills, next_obs, terms, context = self.\
             _sample_skill_path()
+
+        # skills_pred is distribution
         policy_outputs, skills_pred, task_z = self._controller(obs, context)
+
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # flatten out the task dimension
@@ -274,18 +277,15 @@ class MetaKant(MetaRLAlgorithm):
 
         skills_target = np.eye(self._num_skills)[skills]
 
-        policy_loss = F.mse_loss(skills_pred.flatten(), skills_target.flatten()) * \
-                      self._skills_reason_reward_scale
+        policy_loss = F.mse_loss(skills_pred.flatten(), skills_target.flatten())\
+                      * self._skills_reason_reward_scale
 
-        # do we need the below reg terms?
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
         std_reg_loss = self._policy_std_reg_coeff * (
                 policy_log_std ** 2).mean()
-        pre_tanh_value = policy_outputs[-1]
-        pre_activation_reg_loss = self._policy_pre_activation_coeff * (
-            (pre_tanh_value ** 2).sum(dim=1).mean())
-        policy_reg_loss = (mean_reg_loss + std_reg_loss +
-                           pre_activation_reg_loss)
+
+        #took away the pre-activation reg term
+        policy_reg_loss = mean_reg_loss + std_reg_loss
         policy_loss = policy_loss + policy_reg_loss
 
         self._controller_optimizer.zero_grad()
@@ -294,12 +294,13 @@ class MetaKant(MetaRLAlgorithm):
 
     def _tasks_adapt_optimize_policy(self, indices):
         num_tasks = len(indices)
-        obs, actions, rewards, skills, next_obs, terms, context = self._sample_task_path(
-            indices)
+        obs, actions, rewards, skills, next_obs, terms, context = \
+            self._sample_task_path(indices)
         self._controller.reset_belief(num_tasks=num_tasks)
 
         # data shape is (task, batch, feat)
-        policy_outputs, new_skills, task_z = self._controller(obs, context)
+        # new_skills_pred is distribution
+        policy_outputs, new_skills_pred, task_z = self._controller(obs, context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # flatten out the task dimension
@@ -343,8 +344,8 @@ class MetaKant(MetaRLAlgorithm):
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        q1 = self._qf1(torch.cat([obs, new_skills], dim=1), task_z.detach())
-        q2 = self._qf2(torch.cat([obs, new_skills], dim=1), task_z.detach())
+        q1 = self._qf1(torch.cat([obs, new_skills_pred], dim=1), task_z.detach())
+        q2 = self._qf2(torch.cat([obs, new_skills_pred], dim=1), task_z.detach())
         min_q = torch.min(q1, q2)
 
         # optimize vf
@@ -362,11 +363,9 @@ class MetaKant(MetaRLAlgorithm):
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
         std_reg_loss = self._policy_std_reg_coeff * (
                 policy_log_std ** 2).mean()
-        pre_tanh_value = policy_outputs[-1]
-        pre_activation_reg_loss = self._policy_pre_activation_coeff * (
-            (pre_tanh_value ** 2).sum(dim=1).mean())
-        policy_reg_loss = (mean_reg_loss + std_reg_loss +
-                           pre_activation_reg_loss)
+
+        # took away pre-activation reg
+        policy_reg_loss = mean_reg_loss + std_reg_loss
         policy_loss = policy_loss + policy_reg_loss
 
         self._controller_optimizer.zero_grad()
@@ -513,6 +512,34 @@ class MetaKant(MetaRLAlgorithm):
         context = context.unsqueeze(0)
 
         return o, a, r, z, no, d, context
+
+    def _sample_path_context(self, indices):
+        if not hasattr(indices, '__iter__'):
+            indices = [indices]
+
+        initialized = False
+        for idx in indices:
+            path = self._context_replay_buffers[idx].sample_path()
+            o = path['observations']
+            a = path['actions']
+            r = path['rewards']
+            z = path['skills_onehot']
+            context = np.hstack((np.hstack((np.hstack((o, a)), r)),z))
+            if self._use_next_obs_in_context:
+                context = np.hstack((context, path['next_observations']))
+
+            if not initialized:
+                final_context = context[np.newaxis]
+                initialized = True
+            else:
+                final_context = np.vstack((final_context, context[np.newaxis]))
+
+        final_context = torch.as_tensor(final_context,
+                                        device=tu.global_device()).float()
+        if len(indices) == 1:
+            final_context = final_context.unsqueeze(0)
+
+        return final_context
 
     def _update_target_network(self):
         for target_param, param in zip(self.target_vf.parameters(),
