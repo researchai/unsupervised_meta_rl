@@ -159,6 +159,8 @@ class PathBuffer:
         length_key = None
         length = None
         for key, value in path.items():
+            print(key)
+            print(len(value))
             if length is None:
                 length = len(value)
                 length_key = key
