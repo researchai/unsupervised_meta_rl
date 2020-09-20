@@ -48,7 +48,7 @@ class MetaKant(MetaRLAlgorithm):
                  soft_target_tau=0.005,
                  kl_lambda=.1,
                  optimizer_class=torch.optim.Adam,
-                 use_next_obs_in_context=True,
+                 use_next_obs_in_context=False,
                  meta_batch_size=64,
                  num_steps_per_epoch=1000,
                  num_skills_reason_steps=2000,
