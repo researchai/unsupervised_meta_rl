@@ -451,11 +451,13 @@ class MetaKant(MetaRLAlgorithm):
         for idx in indices:
             path = self._context_replay_buffers[idx].sample_path()
             # TODO: trim or extend batch to the same size
-            o = path['states']
-            a = path['actions']
-            r = path['env_rewards']
-            z = path['skills_onehot']
-            context = np.hstack((np.hstack((np.hstack((o, a)), r)), z))
+
+            context_o = path['states']
+            context_a = path['actions']
+            context_r = path['env_rewards']
+            context_z = path['skills_onehot']
+            context = np.hstack((np.hstack((np.hstack((context_o, context_a)),
+                                            context_r)), context_z))
             if self._use_next_obs_in_context:
                 context = np.hstack((context, path['next_states']))
 
@@ -469,6 +471,8 @@ class MetaKant(MetaRLAlgorithm):
                 d = path['dones'][np.newaxis]
                 initialized = True
             else:
+                # print(o.shape)
+                # print(path['states'].shape)
                 o = np.vstack((o, path['states'][np.newaxis]))
                 a = np.vstack((a, path['actions'][np.newaxis]))
                 r = np.vstack((r, path['env_rewards'][np.newaxis]))
