@@ -93,8 +93,8 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
 
     def get_action(self, obs):
         z = self.z
-        print(z.size())
-        print(z)
+        # print(z.size())
+        # print(z)
         obs = torch.as_tensor(obs[None], device=tu.global_device()).float()
         obs_in = torch.cat([obs, z], dim=1)
         # print("in get_action from context conditioned controller policy")
