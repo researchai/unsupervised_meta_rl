@@ -206,7 +206,7 @@ class MetaKant(MetaRLAlgorithm):
                                            self._num_skills_reason_steps)
 
             logger.log('Training skill reasoning...')
-            self._skills_reason_train_once()
+            # self._skills_reason_train_once()
 
             for _ in range(self._num_tasks_sample):
                 idx = np.random.randint(self._num_train_tasks)
