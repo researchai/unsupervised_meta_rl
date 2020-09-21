@@ -118,6 +118,7 @@ class MetaEvaluator:
                 self._eval_itr,
                 self._trajectory_batch_class.concatenate(*adapted_trajectories),
                 getattr(algo, 'discount', 1.0),
+                trajectory_class=self._trajectory_batch_class,
                 name_map=name_map)
         self._eval_itr += 1
 

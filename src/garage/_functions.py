@@ -5,10 +5,11 @@ from dowel import tabular
 import numpy as np
 
 import garage
+from garage import TrajectoryBatch
 from garage.misc.tensor_utils import discount_cumsum
 
 
-def log_multitask_performance(itr, batch, discount, name_map=None):
+def log_multitask_performance(itr, batch, discount, trajectory_class=TrajectoryBatch, name_map=None):
     r"""Log performance of trajectories from multiple tasks.
 
     Args:
@@ -46,7 +47,7 @@ def log_multitask_performance(itr, batch, discount, name_map=None):
         if task_name in traj_by_name:
             trajectories = traj_by_name[task_name]
             log_performance(itr,
-                            garage.TrajectoryBatch.concatenate(*trajectories),
+                            trajectory_class.concatenate(*trajectories),
                             discount,
                             prefix=task_name)
         else:
