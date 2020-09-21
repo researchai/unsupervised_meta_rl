@@ -52,6 +52,8 @@ class CategoricalMLPPolicy(Policy, MLPModule):
                     tu.global_device())
             state = state.to(tu.global_device())
             dist = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
+            print(dist.size())
+            print(dist)
             action = np.array([np.random.choice(self._action_dim,
                                                 p=dist.squeeze(0).numpy())])
             # print("categorical")
