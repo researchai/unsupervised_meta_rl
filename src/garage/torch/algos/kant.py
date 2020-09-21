@@ -308,7 +308,7 @@ class MetaKant(MetaRLAlgorithm):
         # data shape is (task, batch, feat)
         # new_skills_pred is distribution
         policy_outputs, new_skills_pred, task_z = self._controller(obs, context)
-        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+        new_actions, policy_mean, policy_log_std, policy_log_pi = policy_outputs[:4]
 
         # flatten out the task dimension
         t, b, _ = obs.size()
@@ -364,7 +364,9 @@ class MetaKant(MetaRLAlgorithm):
         min_q = torch.min(q1, q2)
 
         # optimize vf
-        v_target = min_q - log_pi
+        policy_log_pi = policy_log_pi.to(tu.global_device())
+        
+        v_target = min_q - policy_log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
@@ -373,7 +375,7 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize policy
         log_policy_target = min_q
-        policy_loss = (log_pi - log_policy_target).mean()
+        policy_loss = (policy_log_pi - log_policy_target).mean()
 
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
         std_reg_loss = self._policy_std_reg_coeff * (
