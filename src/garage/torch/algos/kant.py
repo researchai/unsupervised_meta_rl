@@ -261,13 +261,13 @@ class MetaKant(MetaRLAlgorithm):
         # skills_pred is distribution
         policy_outputs, skills_pred, task_z = self._controller(obs, context)
 
-        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+        _, policy_mean, policy_log_std, policy_log_pi = policy_outputs[:4]
 
         # flatten out the task dimension
-        t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(t * b, -1)
+        # t, b, _ = obs.size()
+        # obs = obs.view(t * b, -1)
+        # actions = actions.view(t * b, -1)
+        # next_obs = next_obs.view(t * b, -1)
 
         self.context_optimizer.zero_grad()
         if self._use_information_bottleneck:
@@ -313,13 +313,17 @@ class MetaKant(MetaRLAlgorithm):
         # flatten out the task dimension
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
+        # actions = actions.view(t * b, -1)
         skills = skills.view(t * b, -1)
         next_obs = next_obs.view(t * b, -1)
 
         # optimize qf and encoder networks
         # TODO try [obs, skills, actions] or [obs, skills, task_z]
         # FIXME prob need to reshape or tile task_z
+        obs = obs.to(tu.global_device())
+        skills = skills.to(tu.global_device())
+        next_obs = next_obs.to(tu.global_device())
+
         q1_pred = self._qf1(torch.cat([obs, skills], dim=1), task_z)
         q2_pred = self._qf2(torch.cat([obs, skills], dim=1), task_z)
         v_pred = self._vf(obs, task_z.detach())
@@ -351,9 +355,9 @@ class MetaKant(MetaRLAlgorithm):
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        q1 = self._qf1(torch.cat([obs, new_skills_pred], dim=1).to(tu.global_device()),
+        q1 = self._qf1(torch.cat([obs, new_skills_pred], dim=1),
                        task_z.detach())
-        q2 = self._qf2(torch.cat([obs, new_skills_pred], dim=1).to(tu.global_device()),
+        q2 = self._qf2(torch.cat([obs, new_skills_pred], dim=1),
                        task_z.detach())
         min_q = torch.min(q1, q2)
 
