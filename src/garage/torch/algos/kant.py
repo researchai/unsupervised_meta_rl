@@ -277,8 +277,8 @@ class MetaKant(MetaRLAlgorithm):
 
         # print(skills)
         # print(skills.size())
-        skills_target = torch.tensor(skills.to(tu.global_device()),
-                                     requires_grad=True).to(tu.global_device())
+        skills_target = skills.clone().detach().requires_grad_(True)\
+            .to(tu.global_device())
         skills_pred = skills_pred.to(tu.global_device())
 
         # print(skills_pred.device)
@@ -587,8 +587,8 @@ class MetaKant(MetaRLAlgorithm):
     @classmethod
     def get_env_spec(cls, env_spec, latent_dim, num_skills, module):
         obs_dim = int(np.prod(env_spec.observation_space.shape))
-        print("obs_dim is")
-        print(obs_dim)
+        # print("obs_dim is")
+        # print(obs_dim)
         action_dim = int(np.prod(env_spec.action_space.shape))
         if module == 'encoder':
             in_dim = obs_dim + action_dim + num_skills + 1

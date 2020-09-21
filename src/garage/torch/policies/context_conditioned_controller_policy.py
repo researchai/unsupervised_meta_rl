@@ -142,7 +142,7 @@ class GaussianContextEncoder(ContextEncoder):
         self._latent_dim = latent_dim
 
     def infer_posterior(self, context):
-        print(context.size())
+        # print(context.size())
         params = self._context_encoder.forward(context)
         params = params.view(context.size(0), -1,
                              self._context_encoder.output_dim)
