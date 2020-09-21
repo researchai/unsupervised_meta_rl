@@ -55,10 +55,13 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
             context (X, N, C): X is the number of tasks, N is batch sizes,
             C is the combined size of o, a, r, no if used
         '''
+        print("context")
+        print(context)
         if self._use_information_bottleneck:
             self.z_means, self.z_vars = self._context_encoder.infer_posterior(context)
         else:
             self.z_means = self._context_encoder.infer_posterior(context)
+        print("means and vars")
         print(self.z_means)
         print(self.z_vars)
         self.sample_from_belief()

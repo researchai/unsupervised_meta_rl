@@ -88,8 +88,8 @@ class ContextConditionedPolicy(nn.Module):
                 torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(
                     torch.unbind(self.z_means), torch.unbind(self.z_vars))
             ]
-            print("posteriors")
-            print(posteriors)
+            # print("posteriors")
+            # print(posteriors)
             z = [d.rsample() for d in posteriors]
             self.z = torch.stack(z)
         else:

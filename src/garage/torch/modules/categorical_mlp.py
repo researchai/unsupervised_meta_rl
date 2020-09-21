@@ -50,13 +50,13 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             if not isinstance(state, torch.Tensor):
                 state = torch.from_numpy(state).float().to(
                     tu.global_device())
-            print(state.size())
-            print(state)
+            #print(state.size())
+            #print(state)
             state = state.to(tu.global_device())
             dist = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
-            print(dist.size())
-            print(dist)
-            print()
+            #print(dist.size())
+            #print(dist)
+            #print()
             action = np.array([np.random.choice(self._action_dim,
                                                 p=dist.squeeze(0).numpy())])
             # print("categorical")
