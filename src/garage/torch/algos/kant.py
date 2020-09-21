@@ -650,10 +650,10 @@ class MetaKant(MetaRLAlgorithm):
 
     def adapt_policy(self, exploration_policy, exploration_trajectories):
         total_steps = sum(exploration_trajectories.lengths)
-        o = exploration_trajectories.states  # TODO: may cause prob
+        o = exploration_trajectories.states 
         a = exploration_trajectories.actions
-        r = exploration_trajectories.rewards.reshape(total_steps, 1)
-        s = exploration_trajectories.skills.reshape(total_steps, 1)
+        r = exploration_trajectories.env_rewards.reshape(total_steps, 1)
+        s = exploration_trajectories.skills
         ctxt = np.hstack((o, a, r, s)).reshape(1, total_steps, -1)
         context = torch.as_tensor(ctxt, device=tu.global_device()).float()
         self._controller.infer_posterior(context)
