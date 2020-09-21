@@ -202,6 +202,7 @@ class MetaKant(MetaRLAlgorithm):
                                               self._num_initial_steps, np.inf)
                 self._is_resuming = False
 
+            logger.log('Sampling skills')
             for idx in range(self._num_skills_sample):
                 self._skill_idx = idx
                 # self._skills_replay_buffer.clear()
@@ -209,8 +210,9 @@ class MetaKant(MetaRLAlgorithm):
                                            self._num_skills_reason_steps)
 
             logger.log('Training skill reasoning...')
-            # self._skills_reason_train_once()
+            self._skills_reason_train_once()
 
+            logger.log('Sampling tasks')
             for _ in range(self._num_tasks_sample):
                 idx = np.random.randint(self._num_train_tasks)
                 self._task_idx = idx
@@ -378,8 +380,8 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize policy
         log_policy_target = min_q
-        print(policy_log_pi.size())
-        print(log_policy_target.size())
+        # print(policy_log_pi.size())
+        # print(log_policy_target.size())
         policy_loss = (policy_log_pi - log_policy_target).mean()
 
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
