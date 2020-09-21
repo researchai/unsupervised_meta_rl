@@ -378,6 +378,8 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize policy
         log_policy_target = min_q
+        print(policy_log_pi.size())
+        print(log_policy_target.size())
         policy_loss = (policy_log_pi - log_policy_target).mean()
 
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
