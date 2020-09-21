@@ -51,7 +51,7 @@ class MetaKant(MetaRLAlgorithm):
                  use_next_obs_in_context=False,
                  meta_batch_size=64,
                  num_steps_per_epoch=1000,
-                 num_skills_reason_steps=2000,
+                 num_skills_reason_steps=1000,
                  num_skills_sample=10,
                  num_initial_steps=1500,
                  num_tasks_sample=5,
