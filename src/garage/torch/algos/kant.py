@@ -354,6 +354,8 @@ class MetaKant(MetaRLAlgorithm):
         self.qf2_optimizer.step()
         self.context_optimizer.step()
 
+        new_skills_pred = new_skills_pred.to(tu.global_device())
+
         # compute min Q on the new actions
         q1 = self._qf1(torch.cat([obs, new_skills_pred], dim=1),
                        task_z.detach())
