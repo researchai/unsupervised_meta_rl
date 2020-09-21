@@ -49,6 +49,7 @@ def log_multitask_performance(itr, batch, discount, trajectory_class=TrajectoryB
             log_performance(itr,
                             trajectory_class.concatenate(*trajectories),
                             discount,
+                            trajectory_class=trajectory_class,
                             prefix=task_name)
         else:
             with tabular.prefix(task_name + '/'):
@@ -62,10 +63,11 @@ def log_multitask_performance(itr, batch, discount, trajectory_class=TrajectoryB
                 tabular.record('CompletionRate', np.nan)
                 tabular.record('SuccessRate', np.nan)
 
-    return log_performance(itr, batch, discount=discount, prefix='Average')
+    return log_performance(itr, batch, discount=discount,
+                           trajectory_class=trajectory_class, prefix='Average')
 
 
-def log_performance(itr, batch, discount, prefix='Evaluation'):
+def log_performance(itr, batch, discount, trajectory_class=TrajectoryBatch, prefix='Evaluation'):
     """Evaluate the performance of an algorithm on a batch of trajectories.
 
     Args:
@@ -83,8 +85,12 @@ def log_performance(itr, batch, discount, prefix='Evaluation'):
     completion = []
     success = []
     for trajectory in batch.split():
-        returns.append(discount_cumsum(trajectory.rewards, discount))
-        undiscounted_returns.append(sum(trajectory.rewards))
+        if trajectory_class == TrajectoryBatch:
+            returns.append(discount_cumsum(trajectory.rewards, discount))
+            undiscounted_returns.append(sum(trajectory.rewards))
+        else:
+            returns.append(discount_cumsum(trajectory.env_rewards, discount))
+            undiscounted_returns.append(sum(trajectory.env_rewards))
         completion.append(float(trajectory.terminals.any()))
         if 'success' in trajectory.env_infos:
             success.append(float(trajectory.env_infos['success'].any()))
