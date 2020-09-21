@@ -59,6 +59,8 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
             self.z_means, self.z_vars = self._context_encoder.infer_posterior(context)
         else:
             self.z_means = self._context_encoder.infer_posterior(context)
+        print(self.z_means)
+        print(self.z_vars)
         self.sample_from_belief()
 
     # def sample_from_belief(self):
