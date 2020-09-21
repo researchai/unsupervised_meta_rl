@@ -122,5 +122,11 @@ class MetaEvaluator:
                 name_map=name_map)
         self._eval_itr += 1
 
-        rewards = self._trajectory_batch_class.concatenate(*adapted_trajectories).rewards
+        if self._trajectory_batch_class == TrajectoryBatch:
+            rewards = self._trajectory_batch_class.concatenate(
+                *adapted_trajectories).rewards
+        else:
+            rewards = self._trajectory_batch_class.concatenate(
+                *adapted_trajectories).env_rewards
+
         return sum(rewards) / len(rewards)
