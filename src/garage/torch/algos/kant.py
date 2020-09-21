@@ -14,7 +14,6 @@ from garage.experiment import MetaEvaluator
 from garage.np.algos import MetaRLAlgorithm
 from garage.replay_buffer import PathBuffer
 from garage.sampler import DefaultWorker
-from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy, GaussianContextEncoder
@@ -35,6 +34,7 @@ class MetaKant(MetaRLAlgorithm):
                  latent_dim,
                  encoder_hidden_sizes,
                  test_env_sampler,
+                 sampler_class,  # to avoid cycling import
                  controller_class=OpenContextConditionedControllerPolicy,
                  encoder_class=GaussianContextEncoder,
                  encoder_module_class=MLPEncoder,
@@ -125,7 +125,7 @@ class MetaKant(MetaRLAlgorithm):
                                         worker_class=KantWorker,
                                         worker_args=worker_args,
                                         n_test_tasks=num_test_tasks,
-                                        sampler_class=LocalSkillSampler,
+                                        sampler_class=sampler_class,
                                         trajectory_batch_class=SkillTrajectoryBatch)
         self._average_rewards = []
 
