@@ -351,10 +351,10 @@ class MetaKant(MetaRLAlgorithm):
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        q1 = self._qf1(torch.cat([obs, new_skills_pred].to(tu.global_device()),
-                                 dim=1), task_z.detach())
-        q2 = self._qf2(torch.cat([obs, new_skills_pred].to(tu.global_device()),
-                                 dim=1), task_z.detach())
+        q1 = self._qf1(torch.cat([obs, new_skills_pred], dim=1).to(tu.global_device()),
+                       task_z.detach())
+        q2 = self._qf2(torch.cat([obs, new_skills_pred], dim=1).to(tu.global_device()),
+                       task_z.detach())
         min_q = torch.min(q1, q2)
 
         # optimize vf
