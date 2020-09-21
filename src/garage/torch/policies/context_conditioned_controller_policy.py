@@ -56,6 +56,7 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
             C is the combined size of o, a, r, no if used
         '''
         print("context")
+        print(context.dtype)
         print(context)
         if self._use_information_bottleneck:
             self.z_means, self.z_vars = self._context_encoder.infer_posterior(context)
