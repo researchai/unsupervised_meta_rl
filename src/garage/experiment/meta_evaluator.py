@@ -51,6 +51,8 @@ class MetaEvaluator:
                  prefix='MetaTest',
                  test_task_names=None,
                  worker_class=DefaultWorker,
+                 sampler_class=LocalSampler,
+                 trajectory_batch_class=TrajectoryBatch,
                  worker_args=None):
         self._test_task_sampler = test_task_sampler
         self._worker_class = worker_class
@@ -68,6 +70,8 @@ class MetaEvaluator:
         self._prefix = prefix
         self._test_task_names = test_task_names
         self._test_sampler = None
+        self._trajectory_batch_class = trajectory_batch_class
+        self._sampler_class = sampler_class
 
     def evaluate(self, algo, test_rollouts_per_task=None):
         """Evaluate the Meta-RL algorithm on the test tasks.
@@ -82,7 +86,7 @@ class MetaEvaluator:
         adapted_trajectories = []
         logger.log('Sampling for adapation and meta-testing...')
         if self._test_sampler is None:
-            self._test_sampler = LocalSampler.from_worker_factory(
+            self._test_sampler = self._sampler_class.from_worker_factory(
                 WorkerFactory(seed=get_seed(),
                               max_path_length=self._max_path_length,
                               n_workers=1,
@@ -92,7 +96,7 @@ class MetaEvaluator:
                 envs=self._test_task_sampler.sample(1))
         for env_up in self._test_task_sampler.sample(self._n_test_tasks):
             policy = algo.get_exploration_policy()
-            traj = TrajectoryBatch.concatenate(*[
+            traj = self._trajectory_batch_class.concatenate(*[
                 self._test_sampler.obtain_samples(self._eval_itr, 1, policy,
                                                   env_up)
                 for _ in range(self._n_exploration_traj)
@@ -112,10 +116,10 @@ class MetaEvaluator:
         with tabular.prefix(self._prefix + '/' if self._prefix else ''):
             log_multitask_performance(
                 self._eval_itr,
-                TrajectoryBatch.concatenate(*adapted_trajectories),
+                self._trajectory_batch_class.concatenate(*adapted_trajectories),
                 getattr(algo, 'discount', 1.0),
                 name_map=name_map)
         self._eval_itr += 1
 
-        rewards = TrajectoryBatch.concatenate(*adapted_trajectories).rewards
+        rewards = self._trajectory_batch_class.concatenate(*adapted_trajectories).rewards
         return sum(rewards) / len(rewards)

@@ -14,6 +14,7 @@ from garage.experiment import MetaEvaluator
 from garage.np.algos import MetaRLAlgorithm
 from garage.replay_buffer import PathBuffer
 from garage.sampler import DefaultWorker
+from garage.sampler.local_skill_sampler import LocalSkillSampler
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy, GaussianContextEncoder
@@ -123,7 +124,9 @@ class MetaKant(MetaRLAlgorithm):
                                         max_path_length=max_path_length,
                                         worker_class=KantWorker,
                                         worker_args=worker_args,
-                                        n_test_tasks=num_test_tasks)
+                                        n_test_tasks=num_test_tasks,
+                                        sampler_class=LocalSkillSampler,
+                                        trajectory_batch_class=SkillTrajectoryBatch)
         self._average_rewards = []
 
         encoder_spec = self.get_env_spec(env[0](), latent_dim, num_skills,
@@ -365,7 +368,7 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize vf
         policy_log_pi = policy_log_pi.to(tu.global_device())
-        
+
         v_target = min_q - policy_log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
