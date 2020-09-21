@@ -527,13 +527,13 @@ class MetaKant(MetaRLAlgorithm):
         initialized = False
         for idx in indices:
             path = self._context_replay_buffers[idx].sample_path()
-            o = path['observations']
+            o = path['states']
             a = path['actions']
             r = path['rewards']
             z = path['skills_onehot']
             context = np.hstack((np.hstack((np.hstack((o, a)), r)),z))
             if self._use_next_obs_in_context:
-                context = np.hstack((context, path['next_observations']))
+                context = np.hstack((context, path['states']))
 
             if not initialized:
                 final_context = context[np.newaxis]
