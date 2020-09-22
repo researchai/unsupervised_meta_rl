@@ -338,9 +338,9 @@ class MetaKant(MetaRLAlgorithm):
 
         with torch.no_grad():
             target_v_values = self.target_vf(next_obs, task_z)
-        print("in task training")
-        print(v_pred.size())
-        print(target_v_values.size())
+        # print("in task training")
+        # print(v_pred.size())
+        # print(target_v_values.size())
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
         if self._use_information_bottleneck:
