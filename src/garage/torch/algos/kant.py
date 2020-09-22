@@ -338,7 +338,9 @@ class MetaKant(MetaRLAlgorithm):
 
         with torch.no_grad():
             target_v_values = self.target_vf(next_obs, task_z)
-
+        print("in task training")
+        print(v_pred.size())
+        print(target_v_values.size())
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
         if self._use_information_bottleneck:
@@ -383,7 +385,7 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize policy
         log_policy_target = min_q
-        print("in task training")
+        print("policy_log_pi")
         print(policy_log_pi.size())
         print(log_policy_target.size())
         policy_loss = (policy_log_pi - log_policy_target).mean()
