@@ -729,7 +729,7 @@ class PEARLWorker(DefaultWorker):
             a, agent_info = self.agent.get_action(self._prev_obs)
             if self._deterministic:
                 a = agent_info['mean']
-            time.sleep(.02)  # fix "mujoco_py.builder.MujocoException: Unknown warning type Time = 0.0000.Check for NaN in simulation."
+            #time.sleep(.02)  # fix "mujoco_py.builder.MujocoException: Unknown warning type Time = 0.0000.Check for NaN in simulation."
             a[a != a] = 0
             next_o, r, d, env_info = self.env.step(a)
             self._observations.append(self._prev_obs)
