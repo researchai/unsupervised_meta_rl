@@ -57,7 +57,7 @@ class MetaKant(MetaRLAlgorithm):
                  num_initial_steps=1500,
                  num_tasks_sample=5,
                  num_steps_prior=400,
-                 num_steps_posterior=400,
+                 num_steps_posterior=0,
                  num_extra_rl_steps_posterior=600,
                  batch_size=1024,
                  embedding_batch_size=1024,
@@ -218,15 +218,18 @@ class MetaKant(MetaRLAlgorithm):
                 self._task_idx = idx
                 self._context_replay_buffers[idx].clear()
                 # obtain samples with z ~ prior
+                logger.log("Obtaining samples with z ~ prior")
                 if self._num_steps_prior > 0:
                     self._obtain_task_samples(runner, epoch, self._num_steps_prior,
                                               np.inf)
                 # obtain samples with z ~ posterior
+                logger.log("Obtaining samples with z ~ posterior")
                 if self._num_steps_posterior > 0:
                     self._obtain_task_samples(runner, epoch,
                                               self._num_steps_posterior,
                                               self._update_post_train)
                 # obtain extras samples for RL training but not encoder
+                logger.log("Obtaining extra samples for RL traing but not encoder")
                 if self._num_extra_rl_steps_posterior > 0:
                     self._obtain_task_samples(runner,
                                               epoch,
@@ -380,8 +383,9 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize policy
         log_policy_target = min_q
-        # print(policy_log_pi.size())
-        # print(log_policy_target.size())
+        print("in task training")
+        print(policy_log_pi.size())
+        print(log_policy_target.size())
         policy_loss = (policy_log_pi - log_policy_target).mean()
 
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
