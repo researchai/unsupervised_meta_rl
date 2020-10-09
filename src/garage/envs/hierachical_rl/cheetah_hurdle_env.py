@@ -4,7 +4,6 @@
 
 
 from rllab.core.serializable import Serializable
-from sac.misc.utils import PROJECT_PATH
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.mujoco_env import MujocoEnv
 from rllab.envs.base import Step
@@ -12,6 +11,7 @@ from gym import utils
 import os
 import numpy as np
 
+PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..', '..')))
 MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'sac/mujoco_models'))
 
 class HalfCheetahHurdleEnv(HalfCheetahEnv):

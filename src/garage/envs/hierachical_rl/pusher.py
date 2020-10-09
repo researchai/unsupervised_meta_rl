@@ -7,7 +7,7 @@ from rllab.envs.mujoco.mujoco_env import MujocoEnv
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
 
-from sac.misc.utils import PROJECT_PATH
+PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..', '..')))
 MODELS_PATH = osp.abspath(osp.join(PROJECT_PATH, 'sac/mujoco_models'))
 import pickle
 
