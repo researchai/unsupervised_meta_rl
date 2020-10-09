@@ -93,4 +93,4 @@ class HalfCheetahHurdleEnv(HalfCheetahEnv):
 
 		reward=-1e-1*goal_distance+hurdle_reward+goal_reward+run_reward+3e-1*jump_reward+collision_penality#1e-1*goal_distance+run_reward+jump_reward+collision_penality
 		info = {'goal_distance': goal_distance}
-		return Step(next_obs, reward, done, **info)
+		return next_obs, reward, done, **info

@@ -81,7 +81,7 @@ class MultiDirectionBaseEnv(Serializable):
 
         next_observation = self.get_current_obs()
         #return Step(next_observation, float(reward), self.done)
-        return Step(next_observation, float(reward), False)
+        return next_observation, float(reward), False, None
 
     def log_diagnostics(self, paths, *args, **kwargs):
         logs = get_multi_direction_logs(paths)

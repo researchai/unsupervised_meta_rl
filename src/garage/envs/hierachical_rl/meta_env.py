@@ -2,8 +2,6 @@ from rllab import spaces
 from rllab.core.serializable import Serializable
 from rllab.envs.env_spec import EnvSpec
 
-from sac.misc.utils import concat_obs_z
-
 import numpy as np
 
 class MetaEnv(Serializable):
@@ -67,3 +65,10 @@ class FixedOptionEnv(Serializable):
 
     def terminate(self):
         self._env.terminate()
+
+    def concat_obs_z(obs, z, num_skills):
+        """Concatenates the observation to a one-hot encoding of Z."""
+        assert np.isscalar(z)
+        z_one_hot = np.zeros(num_skills)
+        z_one_hot[z] = 1
+        return np.hstack([obs, z_one_hot])
