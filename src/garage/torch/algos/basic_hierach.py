@@ -32,7 +32,6 @@ class MetaBasicHierch(MetaRLAlgorithm):
                  test_env_sampler,
                  sampler_class,  # to avoid cycling import
                  controller_class=ControllerPolicy,
-                 is_encoder_recurrent=False,
                  controller_lr=3E-4,
                  qf_lr=3E-4,
                  vf_lr=3E-4,
@@ -68,11 +67,8 @@ class MetaBasicHierch(MetaRLAlgorithm):
         self._soft_target_tau = soft_target_tau
 
         self._meta_batch_size = meta_batch_size
-        self._num_skills_reason_steps = num_skills_reason_steps
         self._num_steps_per_epoch = num_steps_per_epoch
-        self._num_initial_steps = num_initial_steps
         self._num_tasks_sample = num_tasks_sample
-        self._num_skills_sample = num_skills_sample
         self._batch_size = batch_size
         self._embedding_batch_size = embedding_batch_size
         self._embedding_mini_batch_size = embedding_mini_batch_size
@@ -80,7 +76,6 @@ class MetaBasicHierch(MetaRLAlgorithm):
         self._discount = discount
         self._replay_buffer_size = replay_buffer_size
 
-        self._is_encoder_recurrent = is_encoder_recurrent
         self._task_idx = None
         self._skill_idx = None  # do we really need it
 

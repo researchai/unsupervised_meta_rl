@@ -82,7 +82,7 @@ class SetTaskUpdate(EnvUpdate):
         """Update an environment.
 
         Args:
-            old_env (gym.Env or None): Previous environment. Should not be used
+            old_env (gym.‘Env or None): Previous environment. Should not be used
                 after being passed in, and should not be closed.
 
         Returns:

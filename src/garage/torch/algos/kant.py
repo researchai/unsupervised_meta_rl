@@ -385,9 +385,9 @@ class MetaKant(MetaRLAlgorithm):
 
         # optimize policy
         log_policy_target = min_q
-        print("policy_log_pi")
-        print(policy_log_pi.size())
-        print(log_policy_target.size())
+        # print("policy_log_pi")
+        # print(policy_log_pi.size())
+        # print(log_policy_target.size())
         policy_loss = (policy_log_pi - log_policy_target).mean()
 
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean ** 2).mean()
@@ -473,6 +473,7 @@ class MetaKant(MetaRLAlgorithm):
         initialized = False
         for idx in indices:
             path = self._context_replay_buffers[idx].sample_path()
+            # should be replay_buffers[]
             # TODO: trim or extend batch to the same size
 
             context_o = path['states']

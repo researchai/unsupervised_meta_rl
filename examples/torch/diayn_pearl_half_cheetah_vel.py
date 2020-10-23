@@ -104,9 +104,9 @@ def diayn_half_cheetah_vel_batch_for_pearl(ctxt=None, seed=1):
 
 
 s = np.random.randint(0, 1000)  # 521 in the sac_cheetah example
-# task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
+task_proposer, diayn_trained_agent = diayn_half_cheetah_vel_batch_for_pearl(seed=s)
 
-
+'''
 load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl_3')
 itr = 900
 load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
@@ -115,7 +115,7 @@ saved = joblib.load(file)
 file.close()
 diayn = saved['algo']
 task_proposer = diayn.networks[1]  # _discriminator
-
+'''
 ########################## hyper params for PEARL ##########################
 
 param_num_epoches = 500

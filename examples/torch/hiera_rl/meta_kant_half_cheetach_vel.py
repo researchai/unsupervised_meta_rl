@@ -80,7 +80,7 @@ param_use_gpu = True
 @click.option('--embedding_mini_batch_size',
               default=param_embedding_mini_batch_size)
 @click.option('--max_path_length', default=param_max_path_length)
-@wrap_experiment(snapshot_mode='last')
+@wrap_experiment(snapshot_mode='gap and last', snapshot_gap=100)
 def meta_kant_cheetah_vel(ctxt=None,
                           seed=seed,
                           num_skills=skills_num,
@@ -206,7 +206,7 @@ def save_list_to_file(x, filename):
 
 if not os.path.exists('tmp'):
     os.makedirs('tmp')
-save_list_to_file(metakant_returns, "tmp/metakant_returns.txt")
+save_list_to_file(metakant_returns, "tmp/metakant_half_cheetah_returns.txt")
 
 
 
