@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 from garage.misc.overrides import overrides
 from garage.misc.serializable import Serializable
-from rllab.spaces.box import Box
-from rllab.envs.base import Env
+from garage.misc.box import Box
+from garage.misc.base import Env
 from garage.misc import logger
 
 
