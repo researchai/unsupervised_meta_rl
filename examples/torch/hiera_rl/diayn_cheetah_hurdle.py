@@ -84,4 +84,4 @@ def diayn_cheetah_hurdle(ctxt=None, seed=1):
 
 
 s = np.random.randint(0, 1000)
-diayn_cheetah_hurdle(seed=521)  # 521 in the sac_cheetah example
+diayn_cheetah_hurdle(seed=s)  # 521 in the sac_cheetah example
