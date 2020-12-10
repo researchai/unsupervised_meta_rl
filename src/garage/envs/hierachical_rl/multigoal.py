@@ -1,9 +1,12 @@
+import akro
 import numpy as np
 import matplotlib.pyplot as plt
+from gym.spaces import Box
 
+from garage.envs.env_spec import EnvSpec
 from garage.misc.overrides import overrides
 from garage.misc.serializable import Serializable
-from garage.misc.box import Box
+#from garage.misc.box import Box
 from garage.misc.base import Env
 from garage.misc import logger
 
@@ -47,6 +50,8 @@ class MultiGoalEnv(Env, Serializable):
         self._env_lines = list()
         self.fixed_plots = None
         self.dynamic_plots = []
+        self.__spec = EnvSpec(action_space=self.action_space,
+                              observation_space=self.observation_space)
 
     @overrides
     def reset(self):
@@ -56,23 +61,27 @@ class MultiGoalEnv(Env, Serializable):
         self.observation = np.clip(unclipped_observation, o_lb, o_ub)
         return self.observation
 
+    @property
+    def spec(self):
+        return self.__spec
+
     @overrides
     @property
     def observation_space(self):
-        return Box(
+        return akro.from_gym(Box(
             low=np.array((self.xlim[0], self.ylim[0])),
             high=np.array((self.xlim[1], self.ylim[1])),
             shape=None
-        )
+        ))
 
     @overrides
     @property
     def action_space(self):
-        return Box(
+        return akro.from_gym(Box(
             low=-self.vel_bound,
             high=self.vel_bound,
             shape=(self.dynamics.a_dim,)
-        )
+        ))
 
     def get_current_obs(self):
         return np.copy(self.observation)
