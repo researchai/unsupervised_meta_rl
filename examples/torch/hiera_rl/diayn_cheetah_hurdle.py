@@ -20,7 +20,7 @@ from garage.torch.policies import TanhGaussianMLPSkillPolicy
 from garage.torch.q_functions import ContinuousMLPSkillQFunction
 
 
-@wrap_experiment(snapshot_mode='gap and last', snapshot_gap=100)
+@wrap_experiment(snapshot_mode='gap_and_last', snapshot_gap=100)
 def diayn_cheetah_hurdle(ctxt=None, seed=1):
 
     deterministic.set_seed(seed)
