@@ -66,7 +66,6 @@ class MultiGoalEnv(Env, Serializable):
     def spec(self):
         return self.__spec
 
-    @overrides
     @property
     def observation_space(self):
         return akro.from_gym(Box(
@@ -75,7 +74,6 @@ class MultiGoalEnv(Env, Serializable):
             shape=None
         ))
 
-    @overrides
     @property
     def action_space(self):
         return akro.from_gym(Box(
@@ -191,7 +189,6 @@ class MultiGoalEnv(Env, Serializable):
     def set_param_values(self, params):
         pass
 
-    @overrides
     def log_diagnostics(self, paths):
         n_goal = len(self.goal_positions)
         goal_reached = [False] * n_goal
@@ -204,7 +201,6 @@ class MultiGoalEnv(Env, Serializable):
 
         logger.record_tabular('env:goals_reached', goal_reached.count(True))
 
-    @overrides
     def horizon(self):
         return None
 
