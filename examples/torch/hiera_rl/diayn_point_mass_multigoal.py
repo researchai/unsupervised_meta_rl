@@ -24,7 +24,7 @@ def diayn_point_mass_multigoal(ctxt=None, seed=1):
 
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
-    env = GarageEnv(normalize(MultiGoalEnv()))
+    env = GarageEnv(MultiGoalEnv())
     skills_num = 6
 
     policy = TanhGaussianMLPSkillPolicy(
