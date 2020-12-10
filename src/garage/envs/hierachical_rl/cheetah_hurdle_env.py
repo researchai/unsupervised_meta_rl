@@ -1,18 +1,16 @@
 """Implements a ant which is sparsely rewarded for reaching a goal"""
-# from gym.envs.mujoco.half_cheetah import HalfCheetahEnv
-# from gym.envs.mujoco.mujoco_env import MujocoEnv
-
-
 import os
-
 import numpy as np
-from rllab.core.serializable import Serializable
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.mujoco.mujoco_env import MujocoEnv
+from gym.envs.mujoco.half_cheetah import HalfCheetahEnv
+from gym.envs.mujoco.mujoco_env import MujocoEnv
 
-PROJECT_PATH = os.path.dirname(
-    os.path.realpath(os.path.join(__file__, '..', '..')))
-MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'sac/mujoco_models'))
+from garage.misc.serializable import Serializable
+# from rllab.core.serializable import Serializable
+# from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+# from rllab.envs.mujoco.mujoco_env import MujocoEnv
+
+PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))
+MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'mujoco_models'))
 
 
 class HalfCheetahHurdleEnv(HalfCheetahEnv):

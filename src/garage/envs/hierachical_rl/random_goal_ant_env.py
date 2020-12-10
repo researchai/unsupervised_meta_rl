@@ -1,7 +1,7 @@
 """Implements a ant which is sparsely rewarded for reaching a goal"""
 
 import numpy as np
-from rllab.core.serializable import Serializable
+from garage.misc.serializable import Serializable
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.misc.overrides import overrides
 from rllab.envs.base import Step

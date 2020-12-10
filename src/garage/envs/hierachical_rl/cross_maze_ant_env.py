@@ -4,12 +4,12 @@ import os
 
 import numpy as np
 
-from rllab.core.serializable import Serializable
+from garage.misc.serializable import Serializable
 from .helpers import random_point_in_circle, get_random_goal_logs
 from .random_goal_ant_env import RandomGoalAntEnv
 
-PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..', '..')))
-MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'sac/mujoco_models'))
+PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))
+MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'mujoco_models'))
 
 class CrossMazeAntEnv(RandomGoalAntEnv, Serializable):
     """Implements an ant whose goal is to reach a target in a maze"""
