@@ -126,7 +126,7 @@ class MultiGoalEnv(Env, Serializable):
         self._plot_position_cost(self._ax)
 
     @overrides
-    def render(self, paths):
+    def render(self, paths, save_path):
         if self._ax is None:
             self._init_plot()
 
@@ -141,7 +141,10 @@ class MultiGoalEnv(Env, Serializable):
             self._env_lines += self._ax.plot(xx, yy, 'b')
 
         plt.draw()
-        plt.pause(0.01)
+        plt.savefig(save_path)
+        # plt.pause(0.01)
+        #return fig.canvas.tostring_rgb()
+
 
     def compute_reward(self, observation, action):
         # penalize the L2 norm of acceleration

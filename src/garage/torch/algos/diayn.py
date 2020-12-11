@@ -42,8 +42,9 @@ class DIAYN(SAC):
                  eval_env=None,
                  time_per_render=60,
                  recorded=False,
-                 video_save_path='diayn_tmp/',
-                 video_record_epoch=100,
+                 is_gym_render=True,
+                 media_save_path='diayn_tmp/',
+                 media_record_epoch=100,
                  steps_skip_per_second=40):
 
         super().__init__(env_spec=env_spec,
@@ -78,9 +79,10 @@ class DIAYN(SAC):
             lr=self._policy_lr)
         # video recording params
         self._time_per_render = time_per_render
-        self._video_save_path = video_save_path
+        self._media_save_path = media_save_path
         self._recorded = recorded
-        self._video_record_epoch = video_record_epoch
+        self._is_gym_render = is_gym_render
+        self._video_record_epoch = media_record_epoch
         self._steps_skip_per_second = steps_skip_per_second
 
     def train(self, runner):
@@ -129,7 +131,7 @@ class DIAYN(SAC):
             tabular.record('TotalEnvSteps', runner.total_env_steps)
             if runner.step_itr % self._video_record_epoch == 0 and \
                 runner.step_itr != 0:
-                self.make_videos_skills(runner.step_itr)
+                self.make_medias_skills(runner.step_itr)
             runner.step_itr += 1
 
         return np.mean(last_self_return)  # last_env_return
@@ -258,23 +260,28 @@ class DIAYN(SAC):
                                             discount=self.discount)
         return last_return
 
-    def make_videos_skills(self, current_epoch):
+    def make_medias_skills(self, current_epoch):
         import os
-        if not os.path.exists(self._video_save_path):
-            os.makedirs(self._video_save_path)
+        if not os.path.exists(self._media_save_path):
+            os.makedirs(self._media_save_path)
 
         max_path_length = self.max_eval_path_length
         if max_path_length is None or np.isinf(max_path_length):
             max_path_length = 1000
         for skill in range(self.skills_num):
-            filename = "epoch{}_skill{}.mp4".format(current_epoch, skill)
+            if self._is_gym_render is True:
+                filename = "epoch{}_skill{}.mp4".format(current_epoch, skill)
+            else:
+                filename = "epoch{}_skill{}.png".format(current_epoch, skill)
+
             _ = self._rollout(self._eval_env,
                               self.policy,
+                              skill=skill,
                               max_path_length=max_path_length,
                               deterministic=True,
                               recorded=True,
-                              save_video_filename="{}{}".format(
-                                  self._video_save_path,
+                              save_media_filename="{}{}".format(
+                                  self._media_save_path,
                                   filename))
 
     def _obtain_evaluation_samples(self, env, num_trajs=100):
@@ -337,17 +344,17 @@ class DIAYN(SAC):
                  env,
                  agent,  # self.policy
                  *,
-                 skill=None,
+                 skill=-1,
                  max_path_length=np.inf,
                  animated=False,
                  recorded=False,
-                 save_video_filename=None,
+                 save_media_filename=None,
                  speedup=1,
                  deterministic=False):
 
         # TODO: sanity check if agent isinstance of skill algo
 
-        if skill is None:
+        if skill is -1:
             skill = self._sample_skill()
         skills = []
         states = []
@@ -364,10 +371,10 @@ class DIAYN(SAC):
         path_length = 0
 
         video_buffer = []
-        if recorded:
+        if recorded and self._is_gym_render is True:
             video_buffer.append(env.render(mode="rgb_array"))
 
-        if animated:
+        if animated and self._is_gym_render is True:
             env.render(mode="human")
 
         while path_length < (max_path_length or np.inf):
@@ -393,12 +400,26 @@ class DIAYN(SAC):
                 env.render()
                 timestep = 0.05
                 time.sleep(timestep / speedup)
-            if recorded:
+            if recorded and self._is_gym_render is True:
                 video_buffer.append(env.render(mode="rgb_array"))
 
-        if recorded:
+        if recorded and self._is_gym_render is False:
+            env.render(
+                paths=dict(
+                    skills=skills,
+                    states=states,
+                    actions=actions,
+                    self_rewards=self_rewards,  # squeeze column
+                    env_rewards=env_rewards,
+                    agent_infos=agent_infos,
+                    env_infos=env_infos,
+                    dones=dones),
+                save_path=save_media_filename
+            )
+
+        if recorded and self._is_gym_render is True:
             fps = (1 / self._time_per_render)
-            self._save_video(video_buffer, save_video_filename, fps)
+            self._save_video(video_buffer, save_media_filename, fps)
 
         return dict(
             skills=skills,
