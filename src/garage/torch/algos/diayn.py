@@ -405,7 +405,7 @@ class DIAYN(SAC):
 
         if recorded and self._is_gym_render is False:
             env.render(
-                paths=dict(
+                paths=[dict(
                     skills=skills,
                     states=states,
                     actions=actions,
@@ -413,7 +413,7 @@ class DIAYN(SAC):
                     env_rewards=env_rewards,
                     agent_infos=agent_infos,
                     env_infos=env_infos,
-                    dones=dones),
+                    dones=dones)],
                 save_path=save_media_filename
             )
 
