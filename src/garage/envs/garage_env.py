@@ -63,8 +63,7 @@ class GarageEnv(gym.Wrapper):
 
         if isinstance(self.env.action_space, Box):
             self.action_space = akro.Box(low=self.env.action_space.low, high=self.env.action_space.high)
-            self.observation_space = akro.Image(shape=(self.env.observation_space.low,
-                                                       self.env.observation_space.high))
+            self.observation_space = akro.Image(shape=self.env.observation_space.shape)
         else:
             self.action_space = akro.from_gym(self.env.action_space)
             self.observation_space = akro.from_gym(self.env.observation_space,
