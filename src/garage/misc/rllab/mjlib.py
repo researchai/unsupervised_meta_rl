@@ -4,13 +4,12 @@ from .util import *
 from .mjtypes import *
 
 osp = os.path
-mujoco_path = "/home/paperspace/.mujoco/mujoco200_linux/bin/"
 if sys.platform.startswith("darwin"):
-    libfile = osp.abspath(osp.join(mujoco_path, "libmujoco200.dylib"))
+    libfile = osp.abspath(osp.join(osp.dirname(__file__),"mujoco131/bin/libmujoco131.dylib"))
 elif sys.platform.startswith("linux"):
-    libfile = osp.abspath(osp.join(mujoco_path, "libmujoco200.so"))
+    libfile = osp.abspath(osp.join(osp.dirname(__file__),"mujoco131/bin/libmujoco131.so"))
 elif sys.platform.startswith("win"):
-    libfile = osp.abspath(osp.join(mujoco_path, "mujoco.lib"))
+    libfile = osp.abspath(osp.join(osp.dirname(__file__),"mujoco131/bin/mujoco.lib"))
 else:
     raise RuntimeError("unrecognized platform %s"%sys.platform)
 
@@ -20,8 +19,8 @@ mjlib = cdll.LoadLibrary(libfile)
 
 mjlib.mj_loadXML.argtypes = [String, String, c_char_p, c_int]
 mjlib.mj_loadXML.restype = POINTER(MJMODEL)
-mjlib.mj_saveLastXML.argtypes = [String, POINTER(MJMODEL), String]
-mjlib.mj_saveLastXML.restype = c_int
+mjlib.mj_saveXML.argtypes = [String, POINTER(MJMODEL), String]
+mjlib.mj_saveXML.restype = c_int
 
 #mjlib.mj_printSchema.argtypes = [String, String, c_int, c_int, c_int]
 #mjlib.mj_printSchema.restype = c_int
