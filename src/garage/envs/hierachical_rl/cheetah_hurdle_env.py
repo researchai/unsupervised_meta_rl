@@ -19,7 +19,7 @@ class HalfCheetahHurdleEnv(HalfCheetahEnv):
         self.hurdles_xpos = [-15., -13., -9., -5., -1., 3., 7., 11.,
                              15.]  # ,19.,23.,27.]
         path = os.path.join(MODELS_PATH, 'half_cheetah_hurdle.xml')
-        MujocoEnv.__init__(self, model_path=path, frame_skip=1)
+        MujocoEnv.__init__(self, file_path=path)
         # MujocoEnv.__init__(self)
         Serializable.quick_init(self, locals())
 
