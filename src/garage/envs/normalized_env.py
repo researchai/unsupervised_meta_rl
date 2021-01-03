@@ -1,7 +1,10 @@
 """An environment wrapper that normalizes action, observation and reward."""
 import gym
-
+import gym.spaces
+import gym.spaces.utils
 import numpy as np
+
+from garage.misc.rllab.box import Box
 
 
 class NormalizedEnv(gym.Wrapper):
@@ -45,7 +48,10 @@ class NormalizedEnv(gym.Wrapper):
         self._flatten_obs = flatten_obs
 
         self._obs_alpha = obs_alpha
-        flat_obs_dim = env.observation_space.flat_dim
+        if isinstance(env.observation_space, Box):
+            flat_obs_dim = env.observation_space.flat_dim
+        else:
+            flat_obs_dim = gym.spaces.utils.flatdim(env.observation_space)
         self._obs_mean = np.zeros(flat_obs_dim)
         self._obs_var = np.ones(flat_obs_dim)
 
@@ -54,7 +60,10 @@ class NormalizedEnv(gym.Wrapper):
         self._reward_var = 1.
 
     def _update_obs_estimate(self, obs):
-        flat_obs = self.env.observation_space.flatten(obs)
+        if isinstance(self.env.observation_space, Box):
+            flat_obs = self.env.observation_space.flatten(obs)
+        else:
+            flat_obs = gym.spaces.utils.flatten(self.env.observation_space, obs)
         self._obs_mean = (
             1 - self._obs_alpha) * self._obs_mean + self._obs_alpha * flat_obs
         self._obs_var = (
@@ -80,11 +89,18 @@ class NormalizedEnv(gym.Wrapper):
 
         """
         self._update_obs_estimate(obs)
-        flat_obs = self.env.observation_space.flatten(obs)
+        if isinstance(self.env.observation_space, Box):
+            flat_obs = self.env.observation_space.flatten(obs)
+        else:
+            flat_obs = gym.spaces.utils.flatten(self.env.observation_space, obs)
         normalized_obs = (flat_obs -
                           self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
         if not self._flatten_obs:
-            normalized_obs = self.env.observation_space.unflatten(normalized_obs)
+            if isinstance(self.env.observation_space, Box):
+                normalized_obs = self.env.observation_space.unflatten(normalized_obs)
+            else:
+                normalized_obs = gym.spaces.utils.unflatten(
+                    self.env.observation_space, normalized_obs)
         return normalized_obs
 
     def _apply_normalize_reward(self, reward):
@@ -136,7 +152,7 @@ class NormalizedEnv(gym.Wrapper):
                 * infos (dict): Environment-dependent additional information.
 
         """
-        if isinstance(self.action_space, gym.spaces.Box):
+        if isinstance(self.action_space, gym.spaces.Box) or isinstance(self.action_space, Box):
             # rescale the action when the bounds are not inf
             lb, ub = self.action_space.low, self.action_space.high
             if np.all(lb != -np.inf) and np.all(ub != -np.inf):
