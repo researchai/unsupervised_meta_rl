@@ -1,7 +1,6 @@
 """An environment wrapper that normalizes action, observation and reward."""
 import gym
-import gym.spaces
-import gym.spaces.utils
+
 import numpy as np
 
 
@@ -46,7 +45,7 @@ class NormalizedEnv(gym.Wrapper):
         self._flatten_obs = flatten_obs
 
         self._obs_alpha = obs_alpha
-        flat_obs_dim = gym.spaces.utils.flatdim(env.observation_space)
+        flat_obs_dim = env.observation_space.flat_dim
         self._obs_mean = np.zeros(flat_obs_dim)
         self._obs_var = np.ones(flat_obs_dim)
 
@@ -55,7 +54,7 @@ class NormalizedEnv(gym.Wrapper):
         self._reward_var = 1.
 
     def _update_obs_estimate(self, obs):
-        flat_obs = gym.spaces.utils.flatten(self.env.observation_space, obs)
+        flat_obs = self.env.observation_space.flatten(obs)
         self._obs_mean = (
             1 - self._obs_alpha) * self._obs_mean + self._obs_alpha * flat_obs
         self._obs_var = (
@@ -81,12 +80,11 @@ class NormalizedEnv(gym.Wrapper):
 
         """
         self._update_obs_estimate(obs)
-        flat_obs = gym.spaces.utils.flatten(self.env.observation_space, obs)
+        flat_obs = self.env.observation_space.flatten(obs)
         normalized_obs = (flat_obs -
                           self._obs_mean) / (np.sqrt(self._obs_var) + 1e-8)
         if not self._flatten_obs:
-            normalized_obs = gym.spaces.utils.unflatten(
-                self.env.observation_space, normalized_obs)
+            normalized_obs = self.env.observation_space.unflatten(normalized_obs)
         return normalized_obs
 
     def _apply_normalize_reward(self, reward):
