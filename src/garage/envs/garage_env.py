@@ -12,6 +12,8 @@ from garage.envs.env_spec import EnvSpec
 
 # The gym environments using one of the packages in the following lists as
 # entry points don't close their viewer windows.
+from garage.misc.rllab.box import Box
+
 KNOWN_GYM_NOT_CLOSE_VIEWER = [
     # Please keep alphabetized
     'gym.envs.atari',
@@ -59,9 +61,15 @@ class GarageEnv(gym.Wrapper):
         else:
             super().__init__(env)
 
-        self.action_space = akro.from_gym(self.env.action_space)
-        self.observation_space = akro.from_gym(self.env.observation_space,
-                                               is_image=is_image)
+        if isinstance(self.env.action_space, Box):
+            self.action_space = akro.Box(low=self.env.action_space.low, high=self.env.action_space.high)
+            self.observation_space = akro.Image(shape=(self.env.observation_space.low,
+                                                       self.env.observation_space.high))
+        else:
+            self.action_space = akro.from_gym(self.env.action_space)
+            self.observation_space = akro.from_gym(self.env.observation_space,
+                                                   is_image=is_image)
+
         self.__spec = EnvSpec(action_space=self.action_space,
                               observation_space=self.observation_space)
 
