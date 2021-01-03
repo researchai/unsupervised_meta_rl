@@ -1,7 +1,8 @@
 import time
 
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.core.serializable import Serializable
+
+from garage.misc_rllab.serializable import Serializable
 
 
 class DelayedEnv(ProxyEnv, Serializable):

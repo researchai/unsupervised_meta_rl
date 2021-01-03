@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from garage.misc.serializable import Serializable
+from garage.misc_rllab.serializable import Serializable
 from .helpers import random_point_in_circle, get_random_goal_logs
 from .random_goal_ant_env import RandomGoalAntEnv
 

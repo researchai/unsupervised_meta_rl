@@ -1,11 +1,10 @@
 import os.path as osp
-
+import os
 import numpy as np
 
-from rllab.core.serializable import Serializable
-from rllab.envs.mujoco.mujoco_env import MujocoEnv
-from rllab.misc import logger
-from rllab.misc.overrides import overrides
+from garage.envs.rllab.rllab_mujoco_env import MujocoEnv
+from garage.misc_rllab import logger
+from garage.misc_rllab.serializable import Serializable
 
 PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..', '..')))
 MODELS_PATH = osp.abspath(osp.join(PROJECT_PATH, 'sac/mujoco_models'))
@@ -161,7 +160,6 @@ class PusherEnv(MujocoEnv, Serializable):
 
         return self.get_current_obs()
 
-    @overrides
     def get_current_obs(self):
         return np.concatenate([
             self.model.data.qpos.flat[self.JOINT_INDS],
@@ -170,7 +168,6 @@ class PusherEnv(MujocoEnv, Serializable):
             self.get_body_com("object"),
         ]).reshape(-1)
 
-    @overrides
     def log_diagnostics(self, paths):
         arm_dists = [p['env_infos'][-1]['arm_distance'] for p in paths]
         goal_dists = [p['env_infos'][-1]['goal_distance'] for p in paths]

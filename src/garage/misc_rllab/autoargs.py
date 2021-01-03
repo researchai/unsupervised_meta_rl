@@ -1,4 +1,4 @@
-from garage.misc.console import colorize
+from garage.misc_rllab.console import colorize
 import inspect
 
 
@@ -30,24 +30,24 @@ def prefix(prefix_):
 
 
 def _get_prefix(cls):
-    from rllab.mdp.base import MDP
-    from rllab.policies.base import Policy
-    from rllab.baselines.base import Baseline
-    from rllab.algos.base import Algorithm
+    #from rllab.mdp.base import MDP
+    #from rllab.policies.base import Policy
+    #from rllab.baselines.base import Baseline
+    #from rllab.algos.base import Algorithm
 
-    if hasattr(cls.__init__, '_autoargs_prefix'):
-        return cls.__init__._autoargs_prefix
-    elif issubclass(cls, MDP):
-        return 'mdp_'
-    elif issubclass(cls, Algorithm):
-        return 'algo_'
-    elif issubclass(cls, Baseline):
-        return 'baseline_'
-    elif issubclass(cls, Policy):
-        return 'policy_'
-    else:
-        return ""
-
+    #if hasattr(cls.__init__, '_autoargs_prefix'):
+    #    return cls.__init__._autoargs_prefix
+    #elif issubclass(cls, MDP):
+    #    return 'mdp_'
+    #elif issubclass(cls, Algorithm):
+    #    return 'algo_'
+    #elif issubclass(cls, Baseline):
+    #    return 'baseline_'
+    #elif issubclass(cls, Policy):
+    #    return 'policy_'
+    #else:
+    #    return ""
+    return ""
 
 def _get_info(cls_or_fn):
     if isinstance(cls_or_fn, type):

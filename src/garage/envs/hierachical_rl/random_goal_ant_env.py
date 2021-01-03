@@ -1,15 +1,12 @@
 """Implements a ant which is sparsely rewarded for reaching a goal"""
 
 import numpy as np
-from garage.misc.serializable import Serializable
-from rllab.envs.mujoco.ant_env import AntEnv
-from rllab.misc.overrides import overrides
-from rllab.envs.base import Step
-from rllab.envs.mujoco.mujoco_env import MujocoEnv
-from rllab.misc import logger, autoargs
-import pickle
+from garage.misc_rllab.serializable import Serializable
 from .helpers import random_point_in_circle, get_random_goal_logs
-
+from .. import Step
+from ..rllab.rllab_ant_env import AntEnv
+from ..rllab.rllab_mujoco_env import MujocoEnv
+from ...misc_rllab import autoargs, logger
 
 REWARD_TYPES = ('dense', 'sparse')
 
@@ -91,7 +88,6 @@ class RandomGoalAntEnv(AntEnv):
 
         return observation
 
-    @overrides
     def step(self, action):
         self.forward_dynamics(action)
 
@@ -142,7 +138,6 @@ class RandomGoalAntEnv(AntEnv):
         info = {'goal_position': self.goal_position}
         return Step(next_observation, reward, done, **info)
 
-    @overrides
     def log_diagnostics(self, paths, *args, **kwargs):
         logs = get_random_goal_logs(
             paths,

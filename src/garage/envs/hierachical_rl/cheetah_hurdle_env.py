@@ -1,10 +1,10 @@
 """Implements a ant which is sparsely rewarded for reaching a goal"""
 import os
 import numpy as np
-from gym.envs.mujoco.half_cheetah import HalfCheetahEnv
-from gym.envs.mujoco.mujoco_env import MujocoEnv
 
-from garage.misc.serializable import Serializable
+from garage.envs.rllab.rllab_cheetah_env import HalfCheetahEnv
+from garage.envs.rllab.rllab_mujoco_env import MujocoEnv
+from garage.misc_rllab.serializable import Serializable
 # from rllab.core.serializable import Serializable
 # from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 # from rllab.envs.mujoco.mujoco_env import MujocoEnv
@@ -19,12 +19,12 @@ class HalfCheetahHurdleEnv(HalfCheetahEnv):
         self.hurdles_xpos = [-15., -13., -9., -5., -1., 3., 7., 11.,
                              15.]  # ,19.,23.,27.]
         path = os.path.join(MODELS_PATH, 'half_cheetah_hurdle.xml')
-        MujocoEnv.__init__(self, file_path=path)
+        MujocoEnv.__init__(self, model_path=path, frame_skip=1)
         # MujocoEnv.__init__(self)
         Serializable.quick_init(self, locals())
 
     def get_current_obs(self):
-        proprioceptive_observation = super().get_current_obs()
+        proprioceptive_observation = self._get_primitive_obs()
         x_pos1 = self.get_body_com('ffoot')[0]  # self.model.data.qpos.flat[:1]
         x_pos2 = self.get_body_com('bfoot')[0]  # self.model.data.qpos.flat[:1]
         matches = [x for x in self.hurdles_xpos if x >= x_pos2]
@@ -35,6 +35,13 @@ class HalfCheetahHurdleEnv(HalfCheetahEnv):
             [proprioceptive_observation, next_hurdle_x_pos,
              bf_dist_frm_next_hurdle]).reshape(-1)
         return observation
+
+    def _get_primitive_obs(self):
+        return np.concatenate([
+            self.model.data.qpos.flatten()[1:],
+            self.model.data.qvel.flat,
+            self.get_body_com("torso").flat,
+        ])
 
     def isincollision(self):
         hurdle_size = [0.05, 1.0, 0.03]
@@ -97,3 +104,4 @@ class HalfCheetahHurdleEnv(HalfCheetahEnv):
         reward = -1e-1 * goal_distance + hurdle_reward + goal_reward + run_reward + 3e-1 * jump_reward + collision_penality  # 1e-1*goal_distance+run_reward+jump_reward+collision_penality
         info = {'goal_distance': goal_distance}
         return next_obs, reward, done, info
+

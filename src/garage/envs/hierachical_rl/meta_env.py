@@ -1,8 +1,11 @@
-from rllab import spaces
-from rllab.core.serializable import Serializable
-from rllab.envs.env_spec import EnvSpec
+
 
 import numpy as np
+
+from garage.misc_rllab import spaces
+from garage.misc_rllab.env_spec import EnvSpec
+from garage.misc_rllab.serializable import Serializable
+
 
 class MetaEnv(Serializable):
     def __init__(self, env, base_policy, num_skills, steps_per_option=100):

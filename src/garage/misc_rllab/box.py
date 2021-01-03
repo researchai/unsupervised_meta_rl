@@ -1,8 +1,9 @@
 import numpy as np
-import theano
-from garage.misc import ext
+import torch
 
-from garage.misc.space import Space
+from garage.misc_rllab import ext
+
+from garage.misc_rllab.spaces import Space
 
 
 class Box(Space):
@@ -72,5 +73,5 @@ class Box(Space):
         return ext.new_tensor(
             name=name,
             ndim=extra_dims+1,
-            dtype=theano.config.floatX
+            dtype=torch.float
         )

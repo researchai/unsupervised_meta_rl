@@ -1,5 +1,5 @@
 """
-This script creates a test that tests functions in garage.tf.misc.tensor_utils.
+This script creates a test that tests functions in garage.tf.misc_rllab.tensor_utils.
 """
 import numpy as np
 import tensorflow as tf

@@ -1,8 +1,8 @@
 from enum import Enum
 
-from garage.misc.tabulate import tabulate
-from garage.misc.console import mkdir_p, colorize
-from garage.misc.autoargs import get_all_parameters
+from garage.misc_rllab.tabulate import tabulate
+from garage.misc_rllab.console import mkdir_p, colorize
+from garage.misc_rllab.autoargs import get_all_parameters
 from contextlib import contextmanager
 import numpy as np
 import os

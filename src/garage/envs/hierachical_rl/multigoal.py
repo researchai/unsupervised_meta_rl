@@ -7,8 +7,8 @@ from gym.spaces import Box
 from garage.envs.env_spec import EnvSpec
 from garage.misc.overrides import overrides
 from garage.misc.serializable import Serializable
-#from garage.misc.box import Box
-#from garage.misc.base import Env
+#from garage.misc_rllab.box import Box
+#from garage.misc_rllab.base import Env
 from garage.misc import logger
 
 

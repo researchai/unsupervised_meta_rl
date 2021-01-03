@@ -1,7 +1,9 @@
 """Implements an environment proxy to test hierarchy policies"""
 
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.core.serializable import Serializable
+
+from garage.misc_rllab.serializable import Serializable
+
 
 class HierarchyProxyEnv(ProxyEnv):
     def __init__(self, low_level_policy, *args, **kwargs):
