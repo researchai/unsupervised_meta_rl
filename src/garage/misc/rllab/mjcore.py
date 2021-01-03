@@ -1,3 +1,4 @@
+import os
 import ctypes
 from . import mjconstants as C
 
@@ -7,7 +8,8 @@ from .mjlib import mjlib
 class MjError(Exception):
     pass
 
-
+osp = os.path
+key_path =  osp.abspath(osp.join(osp.dirname(__file__),"mujoco131/bin/mjkey.txt"))
 def register_license(file_path):
     """
     activates mujoco with license at `file_path`
@@ -28,6 +30,7 @@ class dict2(dict):
 class MjModel(MjModelWrapper):
 
     def __init__(self, xml_path):
+        register_license(key_path)
         buf = create_string_buffer(1000)
         model_ptr = mjlib.mj_loadXML(xml_path, None, buf, 1000)
         if len(buf.value) > 0:
