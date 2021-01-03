@@ -6,9 +6,9 @@ from .mjtypes import *
 osp = os.path
 mujoco_path = "/home/paperspace/.mujoco/mujoco200_linux/bin/"
 if sys.platform.startswith("darwin"):
-    libfile = osp.abspath(osp.join(mujoco_path, "libmujoco131.dylib"))
+    libfile = osp.abspath(osp.join(mujoco_path, "libmujoco200.dylib"))
 elif sys.platform.startswith("linux"):
-    libfile = osp.abspath(osp.join(mujoco_path, "libmujoco131.so"))
+    libfile = osp.abspath(osp.join(mujoco_path, "libmujoco200.so"))
 elif sys.platform.startswith("win"):
     libfile = osp.abspath(osp.join(mujoco_path, "mujoco.lib"))
 else:
