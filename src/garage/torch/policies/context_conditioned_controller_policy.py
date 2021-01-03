@@ -9,6 +9,9 @@ from garage.torch.policies import ContextConditionedPolicy
 
 
 class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
+    """
+
+    """
     def __init__(self, latent_dim, context_encoder, controller_policy,
                  num_skills, sub_actor, use_information_bottleneck,
                  use_next_obs):
@@ -55,18 +58,12 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
             context (X, N, C): X is the number of tasks, N is batch sizes,
             C is the combined size of o, a, r, no if used
         '''
-        # print("context")
-        # print(context.dtype)
-        # print(context)
         if self._use_information_bottleneck:
             self.z_means, self.z_vars = self._context_encoder.infer_posterior(context)
         else:
             self.z_means = self._context_encoder.infer_posterior(context)
         self.z_vars[self.z_vars != self.z_vars] = 0
         self.z_means[self.z_means != self.z_means] = 0
-        # print("means and vars")
-        # print(self.z_means)
-        # print(self.z_vars)
         self.sample_from_belief()
 
     # def sample_from_belief(self):
@@ -96,27 +93,11 @@ class OpenContextConditionedControllerPolicy(ContextConditionedPolicy):
 
     def get_action(self, obs):
         z = self.z
-        # print(z.size())
-        # print(z)
         obs = torch.as_tensor(obs[None], device=tu.global_device()).float()
         obs_in = torch.cat([obs, z], dim=1)
-        # print("in get_action from context conditioned controller policy")
-        # print(z.size())
-        # print(obs_in.size())
         skill_choice, info = self._controller_policy.get_action(obs_in)
         skill_z = torch.eye(self._num_skills)[skill_choice]
-        # print("in get_action from context conditioned controller")
-        # print(obs.size())
-        # print(self._num_skills)
-        # print("skill choice:")
-        # print(skill_choice)  # need to be int
-        # print(skill_z.size())
         action, _ = self._sub_actor.get_action(obs, skill_z)
-        # print(action)
-        # print(info)
-        # action = np.squeeze(action, axis=0)
-        # info['mean'] = np.squeeze(info['mean'], axis=0)
-
         return action, skill_choice, info
 
     # embed obs with cat

@@ -3,23 +3,24 @@ import sys
 from collections import defaultdict
 
 import akro
-import numpy as np
+from dowel import logger
 import torch
 import torch.nn.functional as F
-from dowel import logger
+import numpy as np
 
-import garage.torch.utils as tu
-from garage import SkillTrajectoryBatch, InOutSpec, SkillTimeStep
+from garage import TimeStep, SkillTrajectoryBatch, InOutSpec, SkillTimeStep
 from garage.envs import EnvSpec
-from garage.np.algos import RLAlgorithm
+from garage.experiment import MetaEvaluator
+from garage.np.algos import MetaRLAlgorithm
 from garage.replay_buffer import PathBuffer
 from garage.sampler import DefaultWorker
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy, GaussianContextEncoder
+import garage.torch.utils as tu
 
 
-class Kant(RLAlgorithm):
+class MetaKant(MetaRLAlgorithm):
     def __init__(self,
                  env,
                  skill_env,
@@ -32,6 +33,8 @@ class Kant(RLAlgorithm):
                  num_test_tasks,
                  latent_dim,
                  encoder_hidden_sizes,
+                 test_env_sampler,
+                 sampler_class,  # to avoid cycling import
                  controller_class=OpenContextConditionedControllerPolicy,
                  encoder_class=GaussianContextEncoder,
                  encoder_module_class=MLPEncoder,
@@ -55,7 +58,6 @@ class Kant(RLAlgorithm):
                  num_tasks_sample=5,
                  num_steps_prior=400,
                  num_steps_posterior=0,
-                 num_eval_trajs=50,
                  num_extra_rl_steps_posterior=600,
                  batch_size=1024,
                  embedding_batch_size=1024,
@@ -97,7 +99,6 @@ class Kant(RLAlgorithm):
         self._num_steps_prior = num_steps_prior
         self._num_steps_posterior = num_steps_posterior
         self._num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
-        self._num_eval_trajs = num_eval_trajs
         self._batch_size = batch_size
         self._embedding_batch_size = embedding_batch_size
         self._embedding_mini_batch_size = embedding_mini_batch_size
@@ -115,6 +116,17 @@ class Kant(RLAlgorithm):
 
         self._is_resuming = False
 
+        worker_args = dict(num_skills=num_skills,
+                           skill_actor_class=type(skill_actor),
+                           controller_class=controller_class,
+                           deterministic=False, accum_context=True)
+        self._evaluator = MetaEvaluator(test_task_sampler=test_env_sampler,
+                                        max_path_length=max_path_length,
+                                        worker_class=KantWorker,
+                                        worker_args=worker_args,
+                                        n_test_tasks=num_test_tasks,
+                                        sampler_class=sampler_class,
+                                        trajectory_batch_class=SkillTrajectoryBatch)
         self._average_rewards = []
 
         encoder_spec = self.get_env_spec(env[0](), latent_dim, num_skills,
@@ -233,7 +245,7 @@ class Kant(RLAlgorithm):
             logger.log('Evaluating...')
             # evaluate
             self._controller.reset_belief()
-            self._average_rewards.append(self._evaluate_policy(runner))
+            self._average_rewards.append(self._evaluator.evaluate(self))
 
         return self._average_rewards
 
@@ -403,8 +415,7 @@ class Kant(RLAlgorithm):
                              itr,
                              num_paths,
                              update_posterior_rate,
-                             add_to_enc_buffer=True,
-                             is_eval=False):
+                             add_to_enc_buffer=True):
         self._controller.reset_belief()
         total_paths = 0
 
@@ -413,7 +424,6 @@ class Kant(RLAlgorithm):
         else:
             num_paths_per_batch = num_paths
 
-        rewards_sum = 0
         while total_paths < num_paths:
             num_samples = num_paths_per_batch * self.max_path_length
             paths = runner.obtain_samples(itr, num_samples,
@@ -431,16 +441,13 @@ class Kant(RLAlgorithm):
                     'dones': path['dones'].reshape(-1, 1)
                 }
                 self._replay_buffers[self._task_idx].add_path(p)
-                rewards_sum += sum(path['env_rewards'])
+
                 if add_to_enc_buffer:
                     self._context_replay_buffers[self._task_idx].add_path(p)
 
             if update_posterior_rate != np.inf:
                 context = self._sample_path_context(self._task_idx)
                 self._controller.infer_posterior(context)
-
-        if is_eval:
-            return rewards_sum / total_paths
 
     def _sample_task_path(self, indices):
         if not hasattr(indices, '__iter__'):
@@ -632,14 +639,20 @@ class Kant(RLAlgorithm):
         return self._controller.networks + [self._controller] + [
             self._qf1, self._qf2, self._vf, self.target_vf]
 
-    def _evaluate_policy(self, runner):
-        return self._obtain_task_samples(
-            runner,
-            runner.step_itr,
-            self._num_eval_trajs,
-            update_posterior_rate=1,
-            add_to_enc_buffer=False,
-            is_eval=True)
+    def get_exploration_policy(self):
+        return self._controller
+
+    def adapt_policy(self, exploration_policy, exploration_trajectories):
+        total_steps = sum(exploration_trajectories.lengths)
+        o = exploration_trajectories.states
+        a = exploration_trajectories.actions
+        r = exploration_trajectories.env_rewards.reshape(total_steps, 1)
+        s = exploration_trajectories.skills_onehot
+        ctxt = np.hstack((o, a, r, s)).reshape(1, total_steps, -1)
+        context = torch.as_tensor(ctxt, device=tu.global_device()).float()
+        self._controller.infer_posterior(context)
+
+        return self._controller
 
 
 class KantWorker(DefaultWorker):
@@ -668,6 +681,12 @@ class KantWorker(DefaultWorker):
         self._prev_obs = None
 
     def start_rollout(self, skill=None):
+        # print("agent")
+        # print(type(self.agent))
+        # print("controller_class")
+        # print(self._controller_class)
+        # print("skill_actor")
+        # print(self._skill_actor_class)
         if isinstance(self.agent, self._skill_actor_class):
             if skill is None:
                 prob_skill = np.full(self._num_skills, 1.0 / self._num_skills)

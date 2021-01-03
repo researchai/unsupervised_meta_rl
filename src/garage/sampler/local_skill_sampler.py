@@ -1,7 +1,7 @@
 from garage import SkillTrajectoryBatch
 from garage.sampler import SkillWorker
 from garage.sampler.local_sampler import LocalSampler
-from garage.torch.algos.kant import KantWorker
+from garage.torch.algos.meta_kant import KantWorker
 
 
 class LocalSkillSampler(LocalSampler):

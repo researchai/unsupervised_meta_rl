@@ -1,5 +1,4 @@
 """An example to test diayn written in PyTorch."""
-import gym
 import numpy as np
 import torch
 from torch import nn

@@ -1,6 +1,9 @@
 import faulthandler
 import os
 
+from garage.envs.hierachical_rl.cheetah_hurdle_env import HalfCheetahHurdleEnv
+from garage.torch.algos.kant import Kant
+
 faulthandler.enable()
 
 import click
@@ -10,14 +13,13 @@ from torch.nn import functional
 
 import garage.torch.utils as tu
 from garage import wrap_experiment
-from garage.envs import GarageEnv, DiaynEnvWrapper
+from garage.envs import DiaynEnvWrapper
 from garage.envs import normalize
-from garage.envs.mujoco import HalfCheetahVelEnv
 from garage.experiment import LocalRunner
 from garage.experiment.deterministic import set_seed
-from garage.experiment.task_sampler import EnvPoolSampler, SetTaskSampler
+from garage.experiment.task_sampler import EnvPoolSampler
 from garage.sampler.local_skill_sampler import LocalSkillSampler
-from garage.torch.algos.meta_kant import MetaKant, KantWorker
+from garage.torch.algos.meta_kant import KantWorker
 from garage.torch.modules.categorical_mlp import CategoricalMLPPolicy
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy
@@ -26,7 +28,8 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 seed = np.random.randint(0, 1000)
 skills_num = 10
 
-load_dir = os.path.join(os.getcwd(), 'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl_3')
+load_dir = os.path.join(os.getcwd(),
+                        'data/local/experiment/diayn_half_cheetah_vel_batch_for_pearl_3')
 itr = 900
 load_from_file = os.path.join(load_dir, 'itr_{}.pkl'.format(itr))
 file = open(load_from_file, 'rb')
@@ -39,7 +42,7 @@ task_proposer = diayn.networks[1]  # _discriminator
 
 param_num_epoches = 500
 param_train_tasks_num = skills_num  # 100
-param_test_tasks_num = 5 # skills_num / 2  # 30
+param_test_tasks_num = 5  # skills_num / 2  # 30
 param_encoder_hidden_size = 200
 param_net_size = 300
 param_num_steps_per_epoch = 1000
@@ -58,6 +61,7 @@ param_meta_batch_size = 16
 param_skills_reason_reward_scale = 1
 param_tasks_adapt_reward_scale = 1.2
 param_use_gpu = True
+
 
 @click.command()
 @click.option('--num_epochs', default=param_num_epoches)
@@ -79,7 +83,7 @@ param_use_gpu = True
               default=param_embedding_mini_batch_size)
 @click.option('--max_path_length', default=param_max_path_length)
 @wrap_experiment(snapshot_mode='gap and last', snapshot_gap=100)
-def meta_kant_cheetah_vel(ctxt=None,
+def kant_cheetah_hurdle(ctxt=None,
                           seed=seed,
                           num_skills=skills_num,
                           num_epochs=param_num_epoches,
@@ -112,36 +116,32 @@ def meta_kant_cheetah_vel(ctxt=None,
                             encoder_hidden_size)
 
     ML_train_envs = [DiaynEnvWrapper(task_proposer, skills_num, task_name,
-                                     normalize(HalfCheetahVelEnv()))
+                                     normalize(HalfCheetahHurdleEnv()))
                      for task_name in range(skills_num)]
 
     env_sampler = EnvPoolSampler(ML_train_envs)
     env = env_sampler.sample(num_train_tasks)
 
-    test_env_sampler = SetTaskSampler(lambda: GarageEnv(normalize(
-        HalfCheetahVelEnv())))
-
     runner = LocalRunner(ctxt)
 
-    qf_env = MetaKant.get_env_spec(env[0](), latent_size, num_skills, "qf")
+    qf_env = Kant.get_env_spec(env[0](), latent_size, num_skills, "qf")
 
     qf = ContinuousMLPQFunction(env_spec=qf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    vf_env = MetaKant.get_env_spec(env[0](), latent_size, num_skills, 'vf')
+    vf_env = Kant.get_env_spec(env[0](), latent_size, num_skills, 'vf')
     vf = ContinuousMLPQFunction(env_spec=vf_env,
                                 hidden_sizes=[net_size, net_size, net_size])
 
-    controller_policy_env = MetaKant.get_env_spec(env[0](), latent_size,
-                                                  module="controller_policy",
-                                                  num_skills=num_skills)
+    controller_policy_env = Kant.get_env_spec(env[0](), latent_size,
+                                              module="controller_policy",
+                                              num_skills=num_skills)
 
     controller_policy = CategoricalMLPPolicy(env_spec=controller_policy_env,
                                              hidden_sizes=[net_size, net_size],
                                              hidden_nonlinearity=functional.relu)
 
-
-    metakant = MetaKant(
+    kant = Kant(
         env=env,
         skill_env=skill_env,
         controller_policy=controller_policy,
@@ -151,11 +151,9 @@ def meta_kant_cheetah_vel(ctxt=None,
         num_skills=num_skills,
         num_train_tasks=num_train_tasks,
         num_test_tasks=num_test_tasks,
-        sampler_class=LocalSkillSampler,
         is_encoder_recurrent=is_encoder_recurrent,
         latent_dim=latent_size,
         encoder_hidden_sizes=encoder_hidden_sizes,
-        test_env_sampler=test_env_sampler,
         meta_batch_size=meta_batch_size,
         num_initial_steps=num_initial_steps,
         num_tasks_sample=num_tasks_sample,
@@ -174,14 +172,14 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     tu.set_gpu_mode(use_gpu, gpu_id=0)
     if use_gpu:
-        metakant.to()
+        kant.to()
 
     worker_args = dict(num_skills=num_skills,
                        skill_actor_class=type(skill_actor),
                        controller_class=OpenContextConditionedControllerPolicy,
                        deterministic=False, accum_context=True)
 
-    runner.setup(algo=metakant,
+    runner.setup(algo=kant,
                  env=env[0](),
                  sampler_cls=LocalSkillSampler,
                  sampler_args=dict(max_path_length=max_path_length),
@@ -195,16 +193,16 @@ def meta_kant_cheetah_vel(ctxt=None,
 
     return average_returns
 
-metakant_returns = meta_kant_cheetah_vel()
+
+kant_returns = kant_cheetah_hurdle()
+
 
 def save_list_to_file(x, filename):
     with open(filename, 'w') as f:
         for item in x:
             f.write("%s\n" % item)
 
+
 if not os.path.exists('tmp'):
     os.makedirs('tmp')
-save_list_to_file(metakant_returns, "tmp/metakant_half_cheetah_returns.txt")
-
-
-
+save_list_to_file(kant_returns, "tmp/kant_cheetah_hurdle_returns.txt")

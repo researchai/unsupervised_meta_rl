@@ -105,15 +105,15 @@ class PEARL(MetaRLAlgorithm):
                  test_env_sampler,
                  policy_class=ContextConditionedPolicy,
                  encoder_class=MLPEncoder,
-                 policy_lr=3E-4,
-                 qf_lr=3E-4,
-                 vf_lr=3E-4,
-                 context_lr=3E-4,
+                 policy_lr=3E-4,  #1e-3
+                 qf_lr=3E-4,  #1e-3
+                 vf_lr=3E-4,  #1e-3
+                 context_lr=3E-4,  #1e-3
                  policy_mean_reg_coeff=1E-3,
                  policy_std_reg_coeff=1E-3,
                  policy_pre_activation_coeff=0.,
-                 soft_target_tau=0.005,
-                 kl_lambda=.1,
+                 soft_target_tau=0.005,  #1e-2
+                 kl_lambda=.1,  #1.
                  optimizer_class=torch.optim.Adam,
                  use_information_bottleneck=True,
                  use_next_obs_in_context=False,
