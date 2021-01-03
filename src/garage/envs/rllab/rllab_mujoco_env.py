@@ -11,7 +11,7 @@ from gym import Env
 
 from garage.misc.rllab import spaces, autoargs
 from garage.misc.rllab.box import Box
-from garage.misc.rllab.mjcore import MjModel
+from garage.misc.rllab.mjcore import MjModel, register_license
 from garage.misc.rllab.mjviewer import MjViewer
 
 MODEL_DIR = osp.abspath(
@@ -35,7 +35,7 @@ def q_mult(a, b):  # multiply two quaternion
     k = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]
     return [w, i, j, k]
 
-
+key_path =  osp.abspath(osp.join(osp.dirname(__file__),"mujoco131/bin/mjkey.txt"))
 class MujocoEnv(Env):
     FILE = None
 
@@ -44,6 +44,7 @@ class MujocoEnv(Env):
                        'proportional to the action bounds')
     def __init__(self, action_noise=0.0, file_path=None, template_args=None):
         # compile template
+        register_license(key_path)
         if file_path is None:
             if self.__class__.FILE is None:
                 raise Exception("Mujoco file not specified")
