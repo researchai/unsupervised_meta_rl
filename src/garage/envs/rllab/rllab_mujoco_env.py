@@ -35,7 +35,7 @@ def q_mult(a, b):  # multiply two quaternion
     k = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]
     return [w, i, j, k]
 
-key_path =  osp.abspath(osp.join(osp.dirname(__file__),"mujoco131/bin/mjkey.txt"))
+key_path =  osp.abspath(osp.join(osp.dirname(__file__),"../../misc/rllab/mujoco131/bin/mjkey.txt"))
 class MujocoEnv(Env):
     FILE = None
 
