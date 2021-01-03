@@ -17,7 +17,10 @@ def register_license(file_path):
     this does not check the return code, per usage example at simulate.cpp
     and test.cpp.
     """
+    print("in register_license:")
+    print(key_path)
     result = mjlib.mj_activate(file_path)
+    print(result)
     return result
 
 
