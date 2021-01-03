@@ -10,13 +10,14 @@ import mako.lookup
 from gym import Env
 
 from garage.misc.rllab import spaces, autoargs
+from garage.misc.rllab.box import Box
 from garage.misc.rllab.mjcore import MjModel
 from garage.misc.rllab.mjviewer import MjViewer
 
 MODEL_DIR = osp.abspath(
     osp.join(
         osp.dirname(__file__),
-        '../../../vendor/mujoco_models'
+        '../mujoco_models'
     )
 )
 
@@ -94,13 +95,13 @@ class MujocoEnv(Env):
         bounds = self.model.actuator_ctrlrange
         lb = bounds[:, 0]
         ub = bounds[:, 1]
-        return spaces.Box(lb, ub)
+        return Box(lb, ub)
 
     @cached_property
     def observation_space(self):
         shp = self.get_current_obs().shape
         ub = BIG * np.ones(shp)
-        return spaces.Box(ub * -1, ub)
+        return Box(ub * -1, ub)
 
     @property
     def action_bounds(self):
