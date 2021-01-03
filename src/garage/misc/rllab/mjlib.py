@@ -20,8 +20,8 @@ mjlib = cdll.LoadLibrary(libfile)
 
 mjlib.mj_loadXML.argtypes = [String, String, c_char_p, c_int]
 mjlib.mj_loadXML.restype = POINTER(MJMODEL)
-mjlib.mj_saveXML.argtypes = [String, POINTER(MJMODEL), String]
-mjlib.mj_saveXML.restype = c_int
+mjlib.mj_saveLastXML.argtypes = [String, POINTER(MJMODEL), String]
+mjlib.mj_saveLastXML.restype = c_int
 
 #mjlib.mj_printSchema.argtypes = [String, String, c_int, c_int, c_int]
 #mjlib.mj_printSchema.restype = c_int
