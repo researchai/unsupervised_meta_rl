@@ -9,9 +9,9 @@ import mako.template
 import mako.lookup
 from gym import Env
 
-from garage.misc_rllab import autoargs, spaces
-from garage.misc_rllab.mjcore import MjModel
-from garage.misc_rllab.mjviewer import MjViewer
+from garage.misc.rllab import spaces, autoargs
+from garage.misc.rllab.mjcore import MjModel
+from garage.misc.rllab.mjviewer import MjViewer
 
 MODEL_DIR = osp.abspath(
     osp.join(
@@ -222,7 +222,7 @@ class MujocoEnv(Env):
             self.viewer.finish()
 
     def release(self):
-        from garage.misc_rllab.mjlib import mjlib
+        from garage.misc.rllab.mjlib import mjlib
         # temporarily alleviate the issue (but still some leak)
         mjlib.mj_deleteModel(self.model._wrapped)
         mjlib.mj_deleteData(self.data._wrapped)

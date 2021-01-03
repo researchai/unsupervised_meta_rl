@@ -7,7 +7,7 @@ from functools import reduce
 import numpy as np
 from path import Path
 
-from garage.misc.console import colorize, Message
+from garage.misc.rllab.console import colorize, Message
 
 sys.setrecursionlimit(50000)
 

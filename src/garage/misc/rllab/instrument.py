@@ -17,10 +17,10 @@ from io import StringIO
 import dateutil.tz
 import numpy as np
 
-from garage.misc_rllab import config
-from garage.misc_rllab.console import mkdir_p
-from garage.misc_rllab.ext import AttrDict, flatten
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab import config
+from garage.misc.rllab.console import mkdir_p
+from garage.misc.rllab.ext import AttrDict, flatten
+from garage.misc.rllab.serializable import Serializable
 
 
 class StubBase(object):
@@ -723,7 +723,8 @@ def to_docker_command(params, docker_image, python_command="python", script='scr
         command_list.extend(pre_commands)
     command_list.append("echo \"Running in docker\"")
     command_list.append(to_local_command(
-        params, python_command=python_command, script=osp.join(config.DOCKER_CODE_DIR, script), use_gpu=use_gpu))
+        params, python_command=python_command, script=osp.join(
+            config.DOCKER_CODE_DIR, script), use_gpu=use_gpu))
     # We for 2 min sleep after termination to allow for last syncs.
     if post_commands is None:
         post_commands = ['sleep 120']

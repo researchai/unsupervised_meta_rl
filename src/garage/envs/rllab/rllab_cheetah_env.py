@@ -2,8 +2,8 @@ import numpy as np
 
 from garage.envs import Step
 from garage.envs.rllab.rllab_mujoco_env import MujocoEnv
-from garage.misc_rllab import logger
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab import logger
+from garage.misc.rllab.serializable import Serializable
 
 
 def smooth_abs(x, param):

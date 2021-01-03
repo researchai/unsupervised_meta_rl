@@ -1,4 +1,4 @@
-from garage.misc.serializable import Serializable
+from garage.misc.rllab.serializable import Serializable
 
 
 class EnvSpec(Serializable):

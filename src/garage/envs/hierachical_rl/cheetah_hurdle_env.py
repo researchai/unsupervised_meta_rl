@@ -4,7 +4,7 @@ import numpy as np
 
 from garage.envs.rllab.rllab_cheetah_env import HalfCheetahEnv
 from garage.envs.rllab.rllab_mujoco_env import MujocoEnv
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab.serializable import Serializable
 # from rllab.core.serializable import Serializable
 # from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 # from rllab.envs.mujoco.mujoco_env import MujocoEnv

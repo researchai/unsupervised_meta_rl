@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from garage.misc_rllab import spaces
-from garage.misc_rllab.env_spec import EnvSpec
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab import spaces
+from garage.misc.rllab.env_spec import EnvSpec
+from garage.misc.rllab.serializable import Serializable
 
 
 class MetaEnv(Serializable):

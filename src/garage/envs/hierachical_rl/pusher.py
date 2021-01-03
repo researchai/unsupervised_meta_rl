@@ -3,12 +3,12 @@ import os
 import numpy as np
 
 from garage.envs.rllab.rllab_mujoco_env import MujocoEnv
-from garage.misc_rllab import logger
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab import logger
+from garage.misc.rllab.serializable import Serializable
 
 PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..', '..')))
 MODELS_PATH = osp.abspath(osp.join(PROJECT_PATH, 'sac/mujoco_models'))
-import pickle
+
 
 class PusherEnv(MujocoEnv, Serializable):
     """Pusher environment

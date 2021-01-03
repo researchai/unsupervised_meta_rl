@@ -1,5 +1,5 @@
 """
-This script creates a test that tests functions in garage.misc_rllab.tensor_utils.
+This script creates a test that tests functions in garage.misc.tensor_utils.
 """
 
 import numpy as np

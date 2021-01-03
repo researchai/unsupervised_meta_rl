@@ -1,4 +1,3 @@
-from ctypes import create_string_buffer
 import ctypes
 from . import mjconstants as C
 

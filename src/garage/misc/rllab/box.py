@@ -1,9 +1,9 @@
 import numpy as np
 import torch
 
-from garage.misc_rllab import ext
+from garage.misc.rllab import ext
 
-from garage.misc_rllab.spaces import Space
+from garage.misc.rllab.spaces import Space
 
 
 class Box(Space):

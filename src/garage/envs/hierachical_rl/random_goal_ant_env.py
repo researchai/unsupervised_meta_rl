@@ -1,12 +1,12 @@
 """Implements a ant which is sparsely rewarded for reaching a goal"""
 
 import numpy as np
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab.serializable import Serializable
 from .helpers import random_point_in_circle, get_random_goal_logs
 from .. import Step
 from ..rllab.rllab_ant_env import AntEnv
 from ..rllab.rllab_mujoco_env import MujocoEnv
-from ...misc_rllab import autoargs, logger
+from ...misc.rllab import logger, autoargs
 
 REWARD_TYPES = ('dense', 'sparse')
 

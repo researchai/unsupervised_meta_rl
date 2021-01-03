@@ -5,7 +5,7 @@ from threading import Lock
 
 import OpenGL.GL as gl
 
-from . import mjcore, mjconstants, glfw
+from . import mjcore, glfw, mjconstants
 from .mjlib import mjlib
 
 logger = logging.getLogger(__name__)
@@ -247,7 +247,7 @@ class MjViewer(object):
 
         # get shift key state
         mod_shift = glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS \
-                or glfw.get_key(window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
+                    or glfw.get_key(window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
 
         # determine action based on mouse button
         action = None
@@ -268,11 +268,11 @@ class MjViewer(object):
     def handle_mouse_button(self, window, button, act, mods):
         # update button state
         self._button_left_pressed = \
-                glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS
         self._button_middle_pressed = \
-                glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_MIDDLE) == glfw.PRESS
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_MIDDLE) == glfw.PRESS
         self._button_right_pressed = \
-                glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS
 
         # update mouse position
         x, y = glfw.get_cursor_pos(window)
@@ -301,7 +301,7 @@ class MjViewer(object):
 
         # scroll
         self.gui_lock.acquire()
-        mjlib.mjv_moveCamera(mjconstants.MOUSE_ZOOM, 0, (-20*y_offset), byref(self.cam), width, height)
+        mjlib.mjv_moveCamera(mjconstants.MOUSE_ZOOM, 0, (-20 * y_offset), byref(self.cam), width, height)
         self.gui_lock.release()
 
     def should_stop(self):

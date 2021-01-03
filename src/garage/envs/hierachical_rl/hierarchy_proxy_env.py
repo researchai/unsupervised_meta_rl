@@ -2,7 +2,7 @@
 
 from rllab.envs.proxy_env import ProxyEnv
 
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab.serializable import Serializable
 
 
 class HierarchyProxyEnv(ProxyEnv):

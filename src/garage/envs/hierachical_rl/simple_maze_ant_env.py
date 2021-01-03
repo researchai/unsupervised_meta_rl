@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from garage.misc_rllab.serializable import Serializable
+from garage.misc.rllab.serializable import Serializable
 from .random_goal_ant_env import RandomGoalAntEnv
 
 PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))

@@ -2,9 +2,9 @@ import numpy as np
 import math
 
 from garage.envs.rllab.rllab_mujoco_env import MujocoEnv, q_mult, q_inv
-from garage.misc.base import Step
-from garage.misc import logger
-from garage.misc.serializable import Serializable
+from garage.misc.rllab.base import Step
+from garage.misc.rllab import logger
+from garage.misc.rllab.serializable import Serializable
 
 
 class AntEnv(MujocoEnv, Serializable):

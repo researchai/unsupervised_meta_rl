@@ -1,4 +1,4 @@
-from garage.misc_rllab.console import colorize
+from garage.misc.rllab.console import colorize
 import inspect
 
 
