@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 from gym import utils
-from gym.envs.mujoco import mujoco_env
+from garage.envs.hierarchical_rl_gym import mujoco_env
 import mujoco_py
 import cv2
 
