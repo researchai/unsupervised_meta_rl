@@ -3,7 +3,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-from gym.envs.mujoco.jaco import JacoEnv
+from garage.envs.hierarchical_rl_gym.jaco import JacoEnv
 
 
 # Pick-and-pick

@@ -3,7 +3,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-from gym.envs.mujoco.walker2d import Walker2dEnv
+from garage.envs.hierarchical_rl_gym.walker2d import Walker2dEnv
 
 
 # Forward and jump
@@ -39,7 +39,7 @@ class Walker2dHurdleEnvV0(Walker2dEnv):
             self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
         )
         return self._get_obs()
-    
+
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 2
         self.viewer.cam.distance = self.model.stat.extent * 0.5

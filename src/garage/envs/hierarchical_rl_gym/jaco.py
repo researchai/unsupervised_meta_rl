@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym.envs.mujoco import BaseEnv
+from garage.envs.hierarchical_rl_gym.base_env import BaseEnv
 
 
 class JacoEnv(BaseEnv):
