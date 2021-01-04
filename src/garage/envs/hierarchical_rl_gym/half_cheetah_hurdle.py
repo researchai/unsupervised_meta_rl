@@ -7,7 +7,7 @@ import mujoco_py
 import cv2
 
 PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))
-MODEL_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'assets/half_cheetah_hurdle.xml'))
+MODEL_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'hierarchical_rl_gym/assets/half_cheetah_hurdle.xml'))
 
 class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
