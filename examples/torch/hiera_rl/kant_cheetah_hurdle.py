@@ -1,7 +1,7 @@
 import faulthandler
 import os
 
-from garage.envs.hierachical_rl.cheetah_hurdle_env import HalfCheetahHurdleEnv
+from garage.envs.hierarchical_rl_gym import HalfCheetahEnv_Hurdle
 from garage.torch.algos.kant import Kant
 
 faulthandler.enable()
@@ -116,7 +116,7 @@ def kant_cheetah_hurdle(ctxt=None,
                             encoder_hidden_size)
 
     ML_train_envs = [DiaynEnvWrapper(task_proposer, skills_num, task_name,
-                                     normalize(HalfCheetahHurdleEnv()))
+                                     normalize(HalfCheetahEnv_Hurdle()))
                      for task_name in range(skills_num)]
 
     env_sampler = EnvPoolSampler(ML_train_envs)
