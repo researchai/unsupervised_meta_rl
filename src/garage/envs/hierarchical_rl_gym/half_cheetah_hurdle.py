@@ -7,7 +7,7 @@ import mujoco_py
 import cv2
 
 PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))
-MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'assets'))
+MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, '/assets'))
 
 class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
