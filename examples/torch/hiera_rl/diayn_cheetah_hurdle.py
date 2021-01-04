@@ -8,7 +8,8 @@ import garage.torch.utils as tu
 from garage import wrap_experiment
 from garage.envs import GarageEnv
 from garage.envs import normalize
-from garage.envs.hierachical_rl.cheetah_hurdle_env import HalfCheetahHurdleEnv
+from garage.envs.hierarchical_rl_gym.half_cheetah_hurdle import \
+    HalfCheetahEnv_Hurdle
 from garage.experiment import deterministic, LocalRunner
 from garage.replay_buffer import PathBuffer
 from garage.sampler import SkillWorker
@@ -24,7 +25,7 @@ def diayn_cheetah_hurdle(ctxt=None, seed=1):
 
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
-    env = GarageEnv(normalize(HalfCheetahHurdleEnv()))
+    env = GarageEnv(normalize(HalfCheetahEnv_Hurdle()))
     skills_num = 10
 
     policy = TanhGaussianMLPSkillPolicy(
