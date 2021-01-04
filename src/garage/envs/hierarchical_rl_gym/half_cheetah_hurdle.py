@@ -7,13 +7,13 @@ import mujoco_py
 import cv2
 
 PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))
-MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, '/assets'))
+MODEL_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'assets/half_cheetah_hurdle.xml'))
 
 class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
 
         self.interval_time = 0
-        mujoco_env.MujocoEnv.__init__(self, MODELS_PATH+'half_cheetah_hurdle.xml', 5)
+        mujoco_env.MujocoEnv.__init__(self, MODEL_PATH, 5)
         utils.EzPickle.__init__(self)
         self.ob_type = ['joint']
         self.ob_shape = {'joint': [self.observation_space.shape[0]]}
