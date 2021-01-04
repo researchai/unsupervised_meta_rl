@@ -1,14 +1,19 @@
+import os
+
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 import mujoco_py
 import cv2
 
+PROJECT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__, '..')))
+MODELS_PATH = os.path.abspath(os.path.join(PROJECT_PATH, 'assets'))
+
 class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
 
         self.interval_time = 0
-        mujoco_env.MujocoEnv.__init__(self, 'half_cheetah_hurdle.xml', 5)
+        mujoco_env.MujocoEnv.__init__(self, MODELS_PATH+'half_cheetah_hurdle.xml', 5)
         utils.EzPickle.__init__(self)
         self.ob_type = ['joint']
         self.ob_shape = {'joint': [self.observation_space.shape[0]]}
@@ -79,7 +84,7 @@ class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
         #     # curb_obs,
         #     # self.sim.data.qpos
         # ])
-    
+
     def get_ob_dict(self, ob):
         if len(ob.shape) > 1:
             return {
@@ -88,7 +93,7 @@ class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
         return {
             'joint': ob[:],
         }
-    
+
 
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(low=-.1, high=.1, size=self.model.nq)
