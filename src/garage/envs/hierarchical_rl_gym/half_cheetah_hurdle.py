@@ -116,7 +116,8 @@ class HalfCheetahEnv_Hurdle(mujoco_env.MujocoEnv, utils.EzPickle):
 
     # TODO LJX add camera_name=camera_name
     def _get_viewer(self): # , mode): # , camera_name=None):
-        mode = "human"
+        #mode = "human"
+        mode = "rgb_array"
         self.viewer = self._viewers.get(mode)
         if self.viewer is None:
             if mode == 'human':
