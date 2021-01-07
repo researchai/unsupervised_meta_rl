@@ -591,9 +591,6 @@ class SkillTrajectoryBatch(collections.namedtuple('SkillTrajectoryBatch', [
         first_state = states[0]
         first_action = actions[0]
         inferred_batch_size = lengths.sum()
-        print("inferred_batch_size: lengths.sum(): {}".format(lengths.sum()))
-        print(lengths)
-        print()
 
         if len(lengths.shape) != 1:
             raise ValueError(

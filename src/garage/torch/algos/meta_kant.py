@@ -743,9 +743,6 @@ class KantWorker(DefaultWorker):
             if not d:
                 self._prev_obs = next_obs
                 return False
-        print("in step_rollout at kant worker class")
-        print(self._lengths)
-        print()
         self._lengths.append(self._path_length)
         self._last_states.append(self._prev_obs)
         return True
@@ -794,14 +791,8 @@ class KantWorker(DefaultWorker):
             self.agent.sample_from_belief()
         self.start_rollout(skill)
         while not self.step_rollout():
-            print("in while from rollout at kant worker class")
-            print(self._lengths)
-            print()
             pass
         if isinstance(self.agent, self._controller_class):
             self._agent_infos['context'] = [self.agent.z.detach().cpu().numpy()
                                             ] * sum(self._lengths)
-        print("in rollout at kant worker class")
-        print(self._lengths)
-        print()
         return self.collect_rollout()
