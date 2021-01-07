@@ -180,10 +180,12 @@ class Kant(RLAlgorithm):
             epoch = runner.step_itr / self._num_steps_per_epoch
 
             if epoch == 0 or self._is_resuming:
+                logger.log("Initial sampling: skills")
                 for idx in range(self._num_skills):
                     self._skill_idx = idx
                     self._obtain_skill_samples(runner, epoch,
                                                self._num_initial_steps)
+                logger.log("Initial sampling: training tasks")
                 for idx in range(self._num_train_tasks):
                     self._task_idx = idx
                     self._obtain_task_samples(runner, epoch,
