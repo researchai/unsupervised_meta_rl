@@ -1,6 +1,4 @@
 import copy
-import sys
-from collections import defaultdict
 
 import akro
 import numpy as np
@@ -9,15 +7,15 @@ import torch.nn.functional as F
 from dowel import logger
 
 import garage.torch.utils as tu
-from garage import SkillTrajectoryBatch, InOutSpec, SkillTimeStep
+from garage import InOutSpec
 from garage.envs import EnvSpec
 from garage.np.algos import RLAlgorithm
 from garage.replay_buffer import PathBuffer
-from garage.sampler import DefaultWorker
 from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy, GaussianContextEncoder
 
+BATCH_PRINT = 100
 
 class Kant(RLAlgorithm):
     def __init__(self,
@@ -240,14 +238,20 @@ class Kant(RLAlgorithm):
         return self._average_rewards
 
     def _skills_reason_train_once(self):
-        for _ in range(self._num_steps_per_epoch):
-            self._skills_reason_optimize_policy()
+        for idx in range(self._num_steps_per_epoch):
+            kl_loss, policy_loss = self._skills_reason_optimize_policy()
+            if idx % BATCH_PRINT == 0:
+                logger.log("skill reason at batch % with kl loss % and policy loss".format(idx, kl_loss, policy_loss))
+
 
     def _tasks_adapt_train_once(self):
-        for _ in range(self._num_steps_per_epoch):
+        for idx in range(self._num_steps_per_epoch):
             indices = np.random.choice(range(self._num_train_tasks),
                                        self._meta_batch_size)
-            self._tasks_adapt_optimize_policy(indices)
+            kl_loss, value_loss, policy_loss = self._tasks_adapt_optimize_policy(indices)
+            if idx % BATCH_PRINT == 0:
+                logger.log("task adapt at batch % with kl_loss %, value loss % and policy loss %".format(idx, kl_loss, value_loss, policy_loss))
+
 
     def _skills_reason_optimize_policy(self):
         self._controller.reset_belief()
@@ -285,6 +289,7 @@ class Kant(RLAlgorithm):
         self._controller_optimizer.zero_grad()
         policy_loss.backward()
         self._controller_optimizer.step()
+        return kl_loss.item(), policy_loss.item()
 
     def _tasks_adapt_optimize_policy(self, indices):
         num_tasks = len(indices)
@@ -374,6 +379,8 @@ class Kant(RLAlgorithm):
         self._controller_optimizer.zero_grad()
         policy_loss.backward()
         self._controller_optimizer.step()
+
+        return kl_loss.item(), vf_loss.item(), policy_loss.item()
 
     def _obtain_skill_samples(self,
                               runner,
@@ -642,140 +649,3 @@ class Kant(RLAlgorithm):
             update_posterior_rate=1,
             add_to_enc_buffer=False,
             is_eval=True)
-
-
-class KantWorker(DefaultWorker):
-    def __init__(self,
-                 *,
-                 seed,
-                 max_path_length,
-                 worker_number,
-                 num_skills,
-                 skill_actor_class,
-                 controller_class,
-                 deterministic=False,
-                 accum_context=True):
-        super().__init__(seed=seed,
-                         max_path_length=max_path_length,
-                         worker_number=worker_number)
-        self._deterministic = deterministic
-        self._accum_context = accum_context
-        self._controller_class = controller_class
-        self._skill_actor_class = skill_actor_class
-        self._num_skills = num_skills
-        self._skills = []
-        self._states = []
-        self._last_states = []
-        self._cur_z = None
-        self._prev_obs = None
-
-    def start_rollout(self, skill=None):
-        if isinstance(self.agent, self._skill_actor_class):
-            if skill is None:
-                prob_skill = np.full(self._num_skills, 1.0 / self._num_skills)
-                self._cur_z = np.random.choice(self._num_skills, p=prob_skill)
-            else:
-                self._cur_z = skill
-        elif isinstance(self.agent, self._controller_class):
-            pass
-        else:
-            raise ValueError("Agent in KantWorker has been updated to an"
-                             "unknown class")
-        self._path_length = 0
-        self._prev_obs = self.env.reset()
-
-    def step_rollout(self):
-        if self._path_length < self._max_path_length:
-            if isinstance(self.agent, self._skill_actor_class):
-                z_onehot = np.eye(self._num_skills)[self._cur_z]
-                a, agent_info = self.agent.get_action(self._prev_obs, z_onehot)
-            elif isinstance(self.agent, self._controller_class):
-                a, self._cur_z, agent_info = self.agent.get_action(self._prev_obs)
-                self._cur_z = int(self._cur_z[0])  # get rid of [] [1]
-                if self._deterministic:  # not supported
-                    a = agent_info['mean']
-            else:
-                raise ValueError("Agent in KantWorker has been updated to an"
-                                 "unknown class")
-            next_obs, r, d, env_info = self.env.step(a)
-            self._states.append(self._prev_obs)
-            self._rewards.append(r)
-            self._actions.append(a)
-            self._skills.append(self._cur_z)
-            for k, v in agent_info.items():
-                if k == "dist":
-                    continue
-                self._agent_infos[k].append(v)
-            for k, v in env_info.items():
-                self._env_infos[k].append(v)
-            self._path_length += 1
-            self._terminals.append(d)
-            np.set_printoptions(threshold=sys.maxsize)
-            if isinstance(self.agent, self._controller_class) and self._accum_context:
-                s = SkillTimeStep(env_spec=self.env,
-                                  state=self._prev_obs,
-                                  next_state=next_obs,
-                                  skill=self._cur_z,
-                                  num_skills=self._num_skills,
-                                  action=a,
-                                  reward=float(r),
-                                  terminal=d,
-                                  env_info=env_info,
-                                  agent_info=agent_info)
-                self.agent.update_context(s)
-            if not d:
-                self._prev_obs = next_obs
-                return False
-        self._lengths.append(self._path_length)
-        self._last_states.append(self._prev_obs)
-        return True
-
-    def collect_rollout(self):
-        states = self._states
-        self._states = []
-        last_states = self._last_states
-        self._last_states = []
-        skills = self._skills
-        self._skills = []
-        actions = self._actions
-        self._actions = []
-        rewards = self._rewards
-        self._rewards = []
-        terminals = self._terminals
-        self._terminals = []
-        env_infos = self._env_infos
-        self._env_infos = defaultdict(list)
-        agent_infos = self._agent_infos
-        self._agent_infos = defaultdict(list)
-        for k, v in agent_infos.items():
-            if k == "dist":
-                continue
-            agent_infos[k] = np.asarray(v)
-        for k, v in env_infos.items():
-            env_infos[k] = np.asarray(v)
-        lengths = self._lengths
-        self._lengths = []
-
-        # print(np.asarray(skills))
-        return SkillTrajectoryBatch(env_spec=self.env.spec,
-                                    num_skills=self._num_skills,
-                                    skills=np.asarray(skills).reshape((np.asarray(skills).shape[0],)),
-                                    states=np.asarray(states),
-                                    last_states=np.asarray(last_states),
-                                    actions=np.asarray(actions),
-                                    env_rewards=np.asarray(rewards),  # env_rewards
-                                    terminals=np.asarray(terminals),
-                                    env_infos=dict(env_infos),
-                                    agent_infos=dict(agent_infos),
-                                    lengths=np.asarray(lengths, dtype='i'))
-
-    def rollout(self, skill=None):
-        if isinstance(self.agent, self._controller_class):
-            self.agent.sample_from_belief()
-        self.start_rollout(skill)
-        while not self.step_rollout():
-            pass
-        if isinstance(self.agent, self._controller_class):
-            self._agent_infos['context'] = [self.agent.z.detach().cpu().numpy()
-                                            ] * self._max_path_length
-        return self.collect_rollout()

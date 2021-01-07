@@ -10,9 +10,6 @@ class CategoricalMLPPolicy(Policy, MLPModule):
     def __init__(self, env_spec, name="CategoricalMLPPolicy", **kwargs):
         self._obs_dim = env_spec.input_space.flat_dim
         self._action_dim = env_spec.output_space.flat_dim
-        # print("CategoricalMLPPolicy dims:")
-        # print(self._obs_dim)  # 10
-        # print(self._action_dim)  # 25
 
         Policy.__init__(self, env_spec, name)
         MLPModule.__init__(self, input_dim=self._obs_dim,
@@ -36,34 +33,12 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             actions = np.array([np.random.choice(self._action_dim,
                                                  p=dist.numpy()[idx])
                                 for idx in range(dist.numpy().shape[0])])
-            # print("categorical")
-            # print(dist.shape)
-            # print(actions.shape)
-            # print("in get_actions")
-            # print("acions")
-            # print(actions.shape)
-            # print(actions)
-            # print("dist")
-            # print(dist.size())
-            # print(dist)
-
             ret_mean = np.mean(dist.numpy())
             ret_log_std = np.log((np.std(dist.numpy())))
 
             len = actions.shape[0]
             ret_log_pi = np.log(dist[np.arange(len), actions])
 
-            # print("reg_mean")
-            # print(ret_mean.shape)
-            # print(ret_mean)
-
-            # print("reg_log_std")
-            # print(ret_log_std.shape)
-            # print(ret_log_std)
-
-            print("ret_log_std")
-            print(ret_log_pi.shape)
-            print(ret_log_pi)
             return (actions, dict(mean=ret_mean, log_std=ret_log_std,
                                   log_pi=ret_log_pi, dist=dist))
 
@@ -72,23 +47,18 @@ class CategoricalMLPPolicy(Policy, MLPModule):
             if not isinstance(state, torch.Tensor):
                 state = torch.from_numpy(state).float().to(
                     tu.global_device())
-            #print(state.size())
-            #print(state)
+
             state = state.to(tu.global_device())
             dist = self.forward(state.unsqueeze(0)).squeeze(0).to('cpu').detach()
-            #print(dist.size())
-            #print(dist)
-            #print()
+
+            # action = torch.tensor([torch.rsample()])
             action = np.array([np.random.choice(self._action_dim,
                                                 p=dist.squeeze(0).numpy())])
-            # print("categorical")
-            # print(dist.shape)
-            # print(action.shape)
+
             ret_mean = np.mean(dist.numpy())
             ret_log_std = np.log((np.std(dist.numpy())))
             ret_log_pi = np.log(dist[..., list(action)])
-            # print("in get_action from categorical mlp")
-            # print(dist.size())
+
             return (action, dict(mean=ret_mean, log_std=ret_log_std,
                                  log_pi=ret_log_pi, dist=dist))
 

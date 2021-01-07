@@ -45,11 +45,11 @@ param_train_tasks_num = skills_num  # 100
 param_test_tasks_num = 5  # skills_num / 2  # 30
 param_encoder_hidden_size = 200
 param_net_size = 300
-param_num_steps_per_epoch = 500
-param_num_initial_steps = 500
-param_num_skills_reason_steps = 500
-param_num_steps_prior = 400
-param_num_extra_rl_steps_posterior = 600
+param_num_steps_per_epoch = 300
+param_num_initial_steps = 300
+param_num_skills_reason_steps = 300
+param_num_steps_prior = 300
+param_num_extra_rl_steps_posterior = 300
 param_num_skills_sample = 10
 param_batch_size = 256
 param_embedding_batch_size = 100
@@ -82,7 +82,7 @@ param_use_gpu = True
 @click.option('--embedding_mini_batch_size',
               default=param_embedding_mini_batch_size)
 @click.option('--max_path_length', default=param_max_path_length)
-@wrap_experiment(snapshot_mode='gap and last', snapshot_gap=100)
+@wrap_experiment(snapshot_mode='gap_and_last', snapshot_gap=100)
 def kant_cheetah_hurdle(ctxt=None,
                           seed=seed,
                           num_skills=skills_num,
