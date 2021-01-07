@@ -15,7 +15,7 @@ from garage.torch.embeddings import MLPEncoder
 from garage.torch.policies.context_conditioned_controller_policy import \
     OpenContextConditionedControllerPolicy, GaussianContextEncoder
 
-BATCH_PRINT = 100
+BATCH_PRINT = 20
 
 class Kant(RLAlgorithm):
     def __init__(self,
@@ -217,7 +217,7 @@ class Kant(RLAlgorithm):
                                               self._num_steps_posterior,
                                               self._update_post_train)
                 # obtain extras samples for RL training but not encoder
-                logger.log("Obtaining extra samples for RL traing but not encoder")
+                logger.log("Obtaining extra samples for RL training but not encoder")
                 if self._num_extra_rl_steps_posterior > 0:
                     self._obtain_task_samples(runner,
                                               epoch,
@@ -241,7 +241,7 @@ class Kant(RLAlgorithm):
         for idx in range(self._num_steps_per_epoch):
             kl_loss, policy_loss = self._skills_reason_optimize_policy()
             if idx % BATCH_PRINT == 0:
-                logger.log("skill reason at batch % with kl loss % and policy loss".format(idx, kl_loss, policy_loss))
+                logger.log("skill reason at batch {} with kl loss {} and policy loss {}".format(idx, kl_loss, policy_loss))
 
 
     def _tasks_adapt_train_once(self):
@@ -250,7 +250,7 @@ class Kant(RLAlgorithm):
                                        self._meta_batch_size)
             kl_loss, value_loss, policy_loss = self._tasks_adapt_optimize_policy(indices)
             if idx % BATCH_PRINT == 0:
-                logger.log("task adapt at batch % with kl_loss %, value loss % and policy loss %".format(idx, kl_loss, value_loss, policy_loss))
+                logger.log("task adapt at batch {} with kl_loss {}, value loss {} and policy loss {}".format(idx, kl_loss, value_loss, policy_loss))
 
 
     def _skills_reason_optimize_policy(self):
