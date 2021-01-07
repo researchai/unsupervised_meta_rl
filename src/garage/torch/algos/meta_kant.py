@@ -795,4 +795,7 @@ class KantWorker(DefaultWorker):
         if isinstance(self.agent, self._controller_class):
             self._agent_infos['context'] = [self.agent.z.detach().cpu().numpy()
                                             ] * self._max_path_length
+        print("in rollout at kant worker class")
+        print(self._lengths)
+        print()
         return self.collect_rollout()
