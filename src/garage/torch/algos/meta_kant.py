@@ -794,6 +794,9 @@ class KantWorker(DefaultWorker):
             self.agent.sample_from_belief()
         self.start_rollout(skill)
         while not self.step_rollout():
+            print("in while from rollout at kant worker class")
+            print(self._lengths)
+            print()
             pass
         if isinstance(self.agent, self._controller_class):
             self._agent_infos['context'] = [self.agent.z.detach().cpu().numpy()
