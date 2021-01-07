@@ -40,12 +40,12 @@ class DIAYN(SAC):
                  steps_per_epoch=1,
                  num_evaluation_trajectories=10,
                  eval_env=None,
-                 time_per_render=60,
+                 time_per_render=90,
                  recorded=False,
                  is_gym_render=True,
                  media_save_path='diayn_tmp/',
                  media_record_epoch=100,
-                 steps_skip_per_second=40):
+                 steps_skip_per_second=80):
 
         super().__init__(env_spec=env_spec,
                          policy=policy,

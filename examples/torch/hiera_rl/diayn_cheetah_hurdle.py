@@ -26,7 +26,7 @@ def diayn_cheetah_hurdle(ctxt=None, seed=1):
     deterministic.set_seed(seed)
     runner = LocalRunner(snapshot_config=ctxt)
     env = GarageEnv(normalize(HalfCheetahEnv_Hurdle()))
-    skills_num = 10
+    skills_num = 6
 
     policy = TanhGaussianMLPSkillPolicy(
         env_spec=env.spec,
@@ -50,7 +50,7 @@ def diayn_cheetah_hurdle(ctxt=None, seed=1):
 
     discriminator = MLPDiscriminator(env_spec=env.spec,
                                      skills_num=skills_num,
-                                     hidden_sizes=[64, 64],
+                                     hidden_sizes=[256, 256],
                                      hidden_nonlinearity=F.relu)
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
@@ -80,7 +80,7 @@ def diayn_cheetah_hurdle(ctxt=None, seed=1):
     worker_args = {"skills_num": skills_num}
     runner.setup(algo=diayn, env=env, sampler_cls=LocalSkillSampler,
                  worker_class=SkillWorker, worker_args=worker_args)
-    runner.train(n_epochs=1000, batch_size=1000)
+    runner.train(n_epochs=1500, batch_size=1000)
 
 
 s = np.random.randint(0, 1000)
